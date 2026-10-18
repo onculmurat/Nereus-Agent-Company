@@ -32,7 +32,9 @@ PostToolUse / SendMessage:
 - message id: `tool_use_id`.
 - sender: `agent_id` and `agent_type` are present only when an agent sends; absent when the lead sends. No sender *name* is given (only the opaque `agent_id`). The recipient's id is in `tool_response.pin.id` with name `tool_response.pin.name`.
 
-TaskCompleted, TeammateIdle: pending.
+TeammateIdle (live test, interactive session): `agent_id`, `agent_type`, `cwd`, `hook_event_name`, `permission_mode`, `prompt_id`, `scratchpad_dir`, `session_id`, `team_name`, `teammate_name`, `transcript_path`.
+
+TaskCompleted: never fired. In the interactive live tests neither the lead nor any teammate was offered native team task tools, so no task was ever completed. The hook stays as it is and runs if a later Claude Code version offers these tools; until then the lead's review on the board is the only completion gate.
 
 ## Ruling
 
@@ -41,4 +43,4 @@ TaskCompleted, TeammateIdle: pending.
 
 ## Pending
 
-One interactive session with agent teams (the owner) to record `TaskCompleted` and `TeammateIdle` payloads and confirm team-tool sends hit the same hook. Until then, `task-completed.js` and `teammate-idle.js` read the fields documented in the Claude Code hooks reference, and their tests use hand-written fixtures marked `synthetic` in the file name.
+Done by the live tests in `tests/live/`: teammate sends hit the same hook and `TeammateIdle` carries `teammate_name`. `TaskCompleted` could not be recorded (no task tools, see above), so its tests still use the hand-written `synthetic` fixture.

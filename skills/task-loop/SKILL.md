@@ -22,5 +22,5 @@ The board (`team/work/board.md`) is the source of truth. A task whose board stat
 ## Never
 
 - Never run two implementers on the same files at once.
-- Never mark `done` without an approved review and a hand-off note (the `TaskCompleted` hook also checks this in team mode).
+- Never mark `done` without an approved review and a hand-off note (the `TaskCompleted` hook also checks this in team mode, when Claude Code offers native team task tools).
 - Never let a role decide a product or design question; it comes to you as an owner question.

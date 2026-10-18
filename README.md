@@ -157,6 +157,7 @@ Limits you should know:
 - Teammates are not restored on `/resume`. The lead rebuilds from the board, mailbox and hand-offs and respawns the roles it needs.
 - A teammate's model is fixed when it is spawned; raising it means respawning the role.
 - The lead's model is your session model. Use `/model opus`.
+- The `TaskCompleted` hook (a team task may close only when the board says done) runs only when Claude Code offers native team task tools. In the live tests on Claude Code 2.1.302 no session had these task tools, so the hook never fired; the lead's review on the board is what stops early "done".
 - Agent teams is an experimental Claude Code feature (`CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS`).
 
 ## Safety rules

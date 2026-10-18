@@ -39,7 +39,7 @@ Ask the owner, one question at a time: the idea (what it is), the competitors or
 
 ## Phase 3: Design
 
-Team mode. Spawn `architect` and `security-reviewer` as named teammates. Title every native team task `<board-id>: <title>` (for example `T-004: Write the API contract`), so the completion hook can check it against the board. The architect writes the spec and the contracts in `team/contracts/`; the security reviewer writes the threat model and reviews the spec; they question each other directly. Every product or design choice they raise comes to you as an owner question. Output: spec, contracts, threat model. Owner approval required.
+Team mode. Spawn `architect` and `security-reviewer` as named teammates. If you have native team task tools, title every native team task `<board-id>: <title>` (for example `T-004: Write the API contract`), so the completion hook can check it against the board; without them, track the work on the board only. The architect writes the spec and the contracts in `team/contracts/`; the security reviewer writes the threat model and reviews the spec; they question each other directly. Every product or design choice they raise comes to you as an owner question. Output: spec, contracts, threat model. Owner approval required.
 
 ## Phase 4: Planning
 
@@ -51,7 +51,7 @@ Subagent mode. Run the skill `task-loop` for every board entry that is not `done
 
 ## Phase 6: Final check
 
-Team mode. Spawn `final-reviewer` and `security-reviewer` as named teammates on the whole branch since the phase started, with native team tasks titled `<board-id>: <title>`. Route each finding to the owning role as a board task and run it through `task-loop`. Output: findings and fixes. Owner approval required.
+Team mode. Spawn `final-reviewer` and `security-reviewer` as named teammates on the whole branch since the phase started. If you have native team task tools, title their tasks `<board-id>: <title>`; without them, track the work on the board only. Route each finding to the owning role as a board task and run it through `task-loop`. Output: findings and fixes. Owner approval required.
 
 If team mode is not available (agent teams is off or a teammate spawn fails), tell the owner, then fall back to subagents: run the same roles as one-shot subagents and carry their questions to each other yourself through the mailbox.
 

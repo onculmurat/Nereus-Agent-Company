@@ -157,6 +157,7 @@ Bilmeniz gereken sınırlar:
 - Ekip üyeleri `/resume` ile geri gelmez. Lider panodan, posta kutusundan ve devir notlarından durumu kurar ve gereken rolleri yeniden başlatır.
 - Bir ekip üyesinin modeli başlatıldığında sabitlenir; yükseltmek rolü yeniden başlatmak demektir.
 - Liderin modeli oturum modelinizdir. `/model opus` kullanın.
+- `TaskCompleted` hook'u (bir ekip görevi ancak panoda bitti görünüyorsa kapanır) yalnız Claude Code yerel ekip görev araçları sunduğunda çalışır. Claude Code 2.1.302 ile yapılan canlı testlerde hiçbir oturumda bu görev araçları yoktu, bu yüzden hook hiç tetiklenmedi; erken "bitti"yi panodaki lider incelemesi durdurur.
 - Agent teams, Claude Code'un deneysel bir özelliğidir (`CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS`).
 
 ## Güvenlik kuralları

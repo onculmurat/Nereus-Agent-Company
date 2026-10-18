@@ -99,6 +99,16 @@ test('O-I6 TaskCompleted block sends the teammate to the lead, not to the board'
   assert.match(read('prompts', 'lead.md'), /<board-id>: <title>/);
 });
 
+// Live test L6: no session offered native task tools, so TaskCompleted never fired.
+test('L6 task titles are asked for only when task tools exist, and the limit is documented', () => {
+  const lead = read('prompts', 'lead.md');
+  for (const line of lead.split('\n').filter((l) => l.includes('<board-id>: <title>'))) {
+    assert.match(line, /if you have native team task tools/i, line.slice(0, 80));
+  }
+  assert.match(read('README.md'), /TaskCompleted[^\n]*task tools/);
+  assert.match(read('README.tr.md'), /TaskCompleted[^\n]*görev araçları/);
+});
+
 // O-M1
 test('O-M1 front matter with a UTF-8 BOM parses', () => {
   assert.equal(parseFrontmatter('\uFEFF---\nid: x\n---\nbody').data.id, 'x');
