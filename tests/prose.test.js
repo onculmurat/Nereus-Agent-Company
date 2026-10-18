@@ -81,6 +81,20 @@ test('lead prompt ends phase 1 with recommendations tied to the brief', () => {
   assert.match(report, /\*\*Next:\*\*/);
 });
 
+// The lead verifies the research with a script before reporting, so the formats it checks must be in the role files.
+test('phase 1 research is checked by research-check.js before the report', () => {
+  const report = read('skills', 'phase-report', 'SKILL.md');
+  assert.match(report, /scripts\/research-check\.js|<scripts>\/research-check\.js/);
+  assert.match(report, /only when it passes/i);
+  for (const role of ['researcher', 'finance-analyst']) {
+    const agent = read('agents', `${role}.md`);
+    assert.match(agent, /`\[[A-Z]\d+\]`/, role);
+    assert.match(agent, /sources\.md/, role);
+  }
+  assert.match(read('agents', 'finance-analyst.md'), /## Competitor pricing/);
+  assert.match(read('agents', 'finance-analyst.md'), /\| Competitor \| Price \| Sources \| Pages checked \|/);
+});
+
 test('lead prompt shows the owner the research sources', () => {
   const lead = read('prompts', 'lead.md');
   const phase1 = lead.split('## Phase 1')[1].split('\n## ')[0];

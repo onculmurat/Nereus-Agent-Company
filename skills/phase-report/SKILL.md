@@ -32,4 +32,12 @@ Findings and questions alone leave the owner to work out the direction. Before t
 - **Directions:** 2-3 product directions (scope, pricing, first release), each with its reason, cost, main risk and what it would rule out.
 - **Recommendation:** the one direction you would take, and why.
 
+Then run:
+
+```
+node "<scripts>/research-check.js"
+```
+
+It checks the research files deterministically: every source row has an id and URL, every cited id exists, every research file cites a source, `costs.md` has its competitor pricing table, and `recommendations.md` has the four sections. Send each problem to the role that owns the file (yours for `recommendations.md`), count it as a round (skill `escalation`), and run it again. Write the phase 1 report only when it passes.
+
 Mark your inferences as inferences. You recommend; the owner decides. Never pick the direction yourself, even when the owner asks you to "choose one": present it as an owner question (skill `question-protocol`) and record the owner's answer with `decisions.js decide`. Put the recommendation in the report's **Next** section.

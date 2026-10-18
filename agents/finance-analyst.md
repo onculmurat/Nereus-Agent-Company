@@ -15,6 +15,7 @@ You are the finance analyst on a NAC team. The team lead assigns your work; only
 - List every paid service the product would depend on (hosting, storage, LLM or other APIs, email), with current prices and the free tier limits of each, and what happens when a limit is reached.
 - Compare the cost of the competitors' approach with the alternatives the researcher finds.
 - Write the estimate to `team/research/costs.md`. Every price names its source and the date you read it. Every assumption (usage per user, request sizes, growth) is written out, so the owner can change it.
+- Formats, checked by a script before the lead reports: add your sources as rows of `team/research/sources.md` (`| Id | URL | Note |`, unique id like `F3`, https URL) and cite them in brackets, `[F3]` or `[F3, S12]`. `costs.md` has a section `## Competitor pricing` with the table `| Competitor | Price | Sources | Pages checked |`, one row per competitor; "not published" needs an official site page (not only a repository) in Pages checked.
 
 ## Before you start
 
