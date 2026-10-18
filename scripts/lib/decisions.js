@@ -59,11 +59,11 @@ export function decide(root, questionId, { answer, link = '' }) {
 }
 
 // Records how a thread ended when no owner question was involved, so cleanup can archive it.
-export function recordOutcome(root, { thread, outcome, link = '' }) {
+export function recordOutcome(root, { thread, outcome, title = outcome, link = '' }) {
   const all = readDecisions(root);
   const d = {
     id: nextId('D', all.decided.map((x) => x.id)),
-    title: outcome,
+    title,
     question: '',
     answer: outcome,
     date: new Date().toISOString().slice(0, 10),
@@ -73,6 +73,13 @@ export function recordOutcome(root, { thread, outcome, link = '' }) {
   all.decided.push(d);
   writeDecisions(root, all);
   return d;
+}
+
+// A thread id made from free text ("Proje lisansı" -> "proje-lisansi"), for a record without --thread.
+export function threadFromText(text) {
+  const slug = String(text ?? '').replace(/ı/g, 'i').replace(/İ/g, 'I').normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 64).replace(/-+$/, '');
+  return slug || 'decision';
 }
 
 export function isThreadDecided(root, thread) {

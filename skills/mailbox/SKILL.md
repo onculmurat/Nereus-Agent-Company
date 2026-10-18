@@ -26,4 +26,4 @@ Write text arguments as `--body=<text>` (with `=`): text that starts with `-` is
 
 - Every role checks its inbox at start, after each step and before finishing, with `--mark-read`. A teammate with unread messages is not allowed to go idle.
 - Use `send` only when the hook did not record a live message, or in subagent mode where messages go through the lead.
-- When a thread is resolved, the lead records the outcome and then closes the thread. If the thread had an owner question, `decisions.js decide` records it (the question carries the thread). Otherwise run `node "<scripts>/decisions.js" record --thread <id> --outcome=<text>`. Cleanup only removes threads with a recorded outcome.
+- When a thread is resolved, the lead records the outcome and then closes the thread. If the thread had an owner question, `decisions.js decide` records it (the question carries the thread). Otherwise run `node "<scripts>/decisions.js" record --thread <id> --outcome=<text>` (add `--title=<t>` for a short title; without `--thread` the thread id is made from the title). Cleanup only removes threads with a recorded outcome.

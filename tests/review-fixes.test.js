@@ -107,6 +107,19 @@ test('A1 one question per message is spelled out in phase 0 and the question pro
   assert.match(read('skills', 'question-protocol', 'SKILL.md'), rule);
 });
 
+// Live test: in all three runs the lead first called record with --title and no --thread.
+test('record accepts --title and derives the thread from it when --thread is missing', () => {
+  const root = makeProject();
+  const rec = JSON.parse(cli('decisions', ['record', '--title=Proje lisansı', '--outcome=MIT, telif: murat', '--project', root]));
+  assert.equal(rec.title, 'Proje lisansı');
+  assert.equal(rec.answer, 'MIT, telif: murat');
+  assert.equal(rec.thread, 'proje-lisansi');
+  const withThread = JSON.parse(cli('decisions', ['record', '--title=Push', '--thread=license', '--outcome=No push', '--project', root]));
+  assert.equal(withThread.thread, 'license');
+  assert.equal(JSON.parse(cli('decisions', ['record', '--outcome=Şöyle', '--project', root])).thread, 'soyle');
+  assert.equal(readDecisions(root).decided.length, 3);
+});
+
 // Live test A1, second run: "Who will use it and what sets it apart?" is still two questions.
 test('A1 a question asks about one thing and phase 0 topics are single', () => {
   const rule = /never join two questions with "and"/i;

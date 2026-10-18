@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Decision log CLI (lead only): show | open | ask | decide | record.
 import { runCli, need, UsageError } from './lib/cli.js';
-import { readDecisions, addQuestion, decide, recordOutcome } from './lib/decisions.js';
+import { readDecisions, addQuestion, decide, recordOutcome, threadFromText } from './lib/decisions.js';
 import { isValidThread } from './lib/mailbox.js';
 
 const usage = `Usage:
@@ -9,7 +9,8 @@ const usage = `Usage:
   decisions.js open                      open questions, blocking first
   decisions.js ask --title <t> --source <s> --status <s> --impact <i> --blocking <yes|no> --thread <id>
   decisions.js decide <Q-id> --answer <text> [--link <path or url>]
-  decisions.js record --thread <id> --outcome <text> [--link <path or url>]   a thread's outcome without a question
+  decisions.js record --outcome <text> [--thread <id>] [--title <t>] [--link <path or url>]
+                                         an outcome without a question; the thread defaults to one made from the title
   (all accept --project <dir>; default: nearest directory with team/config.json)
 `;
 
@@ -31,10 +32,12 @@ runCli(usage, {
       if (!id) throw new UsageError('Missing question id');
       need(v, 'answer');
       return decide(root, id, { answer: v.answer, link: v.link });
-    case 'record':
-      need(v, 'thread', 'outcome');
-      if (!isValidThread(v.thread)) throw new UsageError(`Invalid thread id "${v.thread}"`);
-      return recordOutcome(root, { thread: v.thread, outcome: v.outcome, link: v.link });
+    case 'record': {
+      need(v, 'outcome');
+      const thread = v.thread ?? threadFromText(v.title ?? v.outcome);
+      if (!isValidThread(thread)) throw new UsageError(`Invalid thread id "${thread}"`);
+      return recordOutcome(root, { thread, outcome: v.outcome, title: v.title, link: v.link });
+    }
     default:
       throw new UsageError(`Unknown command "${cmd ?? ''}"`);
   }
