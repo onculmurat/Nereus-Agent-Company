@@ -85,7 +85,7 @@ test('lead prompt ends phase 1 with recommendations tied to the brief', () => {
 test('phase 1 research is checked by research-check.js before the report', () => {
   const report = read('skills', 'phase-report', 'SKILL.md');
   assert.match(report, /scripts\/research-check\.js|<scripts>\/research-check\.js/);
-  assert.match(report, /only when it passes/i);
+  assert.match(report, /only when the check passes/i);
   for (const role of ['researcher', 'finance-analyst']) {
     const agent = read('agents', `${role}.md`);
     assert.match(agent, /`\[[A-Z]\d+\]`/, role);
@@ -93,6 +93,17 @@ test('phase 1 research is checked by research-check.js before the report', () =>
   }
   assert.match(read('agents', 'finance-analyst.md'), /## Competitor pricing/);
   assert.match(read('agents', 'finance-analyst.md'), /\| Competitor \| Price \| Sources \| Pages checked \|/);
+});
+
+// Loop engineering: a reviewer with a fresh context checks the phase 1 research before the owner sees it.
+test('phase 1 research is reviewed by research-reviewer after the check passes', () => {
+  const report = read('skills', 'phase-report', 'SKILL.md').split('## Phase 1')[1];
+  const check = report.indexOf('research-check.js');
+  const review = report.indexOf('`research-reviewer`');
+  assert.ok(check >= 0 && review > check, 'reviewer runs after the check');
+  assert.match(report, /one-shot subagent[^\n]*never pass a name/i);
+  assert.match(report, /CHANGES_REQUESTED/);
+  assert.match(report, /APPROVED/);
 });
 
 test('lead prompt shows the owner the research sources', () => {

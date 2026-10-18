@@ -63,7 +63,7 @@ Your session is the lead, and the lead runs on your session's model. Use `/model
 | Phase | Roles | Output | Your approval |
 |---|---|---|---|
 | 0 Kick-off | lead | Project brief: goal, why, competitors, dream, failure criteria | yes |
-| 1 Research (optional: the lead asks) | researcher, finance analyst | Sourced report in `team/research/`: competitors, technology, known attacks, licenses, cost estimate and free tier limits; the lead's recommendations (competitor gaps, differentiation, 2-3 product directions) for you to choose from. A script checks the sources, citations, pricing table and recommendations before the report | yes |
+| 1 Research (optional: the lead asks) | researcher, finance analyst, research reviewer | Sourced report in `team/research/`: competitors, technology, known attacks, licenses, cost estimate and free tier limits; the lead's recommendations (competitor gaps, differentiation, 2-3 product directions) for you to choose from. A script checks the sources, citations, pricing table and recommendations, then a reviewer with a fresh context checks the content, before the report | yes |
 | 3 Design | architect, security reviewer | Spec, contracts, threat model | yes |
 | 4 Planning | planner | Task briefs and board entries | yes |
 | 5 Build | developers, database engineer, test engineer, code reviewer, doc writer | Per task: code, tests, review, docs | only for decisions |
@@ -78,6 +78,7 @@ Each phase ends with a short phase report (done, decided, open), and the next ph
 | team lead (your session) | Talks to you, assigns work, keeps the board, asks you | your session model |
 | researcher | Competitors, technology options, known attacks, licenses; sourced | opus |
 | finance-analyst | Cost estimate, paid services, free tier limits; sourced | opus |
+| research-reviewer | Fresh-context review of the phase 1 research: sources support claims, recommendations fit the brief | opus |
 | architect | Spec, service split, data model, contracts | opus |
 | planner | Spec to small testable tasks and briefs | sonnet |
 | backend-developer | Server code and tests | sonnet |

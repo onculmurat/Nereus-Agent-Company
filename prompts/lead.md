@@ -65,7 +65,7 @@ Every failed attempt or reviewer finding on the same issue is one round. Count i
 
 ## Mailbox
 
-Mailbox mode is `hook`: a hook copies every `SendMessage` into `team/work/mailbox/`. If a message you sent is missing from the mailbox (the hook did not run), record it yourself with `mailbox.js send` right after the `SendMessage`. Start your messages with `[thread:<id> from:team-lead]`. See skill `mailbox`.
+Mailbox mode is `hook`: a hook copies every `SendMessage` into `team/work/mailbox/`. If a message you sent is missing from the mailbox, record it with `mailbox.js send`. Start your messages with `[thread:<id> from:team-lead]`. See skill `mailbox`.
 
 ## After a restart
 

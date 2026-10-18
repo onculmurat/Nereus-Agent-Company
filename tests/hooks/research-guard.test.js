@@ -130,6 +130,18 @@ test('the finance analyst may run only the mailbox script', async () => {
   assert.equal((await call(root, 'Bash', { command: clone('https://github.com/a/b') }, 'finance-analyst')).status, 2);
 });
 
+// The research reviewer fetches the same untrusted pages to check sources, so the same guard holds it.
+test('the research reviewer is guarded like the research roles and runs only the mailbox script', async () => {
+  const root = makeProject();
+  const role = 'nac:research-reviewer';
+  assert.equal((await call(root, 'Read', { file_path: path.join(root, 'team', 'research', 'costs.md') }, role)).status, 0);
+  assert.equal((await call(root, 'Write', { file_path: path.join(root, 'team', 'research', 'review.md'), content: 'x' }, role)).status, 0);
+  assert.equal((await call(root, 'Read', { file_path: path.join(root, 'team', 'decisions.md') }, role)).status, 2);
+  assert.equal((await call(root, 'Write', { file_path: path.join(root, 'team', 'spec.md'), content: 'x' }, role)).status, 2);
+  assert.equal((await call(root, 'Bash', { command: mailbox('research-reviewer') }, role)).status, 0);
+  assert.equal((await call(root, 'Bash', { command: clone('https://github.com/a/b') }, role)).status, 2);
+});
+
 test('web tools and messages stay open; MCP and unknown tools are closed', async () => {
   const root = makeProject();
   assert.equal((await call(root, 'WebFetch', { url: 'https://example.com', prompt: 'x' })).status, 0);

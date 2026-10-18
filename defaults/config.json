@@ -6,7 +6,7 @@
     "devops-engineer": "sonnet", "code-reviewer": "sonnet", "final-reviewer": "opus",
     "security-reviewer": "opus", "doc-writer": "sonnet", "assistant": "haiku",
     "marketing-strategist": "sonnet", "content-writer": "sonnet", "seo-specialist": "sonnet",
-    "social-media-manager": "haiku", "brand-designer": "sonnet", "finance-analyst": "opus",
+    "social-media-manager": "haiku", "brand-designer": "sonnet", "finance-analyst": "opus", "research-reviewer": "opus",
     "legal-compliance": "opus", "support-specialist": "sonnet", "data-analyst": "sonnet"
   },
   "modelLadder": ["haiku", "sonnet", "opus"],

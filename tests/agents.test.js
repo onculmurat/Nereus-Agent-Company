@@ -9,16 +9,16 @@ const pluginRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '.
 const agentsDir = path.join(pluginRoot, 'agents');
 const defaults = JSON.parse(fs.readFileSync(path.join(pluginRoot, 'defaults', 'config.json'), 'utf8'));
 const ROLES = [
-  'researcher', 'finance-analyst',
+  'researcher', 'finance-analyst', 'research-reviewer',
   'architect', 'planner', 'backend-developer', 'frontend-developer', 'database-engineer', 'test-engineer',
   'code-reviewer', 'final-reviewer', 'security-reviewer', 'doc-writer', 'assistant',
 ];
-const REVIEWERS = ['code-reviewer', 'final-reviewer', 'security-reviewer'];
-const READ_ONLY = [...REVIEWERS, 'assistant'];
-const RESEARCH = ['researcher', 'finance-analyst'];
+const REVIEWERS = ['code-reviewer', 'final-reviewer', 'security-reviewer', 'research-reviewer'];
+const READ_ONLY = ['code-reviewer', 'final-reviewer', 'security-reviewer', 'assistant'];
+const RESEARCH = ['researcher', 'finance-analyst', 'research-reviewer'];
 const HEADINGS = ['## Responsibility', '## Before you start', '## Working rules', '## Questions for the owner', '## When you finish', '## Stuck'];
 
-test('exactly the thirteen v1.1 agents exist', () => {
+test('exactly the fourteen agents exist', () => {
   const files = fs.readdirSync(agentsDir).filter((f) => f.endsWith('.md')).map((f) => f.slice(0, -3)).sort();
   assert.deepEqual(files, [...ROLES].sort());
 });
@@ -67,8 +67,19 @@ test('researcher covers licenses and reads competitor code without copying it', 
   assert.match(body, /never copy/i);
 });
 
+// The phase 1 reviewer works in a fresh context: it checks content the research check script cannot.
+test('research-reviewer checks claims against their sources and the brief, and edits no research file', () => {
+  const { body } = parseFrontmatter(fs.readFileSync(path.join(agentsDir, 'research-reviewer.md'), 'utf8'));
+  assert.match(body, /source[^\n]*supports the claim/i);
+  assert.match(body, /failure criteria/i);
+  assert.match(body, /missing competitor/i);
+  assert.match(body, /team\/research\/review\.md/);
+  assert.match(body, /never edit[^\n]*other research files/i);
+  assert.match(body, /APPROVED[^\n]*CHANGES_REQUESTED/);
+});
+
 // Seen live: a price was written as "not published" after reading only the competitor's GitHub README.
-for (const role of RESEARCH) {
+for (const role of ['researcher', 'finance-analyst']) {
   test(`${role} looks up each competitor's official site and pricing page before calling a price unpublished`, () => {
     const { body } = parseFrontmatter(fs.readFileSync(path.join(agentsDir, `${role}.md`), 'utf8'));
     assert.match(body, /official site and (its )?pricing page/i);
