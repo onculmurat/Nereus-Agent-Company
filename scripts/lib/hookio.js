@@ -34,14 +34,15 @@ function record(payload, root, outcome, text) {
   }
 }
 
-export async function runHook(handler) {
+// With { outsideProject: true } the handler also runs outside a NAC project, with root null.
+export async function runHook(handler, { outsideProject = false } = {}) {
   let payload = null;
   let root = null;
   try {
     payload = await readStdinJson();
     if (!payload) return;
     root = findProjectRoot(payload.cwd ?? process.cwd());
-    if (!root) return record(payload, null, 'outside-project');
+    if (!root && !outsideProject) return record(payload, null, 'outside-project');
     const result = await handler(payload, root);
     if (result?.block) {
       process.stderr.write(`${result.block}\n`);

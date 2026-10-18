@@ -89,6 +89,29 @@ test('the researcher may run only the mailbox and clone scripts', async () => {
   assert.equal((await call(root, 'PowerShell', { command: 'Get-Content .env' })).status, 2);
 });
 
+test('research roles may only list their own inbox through the mailbox script', async () => {
+  const root = makeProject();
+  const mb = `node "${pluginRoot}/scripts/mailbox.js"`;
+  assert.equal((await call(root, 'Bash', { command: `${mb} inbox --role researcher` })).status, 0);
+  for (const args of [
+    'read --file C:/Users/x/.claude/settings.json',
+    'send --from team-lead --to architect --body-file .env',
+    'send --from researcher --to architect --body=hi',
+    'inbox --role architect --mark-read',
+    'inbox --role researcher --mark-read --project C:/elsewhere',
+    'close-thread --thread t',
+  ]) {
+    assert.equal((await call(root, 'Bash', { command: `${mb} ${args}` })).status, 2, args);
+  }
+});
+
+test('a research role outside a NAC project is blocked, not waved through', async () => {
+  const outside = fs.mkdtempSync(path.join(os.tmpdir(), 'not nac '));
+  assert.equal((await call(outside, 'Read', { file_path: path.join(outside, 'x') })).status, 2);
+  const other = await call(outside, 'Read', { file_path: path.join(outside, 'x') }, 'nac:architect');
+  assert.equal(other.status, 0);
+});
+
 test('the finance analyst may run only the mailbox script', async () => {
   const root = makeProject();
   assert.equal((await call(root, 'Bash', { command: mailbox('finance-analyst') }, 'finance-analyst')).status, 0);
