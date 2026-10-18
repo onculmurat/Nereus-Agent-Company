@@ -9,7 +9,7 @@ description: Ask the owner the queued NAC questions, blocking first, one at a ti
    ```
 
 2. If there are none, say so in one line.
-3. Otherwise ask them one at a time, each in the shape of the skill `question-protocol` (Source, Status, Impact, options, one recommendation). Wait for each answer.
+3. Otherwise ask them one at a time, each in full in its own message, in the shape of the skill `question-protocol` (Source, Status, Impact, options, one recommendation). Wait for each answer.
 4. Record each answer:
 
    ```
