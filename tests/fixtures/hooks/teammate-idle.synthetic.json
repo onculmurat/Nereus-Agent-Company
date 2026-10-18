@@ -1,0 +1,9 @@
+{
+  "session_id": "00000000-0000-0000-0000-000000000000",
+  "transcript_path": "<HOME>/.claude/projects/x/00000000-0000-0000-0000-000000000000.jsonl",
+  "cwd": "<PROJECT>",
+  "permission_mode": "default",
+  "hook_event_name": "TeammateIdle",
+  "teammate_name": "architect",
+  "team_name": "nac"
+}
