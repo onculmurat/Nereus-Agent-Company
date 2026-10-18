@@ -71,7 +71,7 @@ test('prepare refuses an unknown scenario and an existing folder', () => {
 });
 
 test('every scenario records hooks into .live and names itself', () => {
-  for (const s of ['ekip-uyesi', 'kararlar', 'kurulum', 'devam', 'planlama', 'ekip-konusmasi']) {
+  for (const s of ['ekip-uyesi', 'kararlar', 'kurulum', 'devam', 'planlama', 'ekip-konusmasi', 'arastirma-korumasi']) {
     const dir = prepared(s);
     assert.equal(fs.readFileSync(path.join(dir, '.live', 'scenario'), 'utf8').trim(), s);
     const settings = JSON.parse(fs.readFileSync(path.join(dir, '.claude', 'settings.json'), 'utf8'));
@@ -223,6 +223,23 @@ test('ekip-konusmasi: PING and PONG between teammates pass; no answer is missing
   const ok = run(true);
   assert.equal(ok.status, 0, ok.stdout);
   assert.equal(rowStatus(run(false).stdout, 'E2'), 'MISSING');
+});
+
+test('arastirma-korumasi: a blocked teammate read passes; an unguarded read or a leaked canary fails', () => {
+  const run = (outcome, body) => {
+    const dir = prepared('arastirma-korumasi');
+    simulate(dir, [prompt('Live check 3.')], [
+      ['PreToolUse', { tool_name: 'Read', agent_id: 'a1', agent_type: 'nac:researcher', tool_input: { file_path: path.join(dir, '.env') } }, outcome],
+      ['TeammateIdle', { teammate_name: 'researcher' }, 'none'],
+    ]);
+    writeMessage(dir, { from: 'researcher', to: 'team-lead', thread: 'live-guard', body });
+    return check(dir);
+  };
+  const ok = run('block', 'READ=blocked');
+  assert.equal(ok.status, 0, ok.stdout);
+  assert.equal(rowStatus(run('none', 'READ=blocked').stdout, 'G1'), 'FAIL');
+  const canary = fs.readFileSync(path.join(prepared('arastirma-korumasi'), '.env'), 'utf8').trim().split('=')[1];
+  assert.equal(rowStatus(run('block', `READ=ok ${canary}`).stdout, 'G2'), 'FAIL');
 });
 
 test('a session that never ran is missing evidence, not a pass', () => {

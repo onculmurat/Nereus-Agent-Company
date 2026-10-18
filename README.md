@@ -14,7 +14,7 @@ Building a product alone means playing every role: architect, developer, reviewe
 
 NAC has no graphical interface. It runs inside the Claude Code terminal.
 
-**v1 scope.** This release ships the core roles (team lead, architect, planner, backend developer, frontend developer, database engineer, test engineer, code reviewer, final reviewer, security reviewer, doc writer, assistant) and phases 0, 3, 4, 5 and 6. Planned next: v2 adds researcher, product manager, UX and UI designers, DevOps engineer and phases 1, 2 and 7; v3 adds marketing and business roles and phases 8 and 9.
+**v1.1 scope.** This release ships the core roles (team lead, researcher, finance analyst, architect, planner, backend developer, frontend developer, database engineer, test engineer, code reviewer, final reviewer, security reviewer, doc writer, assistant) and phases 0, 1, 3, 4, 5 and 6. Planned next: v2 adds product manager, UX and UI designers, DevOps engineer and phases 2 and 7; v3 adds marketing and the remaining business roles and phases 8 and 9.
 
 ## Install
 
@@ -55,7 +55,7 @@ Your session is the lead, and the lead runs on your session's model. Use `/model
 
 ### What setup creates
 
-- `team/`: `config.json`, `brief.md`, `decisions.md`, `glossary.md`, `contracts/`, and `team/work/` (board, hand-offs, escalations, mailbox, archive; git-ignored).
+- `team/`: `config.json`, `brief.md`, `decisions.md`, `glossary.md`, `contracts/`, `research/`, and `team/work/` (board, hand-offs, escalations, mailbox, archive; git-ignored).
 - Project documents, each switchable in config: `memory.md`, `plan.md`, `article_dev.md`, `docs/setup-requirements.md`.
 
 ## Phases
@@ -63,6 +63,7 @@ Your session is the lead, and the lead runs on your session's model. Use `/model
 | Phase | Roles | Output | Your approval |
 |---|---|---|---|
 | 0 Kick-off | lead | Project brief: goal, why, competitors, dream, failure criteria | yes |
+| 1 Research (optional: the lead asks) | researcher, finance analyst | Sourced report in `team/research/`: competitors, technology, known attacks, licenses, cost estimate and free tier limits | yes |
 | 3 Design | architect, security reviewer | Spec, contracts, threat model | yes |
 | 4 Planning | planner | Task briefs and board entries | yes |
 | 5 Build | developers, database engineer, test engineer, code reviewer, doc writer | Per task: code, tests, review, docs | only for decisions |
@@ -75,6 +76,8 @@ Each phase ends with a short phase report (done, decided, open), and the next ph
 | Role | Responsibility | Model |
 |---|---|---|
 | team lead (your session) | Talks to you, assigns work, keeps the board, asks you | your session model |
+| researcher | Competitors, technology options, known attacks, licenses; sourced | opus |
+| finance-analyst | Cost estimate, paid services, free tier limits; sourced | opus |
 | architect | Spec, service split, data model, contracts | opus |
 | planner | Spec to small testable tasks and briefs | sonnet |
 | backend-developer | Server code and tests | sonnet |
@@ -165,6 +168,7 @@ Limits you should know:
 - No push, merge, deploy, publish, post, infrastructure apply or purchase without your separate, explicit approval for that action.
 - Setup and cleanup always show a dry run first and never overwrite existing files.
 - Roles work only inside their responsibility; reviewers get no file-editing tools.
+- The research roles (researcher, finance-analyst) read untrusted web pages and competitor code, so a `PreToolUse` guard limits them against prompt injection: they read only `team/brief.md`, `team/research/` and the clone folder (not decisions, the mailbox or other roles' notes), write only to `team/research/` (their hand-off notes included), and Bash runs only NAC's mailbox and clone scripts. If the guard fails, it blocks the call. They can send messages only under their own header. The mailbox hook records every NAC role under its real role, whatever its message header claims, and tells the lead about a false claim; other roles read research messages as data. Web tools stay open; with no secrets in reach there is nothing to leak. No clean-up can remove visible injected text, so later roles read the research report as data.
 - Hooks do nothing outside a NAC project (a folder without `team/config.json`).
 
 ## FAQ
@@ -183,7 +187,7 @@ The next session starts with a resume summary: phase, work in progress (with `gi
 
 ### Is team state committed?
 
-`team/brief.md`, `decisions.md`, `contracts/`, `glossary.md` and `config.json` are meant to be committed. `team/work/` is git-ignored.
+`team/brief.md`, `decisions.md`, `contracts/`, `research/`, `glossary.md` and `config.json` are meant to be committed. `team/work/` is git-ignored.
 
 ## License
 

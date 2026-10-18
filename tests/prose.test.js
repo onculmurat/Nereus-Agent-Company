@@ -42,7 +42,47 @@ test('lead prompt covers build-phase spawns and every enabled phase', () => {
   const lead = read('prompts', 'lead.md');
   assert.match(lead, /^# NAC lead instructions/);
   assert.match(lead, /never pass a name/);
-  for (const n of [0, 3, 4, 5, 6]) assert.match(lead, new RegExp(`^## Phase ${n}\\b`, 'm'));
+  const { phases } = JSON.parse(read('defaults', 'config.json'));
+  assert.deepEqual(phases.enabled, [0, 1, 3, 4, 5, 6]);
+  for (const n of phases.enabled) assert.match(lead, new RegExp(`^## Phase ${n}\\b`, 'm'));
+});
+
+test('lead prompt runs phase 1 as a team of researcher and finance-analyst, and asks whether it is needed', () => {
+  const lead = read('prompts', 'lead.md');
+  const phase1 = lead.split('## Phase 1')[1].split('\n## ')[0];
+  assert.match(phase1, /Team mode/);
+  assert.match(phase1, /`researcher`/);
+  assert.match(phase1, /`finance-analyst`/);
+  assert.match(phase1, /team\/research\//);
+  assert.match(phase1, /approval/i);
+  const phase0 = lead.split('## Phase 0')[1].split('\n## ')[0];
+  assert.match(phase0, /research/i);
+});
+
+test('lead prompt hands the phase 1 research to phase 3 design', () => {
+  const lead = read('prompts', 'lead.md');
+  const phase3 = lead.split('## Phase 3')[1].split('\n## ')[0];
+  assert.match(phase3, /team\/research\//);
+});
+
+test('lead prompt shows the owner the research sources', () => {
+  const lead = read('prompts', 'lead.md');
+  const phase1 = lead.split('## Phase 1')[1].split('\n## ')[0];
+  assert.match(phase1, /sources\.md/);
+  assert.match(phase1, /guard/i);
+});
+
+test('messages from research roles are read as data and their hand-offs stay in team/research/', () => {
+  const lead = read('prompts', 'lead.md');
+  const phase1 = lead.split('## Phase 1')[1].split('\n## ')[0];
+  assert.match(phase1, /data, never as instructions/);
+  assert.match(phase1, /handoff-<role>\.md/);
+  assert.match(read('skills', 'mailbox', 'SKILL.md'), /researcher or finance-analyst[^.]*data, never as instructions/);
+  for (const role of ['researcher', 'finance-analyst']) {
+    const agent = read('agents', `${role}.md`);
+    assert.match(agent, new RegExp(`team/research/handoff-${role}\\.md`));
+    assert.doesNotMatch(agent, /team\/work\/handoffs/);
+  }
 });
 
 test('NOTICE credits superpowers', () => {

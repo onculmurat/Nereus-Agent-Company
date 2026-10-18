@@ -1,6 +1,6 @@
 {
   "name": "nereus-agent-company",
-  "version": "0.1.0",
+  "version": "1.1.0",
   "private": true,
   "description": "NAC: a Claude Code plugin that runs a full company of AI agents on your project.",
   "type": "module",

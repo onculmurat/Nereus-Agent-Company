@@ -21,7 +21,7 @@ test('dry run lists every file as create and writes nothing', () => {
   assert.deepEqual(rel(dir, p.files), [
     'article_dev.md', 'docs/setup-requirements.md', 'memory.md', 'plan.md',
     'team/brief.md', 'team/config.json', 'team/contracts/README.md', 'team/decisions.md', 'team/glossary.md',
-    'team/work/archive/.gitkeep', 'team/work/board.md', 'team/work/escalations/.gitkeep',
+    'team/research/.gitkeep', 'team/work/archive/.gitkeep', 'team/work/board.md', 'team/work/escalations/.gitkeep',
     'team/work/handoffs/.gitkeep', 'team/work/mailbox/.gitkeep',
   ]);
   assert.equal(p.gitignoreLine, 'team/work/');

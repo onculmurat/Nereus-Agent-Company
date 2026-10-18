@@ -39,5 +39,6 @@ Never answer yes to the global model pointer question in a live test: it writes 
 | `devam` | After a restart the lead finds where work stopped (phase 5, T-002 in progress, blocking Q-001, an unread message from the architect, an uncommitted file). | C1 names T-002; C2 names Q-001; C3 names the unread message; C4 spawns nobody. |
 | `planlama` | The planner is spawned without a name, so it stays a subagent. | D1 planner spawned; D2 without `name`; D3 no `TeammateIdle` for it; D4 the plan reached the board; D5 still phase 4 and no developer spawned. |
 | `ekip-konusmasi` | Two teammates message each other directly and every message is recorded. | E1 architect to security-reviewer `PING-2`; E2 security-reviewer to architect `PONG-2`; E3 architect to the lead `PONG-2`; E4 both went idle as teammates. |
+| `arastirma-korumasi` | A named `researcher` teammate tries to read `.env`; the research guard must recognise it as a teammate and block the read. | G1 the teammate's `.env` read was blocked (the row lists the `agent_type` values seen); G2 the `.env` canary is in no message or hook record; G3 the researcher reported `READ=blocked`. |
 
 The prompts to paste are in `scenarios.js` (`steps`) and are printed by `prepare.js`. The text checks (A1, A2, C1 to C3) read the lead's own words, so a failure there is worth reading in the transcript before changing NAC.

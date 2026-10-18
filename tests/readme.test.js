@@ -33,8 +33,34 @@ test('README mentions every command', () => {
   }
 });
 
+test('README lists every agent role', () => {
+  for (const f of fs.readdirSync(path.join(pluginRoot, 'agents'))) {
+    const role = f.replace(/\.md$/, '');
+    assert.ok(en.includes(`| ${role} |`), `README.md lacks ${role}`);
+    assert.ok(tr.includes(`| ${role} |`), `README.tr.md lacks ${role}`);
+  }
+});
+
 test('setup requirements name Node 20 and the agent teams flag', () => {
   const req = fs.readFileSync(path.join(pluginRoot, 'docs', 'setup-requirements.md'), 'utf8');
   assert.match(req, /Node\.js 20/);
   assert.match(req, /CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS/);
+});
+
+test('setup requirements name the web tools the research roles use', () => {
+  const req = fs.readFileSync(path.join(pluginRoot, 'docs', 'setup-requirements.md'), 'utf8');
+  assert.match(req, /WebSearch/);
+  assert.match(req, /WebFetch/);
+});
+
+test('plugin and package versions match the release the READMEs describe', () => {
+  const version = (...p) => JSON.parse(fs.readFileSync(path.join(pluginRoot, ...p), 'utf8')).version;
+  assert.equal(version('.claude-plugin', 'plugin.json'), '1.1.0');
+  assert.equal(version('package.json'), '1.1.0');
+  assert.match(en, /v1\.1/);
+});
+
+test('both READMEs list team/research/ among the committed files', () => {
+  assert.match(en, /`team\/brief\.md`[^\n]*`research\/`[^\n]*committed/);
+  assert.match(tr, /`team\/brief\.md`[^\n]*`research\/`[^\n]*commit/);
 });

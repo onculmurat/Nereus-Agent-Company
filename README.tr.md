@@ -14,7 +14,7 @@ Bir ürünü tek başına geliştirmek her rolü üstlenmek demektir: mimar, gel
 
 NAC'ın görsel bir arayüzü yoktur. Claude Code terminalinin içinde çalışır.
 
-**v1 kapsamı.** Bu sürüm çekirdek rolleri (ekip lideri, mimar, planlayıcı, backend geliştirici, frontend geliştirici, veritabanı mühendisi, test mühendisi, kod incelemecisi, son incelemeci, güvenlik incelemecisi, doküman yazarı, asistan) ve 0, 3, 4, 5 ve 6. aşamaları içerir. Sonraki adımlar: v2 araştırmacı, ürün yöneticisi, UX ve UI tasarımcıları, DevOps mühendisi ile 1, 2 ve 7. aşamaları; v3 pazarlama ve iş rolleri ile 8 ve 9. aşamaları ekler.
+**v1.1 kapsamı.** Bu sürüm çekirdek rolleri (ekip lideri, araştırmacı, finans analisti, mimar, planlayıcı, backend geliştirici, frontend geliştirici, veritabanı mühendisi, test mühendisi, kod incelemecisi, son incelemeci, güvenlik incelemecisi, doküman yazarı, asistan) ve 0, 1, 3, 4, 5 ve 6. aşamaları içerir. Sonraki adımlar: v2 ürün yöneticisi, UX ve UI tasarımcıları, DevOps mühendisi ile 2 ve 7. aşamaları; v3 pazarlama ve kalan iş rolleri ile 8 ve 9. aşamaları ekler.
 
 ## Kurulum
 
@@ -55,7 +55,7 @@ Oturumunuz liderdir ve lider oturumunuzun modeliyle çalışır. Lider için `/m
 
 ### Kurulumun oluşturdukları
 
-- `team/`: `config.json`, `brief.md`, `decisions.md`, `glossary.md`, `contracts/` ve `team/work/` (pano, devir notları, eskalasyonlar, posta kutusu, arşiv; git dışında).
+- `team/`: `config.json`, `brief.md`, `decisions.md`, `glossary.md`, `contracts/`, `research/` ve `team/work/` (pano, devir notları, eskalasyonlar, posta kutusu, arşiv; git dışında).
 - Proje belgeleri, her biri ayardan kapatılabilir: `memory.md`, `plan.md`, `article_dev.md`, `docs/setup-requirements.md`.
 
 ## Aşamalar
@@ -63,6 +63,7 @@ Oturumunuz liderdir ve lider oturumunuzun modeliyle çalışır. Lider için `/m
 | Aşama | Roller | Çıktı | Onayınız |
 |---|---|---|---|
 | 0 Başlangıç | lider | Proje özeti: amaç, neden, rakipler, hayal, başarısızlık ölçütleri | evet |
+| 1 Araştırma (isteğe bağlı: lider sorar) | araştırmacı, finans analisti | `team/research/` altında kaynaklı rapor: rakipler, teknoloji, bilinen saldırılar, lisanslar, maliyet tahmini ve ücretsiz katman sınırları | evet |
 | 3 Tasarım | mimar, güvenlik incelemecisi | Spec, sözleşmeler, tehdit modeli | evet |
 | 4 Planlama | planlayıcı | Görev özetleri ve pano kayıtları | evet |
 | 5 Geliştirme | geliştiriciler, veritabanı mühendisi, test mühendisi, kod incelemecisi, doküman yazarı | Görev başına: kod, test, inceleme, belge | yalnız kararlar için |
@@ -75,6 +76,8 @@ Her aşama kısa bir aşama raporuyla (biten, karar verilen, açık kalan) biter
 | Rol | Sorumluluk | Model |
 |---|---|---|
 | ekip lideri (oturumunuz) | Sizinle konuşur, iş dağıtır, panoyu tutar, size sorar | oturum modeliniz |
+| researcher | Rakipler, teknoloji seçenekleri, bilinen saldırılar, lisanslar; kaynaklı | opus |
+| finance-analyst | Maliyet tahmini, ücretli servisler, ücretsiz katman sınırları; kaynaklı | opus |
 | architect | Spec, servis ayrımı, veri modeli, sözleşmeler | opus |
 | planner | Spec'i küçük, test edilebilir görevlere ve özetlere böler | sonnet |
 | backend-developer | Sunucu kodu ve testleri | sonnet |
@@ -165,6 +168,7 @@ Bilmeniz gereken sınırlar:
 - Push, merge, deploy, yayın, gönderi, altyapı uygulama ya da satın alma; o işlem için ayrı ve açık onayınız olmadan yapılmaz.
 - Kurulum ve temizlik her zaman önce deneme çıktısı gösterir ve var olan dosyaların üzerine yazmaz.
 - Roller yalnız kendi sorumluluk alanında çalışır; incelemecilere dosya düzenleme aracı verilmez.
+- Araştırma rolleri (researcher, finance-analyst) güvenilmeyen web sayfaları ve rakip kodu okur; prompt injection'a karşı bir `PreToolUse` kancası onları sınırlar: yalnız `team/brief.md`, `team/research/` ve klon klasörünü okur (kararları, posta kutusunu ve diğer rollerin notlarını okuyamaz), yalnız `team/research/` altına yazar (devir notları dahil), Bash'te yalnız NAC'ın mailbox ve clone betiklerini çalıştırır. Kanca hata verirse çağrıyı engeller. Mesajı yalnız kendi başlıklarıyla gönderebilirler. Posta kutusu kancası her NAC rolünü, mesaj başlığı ne derse desin gerçek rolüyle kaydeder ve sahte bir gönderen iddiasını lidere bildirir; diğer roller araştırma mesajlarını veri olarak okur. Web araçları açıktır; okunacak gizli veri olmadığı için sızdıracak bir şey de kalmaz. Görünür enjekte metni hiçbir temizleme silemez; bu yüzden araştırma raporu sonraki rollerde veri olarak okunur.
 - Hook'lar bir NAC projesi dışında (`team/config.json` olmayan klasörde) hiçbir şey yapmaz.
 
 ## SSS
@@ -183,7 +187,7 @@ Sonraki oturum bir devam özetiyle başlar: aşama, süren iş (`git status` ile
 
 ### Ekip durumu commit'lenir mi?
 
-`team/brief.md`, `decisions.md`, `contracts/`, `glossary.md` ve `config.json` commit'lenmek içindir. `team/work/` git dışındadır.
+`team/brief.md`, `decisions.md`, `contracts/`, `research/`, `glossary.md` ve `config.json` commit'lenmek içindir. `team/work/` git dışındadır.
 
 ## Lisans
 
