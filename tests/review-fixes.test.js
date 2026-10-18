@@ -99,6 +99,14 @@ test('O-I6 TaskCompleted block sends the teammate to the lead, not to the board'
   assert.match(read('prompts', 'lead.md'), /<board-id>: <title>/);
 });
 
+// Live test A1: the lead asked one "question" with three sub-questions and a preview of the next ones.
+test('A1 one question per message is spelled out in phase 0 and the question protocol', () => {
+  const rule = /exactly one question[^\n]*no sub-questions[^\n]*no preview/i;
+  const phase0 = read('prompts', 'lead.md').split('## Phase 0')[1].split('\n## ')[0];
+  assert.match(phase0, rule);
+  assert.match(read('skills', 'question-protocol', 'SKILL.md'), rule);
+});
+
 // Live test L6: no session offered native task tools, so TaskCompleted never fired.
 test('L6 task titles are asked for only when task tools exist, and the limit is documented', () => {
   const lead = read('prompts', 'lead.md');
