@@ -65,6 +65,22 @@ test('lead prompt hands the phase 1 research to phase 3 design', () => {
   assert.match(phase3, /team\/research\//);
 });
 
+// Seen live: phase 1 ended with findings and questions only, no direction tied to the owner's goal.
+test('lead prompt ends phase 1 with recommendations tied to the brief', () => {
+  const lead = read('prompts', 'lead.md');
+  const phase1 = lead.split('## Phase 1')[1].split('\n## ')[0];
+  assert.match(phase1, /team\/research\/recommendations\.md/);
+  assert.match(phase1, /skill `phase-report`/);
+  const report = read('skills', 'phase-report', 'SKILL.md');
+  assert.match(report, /recommendations\.md/);
+  assert.match(report, /gaps/i);
+  assert.match(report, /differentiat/i);
+  assert.match(report, /2-3 product directions/);
+  assert.match(report, /owner decides/i);
+  assert.match(report, /never pick the direction yourself/i);
+  assert.match(report, /\*\*Next:\*\*/);
+});
+
 test('lead prompt shows the owner the research sources', () => {
   const lead = read('prompts', 'lead.md');
   const phase1 = lead.split('## Phase 1')[1].split('\n## ')[0];

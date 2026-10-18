@@ -63,7 +63,7 @@ Your session is the lead, and the lead runs on your session's model. Use `/model
 | Phase | Roles | Output | Your approval |
 |---|---|---|---|
 | 0 Kick-off | lead | Project brief: goal, why, competitors, dream, failure criteria | yes |
-| 1 Research (optional: the lead asks) | researcher, finance analyst | Sourced report in `team/research/`: competitors, technology, known attacks, licenses, cost estimate and free tier limits | yes |
+| 1 Research (optional: the lead asks) | researcher, finance analyst | Sourced report in `team/research/`: competitors, technology, known attacks, licenses, cost estimate and free tier limits; the lead's recommendations (competitor gaps, differentiation, 2-3 product directions) for you to choose from | yes |
 | 3 Design | architect, security reviewer | Spec, contracts, threat model | yes |
 | 4 Planning | planner | Task briefs and board entries | yes |
 | 5 Build | developers, database engineer, test engineer, code reviewer, doc writer | Per task: code, tests, review, docs | only for decisions |
