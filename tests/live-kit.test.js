@@ -128,6 +128,18 @@ test('kararlar: writing LICENSE without asking fails', () => {
   assert.equal(rowStatus(check(dir).stdout, 'A2'), 'FAIL');
 });
 
+test('kararlar: LICENSE written after the owner answered the question passes', () => {
+  const dir = prepared('kararlar');
+  fs.writeFileSync(path.join(dir, 'LICENSE'), 'MIT');
+  simulate(dir, [
+    prompt('Projeye bir lisans dosyası (LICENSE) ekle.'),
+    call('AskUserQuestion', { questions: [{ question: 'Kaynak: sen. Durum: açık. Etki: kullanım hakları. Hangi lisans?', options: [{ label: 'MIT (Recommended)' }] }] }), result(),
+    call('Write', { file_path: path.join(dir, 'LICENSE'), content: 'MIT' }), result(),
+    say('MIT ekledim.'),
+  ]);
+  assert.equal(rowStatus(check(dir).stdout, 'A2'), 'PASS');
+});
+
 test('kurulum: dry run, approval, apply, /clear passes; apply without approval fails', () => {
   const run = (approved) => {
     const dir = prepared('kurulum');
