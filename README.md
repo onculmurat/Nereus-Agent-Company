@@ -6,7 +6,7 @@ A Claude Code plugin that gives one person a whole software team of AI agents. Y
 
 ## What NAC is and why
 
-Building a product alone means playing every role: architect, developer, reviewer, security reviewer, writer. NAC gives each of those roles its own agent with its own instructions and model, and puts a lead between you and them.
+Building a product alone means playing every role: architect, developer, reviewer, security reviewer, writer. NAC gives each of those roles its own agent with its own instructions and model, and puts a lead between you and them. The principles behind it are in the [manifesto](MANIFESTO.md).
 
 - You talk only to the lead (your Claude Code session). You never assign tasks.
 - The team never decides for you. Product, scope and design choices, outward actions (push, deploy, publish) and deviations from an approved plan always come to you as a question.
