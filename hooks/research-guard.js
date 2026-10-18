@@ -9,7 +9,8 @@ runHook(async (payload, root) => {
   if (!role) return;
   let reason;
   try {
-    reason = checkResearchTool({ role, toolName: payload.tool_name, toolInput: payload.tool_input, root, pluginRoot });
+    const session = { transcriptPath: payload.transcript_path, sessionId: payload.session_id, agentId: payload.agent_id };
+    reason = checkResearchTool({ role, toolName: payload.tool_name, toolInput: payload.tool_input, root, pluginRoot, session });
   } catch (e) {
     reason = `the guard could not check this call (${e.message})`;
   }

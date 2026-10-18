@@ -87,8 +87,22 @@ function checkBash(command, role, pluginRoot) {
   return argsProblem(name, m[2].split(' ').filter(Boolean), role);
 }
 
+// Claude Code saves a large tool output to <session>/tool-results/<tool_use_id>.txt and tells the agent
+// to read it. Only the role's own outputs qualify: the id must appear in its own transcript,
+// <session>/subagents/agent-<agent_id>.jsonl, because the folder also holds the lead's outputs.
+function ownToolResult(target, { transcriptPath, sessionId, agentId } = {}) {
+  const id = /^[A-Za-z0-9-]+$/;
+  if (typeof transcriptPath !== 'string' || !id.test(sessionId ?? '') || !id.test(agentId ?? '')) return false;
+  const session = path.join(path.dirname(transcriptPath), sessionId);
+  const real = realPath(target);
+  const m = /^(toolu_[A-Za-z0-9]+)\.txt$/.exec(path.basename(real));
+  if (!m || path.dirname(real) !== realPath(path.join(session, 'tool-results'))) return false;
+  const log = path.join(session, 'subagents', `agent-${agentId}.jsonl`);
+  return fs.existsSync(log) && fs.readFileSync(log, 'utf8').includes(`"id":"${m[1]}"`);
+}
+
 // Returns null when the call is allowed, otherwise the reason it is blocked.
-export function checkResearchTool({ role, toolName, toolInput, root, pluginRoot, tmpRoot = researchTmpRoot() }) {
+export function checkResearchTool({ role, toolName, toolInput, root, pluginRoot, tmpRoot = researchTmpRoot(), session }) {
   if (!root) return 'research roles work only inside a NAC project.';
   const input = toolInput && typeof toolInput === 'object' ? toolInput : {};
   const team = path.join(root, 'team');
@@ -107,6 +121,7 @@ export function checkResearchTool({ role, toolName, toolInput, root, pluginRoot,
     if (toolName === 'Grep' && input.glob !== undefined && unsafePattern(input.glob)) return 'Grep globs must be relative and must not contain "..".';
     const p = path.resolve(root, target);
     const brief = path.relative(realPath(path.join(team, 'brief.md')), realPath(p)) === '';
+    if (toolName === 'Read' && ownToolResult(p, session)) return null;
     return brief || inside(p, path.join(team, 'research')) || (cloneRoot && inside(p, cloneRoot))
       ? null
       : 'Reads are limited to team/brief.md, team/research/ and the clone folder.';

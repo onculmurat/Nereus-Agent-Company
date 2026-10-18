@@ -150,6 +150,37 @@ test('a research role cannot send a message under another role\'s header', async
   assert.equal((await call(root, 'SendMessage', { to: 'architect', message: { type: 'shutdown_request' } })).status, 0);
 });
 
+// Claude Code saves a large tool output under <session>/tool-results/<tool_use_id>.txt and tells the
+// agent to read it there; the agent's own transcript is <session>/subagents/agent-<agent_id>.jsonl.
+function sessionLogs() {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'nac logs '));
+  const session = '11111111-2222-3333-4444-555555555555';
+  fs.mkdirSync(path.join(dir, session, 'subagents'), { recursive: true });
+  fs.mkdirSync(path.join(dir, session, 'tool-results'), { recursive: true });
+  const own = 'toolu_01OwnFetchAAAAAAAAAAAAAAA';
+  const lead = 'toolu_01LeadReadBBBBBBBBBBBBBBB';
+  fs.writeFileSync(path.join(dir, session, 'subagents', 'agent-af6e59429e4f08ef4.jsonl'),
+    `${JSON.stringify({ type: 'assistant', message: { content: [{ type: 'tool_use', id: own, name: 'WebFetch', input: {} }] } })}\n`);
+  for (const id of [own, lead]) fs.writeFileSync(path.join(dir, session, 'tool-results', `${id}.txt`), 'x');
+  const results = path.join(dir, session, 'tool-results');
+  return { transcript_path: path.join(dir, `${session}.jsonl`), session_id: session, agent_id: 'af6e59429e4f08ef4', own: path.join(results, `${own}.txt`), lead: path.join(results, `${lead}.txt`) };
+}
+
+test('a research role may read the saved output of its own tool call, not anyone else\'s', async () => {
+  const root = makeProject();
+  const logs = sessionLogs();
+  const read = async (file_path, patch = {}) => runHook('research-guard', await fixture('pre-tool-use.synthetic', {
+    cwd: root, agent_type: 'nac:finance-analyst', tool_name: 'Read', tool_input: { file_path, limit: 60 },
+    transcript_path: logs.transcript_path, session_id: logs.session_id, agent_id: logs.agent_id, ...patch,
+  }));
+  assert.equal((await read(logs.own)).status, 0);
+  assert.equal((await read(logs.lead)).status, 2);
+  assert.equal((await read(logs.own, { agent_id: 'a235262b1662b6728' })).status, 2);
+  assert.equal((await read(logs.own, { agent_id: '../x' })).status, 2);
+  assert.equal((await read(path.join(path.dirname(logs.own), '..', 'subagents', `agent-${logs.agent_id}.jsonl`))).status, 2);
+  assert.equal((await read(path.join(path.dirname(logs.transcript_path), `${logs.session_id}.jsonl`))).status, 2);
+});
+
 test('a plugin-prefixed agent type is still a research role', async () => {
   const root = makeProject();
   assert.equal((await call(root, 'Read', { file_path: path.join(root, '.env') }, 'nac:researcher')).status, 2);
