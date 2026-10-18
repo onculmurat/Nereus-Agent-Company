@@ -14,16 +14,26 @@ async function call(root, tool_name, tool_input, agent_type = 'researcher') {
 const mailbox = (role) => `node "${pluginRoot}/scripts/mailbox.js" inbox --role ${role} --mark-read`;
 const clone = (url) => `node "\${CLAUDE_PLUGIN_ROOT}/scripts/clone.js" ${url}`;
 
-test('research roles may read team/ but not the rest of the project', async () => {
+test('research roles may read the brief and team/research/ but not the rest of the project', async () => {
   const root = makeProject();
   fs.writeFileSync(path.join(root, '.env'), 'SECRET=1');
   fs.writeFileSync(path.join(root, 'team', 'brief.md'), '# brief');
   assert.equal((await call(root, 'Read', { file_path: path.join(root, 'team', 'brief.md') })).status, 0);
+  assert.equal((await call(root, 'Read', { file_path: path.join(root, 'team', 'research', 'report.md') })).status, 0);
   const r = await call(root, 'Read', { file_path: path.join(root, '.env') });
   assert.equal(r.status, 2);
   assert.match(r.stderr, /research role/);
   assert.equal((await call(root, 'Read', { file_path: path.join(root, 'team', '..', '.env') })).status, 2);
   assert.equal((await call(root, 'Read', { file_path: path.join(os.homedir(), '.ssh', 'id_ed25519') }, 'finance-analyst')).status, 2);
+});
+
+test('research roles cannot read decisions, the mailbox or other hand-offs', async () => {
+  const root = makeProject();
+  for (const p of [['decisions.md'], ['config.json'], ['contracts', 'api.md'], ['work', 'mailbox', 't', 'm.md'], ['work', 'handoffs', 'T-002.md'], ['work', 'board.md']]) {
+    assert.equal((await call(root, 'Read', { file_path: path.join(root, 'team', ...p) })).status, 2, p.join('/'));
+  }
+  assert.equal((await call(root, 'Grep', { pattern: 'x', path: path.join(root, 'team') })).status, 2);
+  assert.equal((await call(root, 'Glob', { pattern: '**/*.md', path: path.join(root, 'team', 'work') })).status, 2);
 });
 
 test('research roles may read cloned code under the research temp folder', async () => {
@@ -71,10 +81,11 @@ test('research roles write only to team/research/ and their hand-off folder', as
 test('Grep and Glob need an allowed path and a relative pattern', async () => {
   const root = makeProject();
   assert.equal((await call(root, 'Grep', { pattern: 'SECRET' })).status, 2);
-  assert.equal((await call(root, 'Glob', { pattern: '**/*.md', path: path.join(root, 'team') })).status, 0);
-  assert.equal((await call(root, 'Glob', { pattern: '../**/.env', path: path.join(root, 'team') })).status, 2);
-  assert.equal((await call(root, 'Glob', { pattern: 'C:/Users/**/.ssh/*', path: path.join(root, 'team') })).status, 2);
-  assert.equal((await call(root, 'Grep', { pattern: 'x', path: path.join(root, 'team'), glob: '../*' })).status, 2);
+  const research = path.join(root, 'team', 'research');
+  assert.equal((await call(root, 'Glob', { pattern: '**/*.md', path: research })).status, 0);
+  assert.equal((await call(root, 'Glob', { pattern: '../**/.env', path: research })).status, 2);
+  assert.equal((await call(root, 'Glob', { pattern: 'C:/Users/**/.ssh/*', path: research })).status, 2);
+  assert.equal((await call(root, 'Grep', { pattern: 'x', path: research, glob: '../*' })).status, 2);
 });
 
 test('the researcher may run only the mailbox and clone scripts', async () => {

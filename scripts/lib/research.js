@@ -1,6 +1,7 @@
 // Mechanical guard for the phase 1 research roles. They read untrusted web pages and cloned code, so
-// a prompt injection must find nothing to steal and no way to act: reads stay in team/ and the clone
-// folder, writes stay in team/research/ and hand-offs, and Bash runs only NAC's own scripts, with
+// a prompt injection must find nothing to steal and no way to act: reads stay in the brief,
+// team/research/ and the clone folder (decisions, mailbox and other roles' notes are out of reach,
+// because WebFetch could carry them out), writes stay in team/research/ and hand-offs, and Bash runs only NAC's own scripts, with
 // fixed arguments.
 import fs from 'node:fs';
 import net from 'node:net';
@@ -95,11 +96,14 @@ export function checkResearchTool({ role, toolName, toolInput, root, pluginRoot,
   if (toolName === 'Bash') return checkBash(input.command, role, pluginRoot);
   if (READ_TOOLS.has(toolName)) {
     const target = toolName === 'Read' ? input.file_path : input.path;
-    if (typeof target !== 'string' || !target) return `${toolName} needs an explicit path inside team/ or the clone folder.`;
+    if (typeof target !== 'string' || !target) return `${toolName} needs an explicit path inside team/research/ or the clone folder.`;
     if (toolName === 'Glob' && unsafePattern(input.pattern)) return 'Glob patterns must be relative and must not contain "..".';
     if (toolName === 'Grep' && input.glob !== undefined && unsafePattern(input.glob)) return 'Grep globs must be relative and must not contain "..".';
     const p = path.resolve(root, target);
-    return inside(p, team) || (cloneRoot && inside(p, cloneRoot)) ? null : 'Reads are limited to team/ and the clone folder.';
+    const brief = path.relative(realPath(path.join(team, 'brief.md')), realPath(p)) === '';
+    return brief || inside(p, path.join(team, 'research')) || (cloneRoot && inside(p, cloneRoot))
+      ? null
+      : 'Reads are limited to team/brief.md, team/research/ and the clone folder.';
   }
   if (WRITE_TOOLS.has(toolName)) {
     if (typeof input.file_path !== 'string' || !input.file_path) return `${toolName} needs a file path.`;

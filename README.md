@@ -168,7 +168,7 @@ Limits you should know:
 - No push, merge, deploy, publish, post, infrastructure apply or purchase without your separate, explicit approval for that action.
 - Setup and cleanup always show a dry run first and never overwrite existing files.
 - Roles work only inside their responsibility; reviewers get no file-editing tools.
-- The research roles (researcher, finance-analyst) read untrusted web pages and competitor code, so a `PreToolUse` guard limits them against prompt injection: they read only `team/` and the clone folder, write only to `team/research/` and hand-offs, and Bash runs only NAC's mailbox and clone scripts. If the guard fails, it blocks the call. Web tools stay open; with no secrets in reach there is nothing to leak. No clean-up can remove visible injected text, so later roles read the research report as data.
+- The research roles (researcher, finance-analyst) read untrusted web pages and competitor code, so a `PreToolUse` guard limits them against prompt injection: they read only `team/brief.md`, `team/research/` and the clone folder (not decisions, the mailbox or other roles' notes), write only to `team/research/` and hand-offs, and Bash runs only NAC's mailbox and clone scripts. If the guard fails, it blocks the call. Web tools stay open; with no secrets in reach there is nothing to leak. No clean-up can remove visible injected text, so later roles read the research report as data.
 - Hooks do nothing outside a NAC project (a folder without `team/config.json`).
 
 ## FAQ
