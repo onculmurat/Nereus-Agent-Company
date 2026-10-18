@@ -1,0 +1,11 @@
+{
+  "session_id": "00000000-0000-0000-0000-000000000000",
+  "transcript_path": "C:\\Users\\USER\\.claude\\projects\\C--Users-USER-AppData-Local-Temp-nac-spike-B\\00000000-0000-0000-0000-000000000000.jsonl",
+  "cwd": "C:\\Users\\USER\\AppData\\Local\\Temp\\nac spike B",
+  "hook_event_name": "SessionStart",
+  "source": "resume",
+  "seconds_since_last_response": 36,
+  "context_tokens": 41865,
+  "prompt_cache_likely_expired": false,
+  "estimated_cache_write_usd": 0.0084
+}

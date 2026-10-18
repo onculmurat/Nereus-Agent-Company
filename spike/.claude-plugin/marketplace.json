@@ -1,0 +1,5 @@
+{
+  "name": "nac-spike",
+  "owner": { "name": "NAC spike" },
+  "plugins": [{ "name": "nac-probe", "source": "./probe-plugin", "description": "Spike probe" }]
+}

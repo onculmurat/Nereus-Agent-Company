@@ -1,6 +1,6 @@
 # Nereus Agent Company (NAC) — Design
 
-Status: draft, awaiting owner approval. Date: 2026-10-18.
+Status: approved 2026-10-18. Date: 2026-10-18.
 
 ## 1. Intent
 

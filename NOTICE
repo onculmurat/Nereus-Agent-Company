@@ -1,0 +1,12 @@
+Nereus Agent Company (NAC)
+Copyright (c) 2026 Murat Öncül
+Licensed under the MIT License.
+
+This product includes material adapted from superpowers
+(https://github.com/obra/superpowers):
+
+  skills/task-loop/SKILL.md          adapted from subagent-driven-development
+  skills/question-protocol/SKILL.md  adapted from brainstorming and executing-plans
+
+Copyright (c) 2025 Jesse Vincent
+Licensed under the MIT License.

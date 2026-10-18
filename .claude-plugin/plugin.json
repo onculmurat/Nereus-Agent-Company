@@ -1,0 +1,8 @@
+{
+  "name": "nac",
+  "version": "0.1.0",
+  "description": "Nereus Agent Company: a full team of AI agents that takes a project from idea to launch. The owner only makes decisions.",
+  "author": { "name": "Murat Öncül" },
+  "license": "MIT",
+  "repository": "https://github.com/onculmurat/Nereus-Agent-Company"
+}

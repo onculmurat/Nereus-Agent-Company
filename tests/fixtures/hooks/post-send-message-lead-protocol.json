@@ -1,0 +1,27 @@
+{
+  "session_id": "00000000-0000-0000-0000-000000000000",
+  "transcript_path": "C:\\Users\\USER\\.claude\\projects\\C--Users-USER-AppData-Local-Temp-nac-spike-A\\00000000-0000-0000-0000-000000000000.jsonl",
+  "cwd": "C:\\Users\\USER\\AppData\\Local\\Temp\\nac spike A",
+  "prompt_id": "00000000-0000-0000-0000-000000000000",
+  "permission_mode": "bypassPermissions",
+  "effort": {
+    "level": "medium"
+  },
+  "hook_event_name": "PostToolUse",
+  "tool_name": "SendMessage",
+  "tool_input": {
+    "to": "alpha",
+    "message": {
+      "type": "shutdown_request",
+      "reason": "Work done, team shutting down"
+    }
+  },
+  "tool_response": {
+    "success": true,
+    "message": "Shutdown request sent to alpha. Request ID: shutdown-1792346040839@alpha",
+    "request_id": "shutdown-1792346040839@alpha",
+    "target": "alpha"
+  },
+  "tool_use_id": "toolu_01MHNSi33MisqxvwyGrzLGqv",
+  "duration_ms": 9
+}

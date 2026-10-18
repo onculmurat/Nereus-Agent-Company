@@ -1,0 +1,12 @@
+{
+  "session_id": "00000000-0000-0000-0000-000000000000",
+  "transcript_path": "<HOME>/.claude/projects/x/00000000-0000-0000-0000-000000000000.jsonl",
+  "cwd": "<PROJECT>",
+  "permission_mode": "default",
+  "hook_event_name": "TaskCompleted",
+  "task_id": "task-001",
+  "task_subject": "T-001: Build the API",
+  "task_description": "Synthetic payload per Claude Code hooks reference; replace with a recorded one.",
+  "teammate_name": "backend-developer",
+  "team_name": "nac"
+}

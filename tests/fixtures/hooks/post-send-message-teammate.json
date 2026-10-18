@@ -1,0 +1,30 @@
+{
+  "session_id": "00000000-0000-0000-0000-000000000000",
+  "transcript_path": "C:\\Users\\USER\\.claude\\projects\\C--Users-USER-AppData-Local-Temp-nac-spike-A\\00000000-0000-0000-0000-000000000000.jsonl",
+  "cwd": "C:\\Users\\USER\\AppData\\Local\\Temp\\nac spike A",
+  "prompt_id": "00000000-0000-0000-0000-000000000000",
+  "permission_mode": "bypassPermissions",
+  "agent_id": "a235262b1662b6728",
+  "agent_type": "general-purpose",
+  "effort": {
+    "level": "medium"
+  },
+  "hook_event_name": "PostToolUse",
+  "tool_name": "SendMessage",
+  "tool_input": {
+    "to": "alpha",
+    "summary": "Hello to alpha",
+    "message": "Hello from beta."
+  },
+  "tool_response": {
+    "success": true,
+    "message": "Message queued for delivery to alpha at its next tool round. If it finishes first, it is resumed with the message and notifies again, so wait for that notification before resending.",
+    "pin": {
+      "id": "a688f49ad0b20fee3",
+      "name": "alpha",
+      "ref": "8ab2b4"
+    }
+  },
+  "tool_use_id": "toolu_01C9AMqGFiAatZuC5bAwydSr",
+  "duration_ms": 1
+}

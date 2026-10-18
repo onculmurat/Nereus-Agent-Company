@@ -1,0 +1,11 @@
+{
+  "name": "nereus-agent-company",
+  "owner": { "name": "Murat Öncül" },
+  "plugins": [
+    {
+      "name": "nac",
+      "source": "./",
+      "description": "Nereus Agent Company: a full team of AI agents for your project."
+    }
+  ]
+}

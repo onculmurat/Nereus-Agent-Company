@@ -1,0 +1,25 @@
+{
+  "session_id": "00000000-0000-0000-0000-000000000000",
+  "transcript_path": "C:\\Users\\USER\\.claude\\projects\\C--Users-USER-AppData-Local-Temp-nac-spike-A\\00000000-0000-0000-0000-000000000000.jsonl",
+  "cwd": "C:\\Users\\USER\\AppData\\Local\\Temp\\nac spike A",
+  "prompt_id": "00000000-0000-0000-0000-000000000000",
+  "permission_mode": "bypassPermissions",
+  "agent_id": "a235262b1662b6728",
+  "agent_type": "general-purpose",
+  "effort": {
+    "level": "medium"
+  },
+  "hook_event_name": "PostToolUse",
+  "tool_name": "SendMessage",
+  "tool_input": {
+    "to": "main",
+    "summary": "Hello to main lead",
+    "message": "Hello from beta."
+  },
+  "tool_response": {
+    "success": true,
+    "message": "Message queued for the main conversation's next turn."
+  },
+  "tool_use_id": "toolu_01FZfDRHVu8KDNhAbrtuujmm",
+  "duration_ms": 1
+}

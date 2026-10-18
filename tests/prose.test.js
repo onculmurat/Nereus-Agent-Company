@@ -1,0 +1,53 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { parseFrontmatter } from '../scripts/lib/frontmatter.js';
+
+const pluginRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const read = (...p) => fs.readFileSync(path.join(pluginRoot, ...p), 'utf8');
+const SKILLS = ['question-protocol', 'task-loop', 'escalation', 'mailbox', 'phase-report', 'cleanup'];
+const COMMANDS = ['setup', 'status', 'questions', 'cleanup'];
+
+for (const skill of SKILLS) {
+  test(`skill ${skill} has name and description`, () => {
+    const { data } = parseFrontmatter(read('skills', skill, 'SKILL.md'));
+    assert.equal(data.name, skill);
+    assert.ok(data.description);
+  });
+}
+
+for (const cmd of COMMANDS) {
+  test(`command ${cmd} has a description`, () => {
+    assert.ok(parseFrontmatter(read('commands', `${cmd}.md`)).data.description);
+  });
+}
+
+test('every scripts/<x>.js named in prose exists', () => {
+  const files = [
+    path.join('prompts', 'lead.md'),
+    ...SKILLS.map((s) => path.join('skills', s, 'SKILL.md')),
+    ...COMMANDS.map((c) => path.join('commands', `${c}.md`)),
+    ...fs.readdirSync(path.join(pluginRoot, 'agents')).map((f) => path.join('agents', f)),
+  ];
+  for (const f of files) {
+    for (const [, script] of read(f).matchAll(/scripts\/([a-z-]+\.js)/g)) {
+      assert.ok(fs.existsSync(path.join(pluginRoot, 'scripts', script)), `${f} names missing scripts/${script}`);
+    }
+  }
+});
+
+test('lead prompt covers build-phase spawns and every enabled phase', () => {
+  const lead = read('prompts', 'lead.md');
+  assert.match(lead, /^# NAC lead instructions/);
+  assert.match(lead, /never pass a name/);
+  for (const n of [0, 3, 4, 5, 6]) assert.match(lead, new RegExp(`^## Phase ${n}\\b`, 'm'));
+});
+
+test('NOTICE credits superpowers', () => {
+  const notice = read('NOTICE');
+  assert.match(notice, /Jesse Vincent/);
+  assert.match(notice, /skills\/task-loop\/SKILL\.md/);
+  assert.match(notice, /skills\/question-protocol\/SKILL\.md/);
+});
