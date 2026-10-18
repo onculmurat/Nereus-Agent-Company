@@ -14,7 +14,7 @@ Building a product alone means playing every role: architect, developer, reviewe
 
 NAC has no graphical interface. It runs inside the Claude Code terminal.
 
-**v1 scope.** This release ships the core roles (team lead, architect, planner, backend developer, frontend developer, database engineer, test engineer, code reviewer, final reviewer, security reviewer, doc writer, assistant) and phases 0, 3, 4, 5 and 6. Planned next: v2 adds researcher, product manager, UX and UI designers, DevOps engineer and phases 1, 2 and 7; v3 adds marketing and business roles and phases 8 and 9.
+**v1.1 scope.** This release ships the core roles (team lead, researcher, finance analyst, architect, planner, backend developer, frontend developer, database engineer, test engineer, code reviewer, final reviewer, security reviewer, doc writer, assistant) and phases 0, 1, 3, 4, 5 and 6. Planned next: v2 adds product manager, UX and UI designers, DevOps engineer and phases 2 and 7; v3 adds marketing and the remaining business roles and phases 8 and 9.
 
 ## Install
 
@@ -63,6 +63,7 @@ Your session is the lead, and the lead runs on your session's model. Use `/model
 | Phase | Roles | Output | Your approval |
 |---|---|---|---|
 | 0 Kick-off | lead | Project brief: goal, why, competitors, dream, failure criteria | yes |
+| 1 Research (optional: the lead asks) | researcher, finance analyst | Sourced report in `team/research/`: competitors, technology, known attacks, licenses, cost estimate and free tier limits | yes |
 | 3 Design | architect, security reviewer | Spec, contracts, threat model | yes |
 | 4 Planning | planner | Task briefs and board entries | yes |
 | 5 Build | developers, database engineer, test engineer, code reviewer, doc writer | Per task: code, tests, review, docs | only for decisions |
@@ -75,6 +76,8 @@ Each phase ends with a short phase report (done, decided, open), and the next ph
 | Role | Responsibility | Model |
 |---|---|---|
 | team lead (your session) | Talks to you, assigns work, keeps the board, asks you | your session model |
+| researcher | Competitors, technology options, known attacks, licenses; sourced | opus |
+| finance-analyst | Cost estimate, paid services, free tier limits; sourced | opus |
 | architect | Spec, service split, data model, contracts | opus |
 | planner | Spec to small testable tasks and briefs | sonnet |
 | backend-developer | Server code and tests | sonnet |

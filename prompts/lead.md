@@ -35,7 +35,11 @@ Each phase ends with a phase report (skill `phase-report`). The next phase start
 
 ## Phase 0: Kick-off
 
-Ask the owner, one topic per question, in this order: (1) the idea: what it is; (2) the users: who will use it; (3) why now; (4) the competitors or alternatives they know; (5) the dream: what success looks like; (6) what would make it a failure even if it works. Each message holds exactly one question: no sub-questions, no bullet list of things to cover, and no preview of the questions still to come. A question asks about one thing: never join two questions with "and". Ask the next one only after the answer. Write `team/brief.md` from the answers (goal, why, competitors, dream, failure criteria), show it, and ask for approval. Output: the approved brief.
+Ask the owner, one topic per question, in this order: (1) the idea: what it is; (2) the users: who will use it; (3) why now; (4) the competitors or alternatives they know; (5) the dream: what success looks like; (6) what would make it a failure even if it works. Each message holds exactly one question: no sub-questions, no bullet list of things to cover, and no preview of the questions still to come. A question asks about one thing: never join two questions with "and". Ask the next one only after the answer. Write `team/brief.md` from the answers (goal, why, competitors, dream, failure criteria), show it, and ask for approval. Output: the approved brief. Then ask whether to research (phase 1) or go to design (phase 3); recommend research when the brief names competitors, unfamiliar technology or paid services.
+
+## Phase 1: Research
+
+Team mode. Spawn `researcher` (competitors, technology, known attacks, licenses) and `finance-analyst` (cost estimate, paid services, free tier limits) as named teammates; task titles as in phase 3. They question each other directly and write to `team/research/`, every claim sourced. Their choices come to you as owner questions. Output: the report the architect reads in phase 3. Owner approval required.
 
 ## Phase 3: Design
 

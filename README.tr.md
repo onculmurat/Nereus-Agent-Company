@@ -14,7 +14,7 @@ Bir ürünü tek başına geliştirmek her rolü üstlenmek demektir: mimar, gel
 
 NAC'ın görsel bir arayüzü yoktur. Claude Code terminalinin içinde çalışır.
 
-**v1 kapsamı.** Bu sürüm çekirdek rolleri (ekip lideri, mimar, planlayıcı, backend geliştirici, frontend geliştirici, veritabanı mühendisi, test mühendisi, kod incelemecisi, son incelemeci, güvenlik incelemecisi, doküman yazarı, asistan) ve 0, 3, 4, 5 ve 6. aşamaları içerir. Sonraki adımlar: v2 araştırmacı, ürün yöneticisi, UX ve UI tasarımcıları, DevOps mühendisi ile 1, 2 ve 7. aşamaları; v3 pazarlama ve iş rolleri ile 8 ve 9. aşamaları ekler.
+**v1.1 kapsamı.** Bu sürüm çekirdek rolleri (ekip lideri, araştırmacı, finans analisti, mimar, planlayıcı, backend geliştirici, frontend geliştirici, veritabanı mühendisi, test mühendisi, kod incelemecisi, son incelemeci, güvenlik incelemecisi, doküman yazarı, asistan) ve 0, 1, 3, 4, 5 ve 6. aşamaları içerir. Sonraki adımlar: v2 ürün yöneticisi, UX ve UI tasarımcıları, DevOps mühendisi ile 2 ve 7. aşamaları; v3 pazarlama ve kalan iş rolleri ile 8 ve 9. aşamaları ekler.
 
 ## Kurulum
 
@@ -63,6 +63,7 @@ Oturumunuz liderdir ve lider oturumunuzun modeliyle çalışır. Lider için `/m
 | Aşama | Roller | Çıktı | Onayınız |
 |---|---|---|---|
 | 0 Başlangıç | lider | Proje özeti: amaç, neden, rakipler, hayal, başarısızlık ölçütleri | evet |
+| 1 Araştırma (isteğe bağlı: lider sorar) | araştırmacı, finans analisti | `team/research/` altında kaynaklı rapor: rakipler, teknoloji, bilinen saldırılar, lisanslar, maliyet tahmini ve ücretsiz katman sınırları | evet |
 | 3 Tasarım | mimar, güvenlik incelemecisi | Spec, sözleşmeler, tehdit modeli | evet |
 | 4 Planlama | planlayıcı | Görev özetleri ve pano kayıtları | evet |
 | 5 Geliştirme | geliştiriciler, veritabanı mühendisi, test mühendisi, kod incelemecisi, doküman yazarı | Görev başına: kod, test, inceleme, belge | yalnız kararlar için |
@@ -75,6 +76,8 @@ Her aşama kısa bir aşama raporuyla (biten, karar verilen, açık kalan) biter
 | Rol | Sorumluluk | Model |
 |---|---|---|
 | ekip lideri (oturumunuz) | Sizinle konuşur, iş dağıtır, panoyu tutar, size sorar | oturum modeliniz |
+| researcher | Rakipler, teknoloji seçenekleri, bilinen saldırılar, lisanslar; kaynaklı | opus |
+| finance-analyst | Maliyet tahmini, ücretli servisler, ücretsiz katman sınırları; kaynaklı | opus |
 | architect | Spec, servis ayrımı, veri modeli, sözleşmeler | opus |
 | planner | Spec'i küçük, test edilebilir görevlere ve özetlere böler | sonnet |
 | backend-developer | Sunucu kodu ve testleri | sonnet |

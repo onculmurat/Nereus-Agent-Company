@@ -42,7 +42,21 @@ test('lead prompt covers build-phase spawns and every enabled phase', () => {
   const lead = read('prompts', 'lead.md');
   assert.match(lead, /^# NAC lead instructions/);
   assert.match(lead, /never pass a name/);
-  for (const n of [0, 3, 4, 5, 6]) assert.match(lead, new RegExp(`^## Phase ${n}\\b`, 'm'));
+  const { phases } = JSON.parse(read('defaults', 'config.json'));
+  assert.deepEqual(phases.enabled, [0, 1, 3, 4, 5, 6]);
+  for (const n of phases.enabled) assert.match(lead, new RegExp(`^## Phase ${n}\\b`, 'm'));
+});
+
+test('lead prompt runs phase 1 as a team of researcher and finance-analyst, and asks whether it is needed', () => {
+  const lead = read('prompts', 'lead.md');
+  const phase1 = lead.split('## Phase 1')[1].split('\n## ')[0];
+  assert.match(phase1, /Team mode/);
+  assert.match(phase1, /`researcher`/);
+  assert.match(phase1, /`finance-analyst`/);
+  assert.match(phase1, /team\/research\//);
+  assert.match(phase1, /approval/i);
+  const phase0 = lead.split('## Phase 0')[1].split('\n## ')[0];
+  assert.match(phase0, /research/i);
 });
 
 test('NOTICE credits superpowers', () => {

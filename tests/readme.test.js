@@ -33,6 +33,14 @@ test('README mentions every command', () => {
   }
 });
 
+test('README lists every agent role', () => {
+  for (const f of fs.readdirSync(path.join(pluginRoot, 'agents'))) {
+    const role = f.replace(/\.md$/, '');
+    assert.ok(en.includes(`| ${role} |`), `README.md lacks ${role}`);
+    assert.ok(tr.includes(`| ${role} |`), `README.tr.md lacks ${role}`);
+  }
+});
+
 test('setup requirements name Node 20 and the agent teams flag', () => {
   const req = fs.readFileSync(path.join(pluginRoot, 'docs', 'setup-requirements.md'), 'utf8');
   assert.match(req, /Node\.js 20/);
