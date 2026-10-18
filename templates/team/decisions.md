@@ -1,0 +1,5 @@
+# Decisions
+
+## Open questions
+
+## Decided

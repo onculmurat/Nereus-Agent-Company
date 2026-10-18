@@ -4,10 +4,11 @@ import { findProjectRoot } from './paths.js';
 
 export class UsageError extends Error {}
 
-export function runCli(usage, options, handler) {
+// requireProject: false lets a CLI (setup) run where no team/ exists yet; root then defaults to cwd.
+export function runCli(usage, options, handler, { requireProject = true } = {}) {
   try {
     const { values, positionals } = parseArgs({ options: { project: { type: 'string' }, ...options }, allowPositionals: true });
-    const root = values.project ?? findProjectRoot(process.cwd());
+    const root = values.project ?? findProjectRoot(process.cwd()) ?? (requireProject ? null : process.cwd());
     if (!root) throw new UsageError('Not inside a NAC project (no team/config.json found). Pass --project <dir>.');
     const result = handler({ values, positionals, root });
     if (result !== undefined) process.stdout.write(typeof result === 'string' ? result : `${JSON.stringify(result, null, 2)}\n`);
