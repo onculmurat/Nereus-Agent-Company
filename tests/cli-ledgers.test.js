@@ -20,6 +20,13 @@ test('board CLI add, update with commit, phase', () => {
   assert.equal(run('board.js', root, 'show').phase, 3);
 });
 
+test('board CLI round reaches to-lead on the fourth round', () => {
+  const root = makeProject();
+  run('board.js', root, 'add', '--title', 'API', '--owner', 'backend-developer', '--model', 'sonnet');
+  const actions = [1, 2, 3, 4].map(() => run('board.js', root, 'round', 'T-001').next.action);
+  assert.deepEqual(actions, ['retry', 'raise-model', 'retry', 'to-lead']);
+});
+
 test('decisions CLI ask, open (blocking first), decide', () => {
   const root = makeProject();
   const ask = (title, blocking, thread) =>

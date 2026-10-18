@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { teamPaths } from './paths.js';
 import { parseEntries, formatEntry, toLines, nextId } from './sections.js';
+import { nextAction } from './escalation.js';
 
 export const STATUSES = ['todo', 'in-progress', 'review', 'done', 'blocked'];
 const ID_RE = /^[A-Za-z0-9-]{1,64}$/;
@@ -61,4 +62,32 @@ export function setPhase(root, n) {
   const board = readBoard(root);
   board.phase = Number(n);
   writeBoard(root, board);
+}
+
+// Counts one more unresolved round on an entry and applies the escalation ladder.
+// Only the lead calls this, so no agent has to remember the count.
+export function incrementRound(root, id, config) {
+  const board = readBoard(root);
+  const entry = board.entries.find((e) => e.id === id);
+  if (!entry) throw new Error(`No board entry ${id}`);
+  entry.rounds += 1;
+  const next = nextAction(entry.rounds, entry.model, config);
+  if (next.action === 'raise-model') entry.model = next.model;
+  writeBoard(root, board);
+  if (next.action !== 'retry') {
+    const dir = teamPaths(root).escalations;
+    fs.mkdirSync(dir, { recursive: true });
+    const text = [
+      `# Escalation ${entry.id} round ${entry.rounds}`,
+      '',
+      `- entry: ${entry.id}: ${entry.title}`,
+      `- owner: ${entry.owner}`,
+      `- action: ${next.action}`,
+      `- model: ${next.model}`,
+      `- date: ${new Date().toISOString()}`,
+      '',
+    ].join('\n');
+    fs.writeFileSync(path.join(dir, `${entry.id}-r${entry.rounds}.md`), text);
+  }
+  return { entry, next };
 }

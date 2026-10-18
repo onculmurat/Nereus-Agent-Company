@@ -1,12 +1,16 @@
 #!/usr/bin/env node
 // Board CLI (lead only): show | add | update | phase.
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { runCli, need, UsageError } from './lib/cli.js';
-import { readBoard, addEntry, updateEntry, setPhase } from './lib/board.js';
+import { readBoard, addEntry, updateEntry, setPhase, incrementRound } from './lib/board.js';
+import { loadConfig, validateConfig } from './lib/config.js';
 
 const usage = `Usage:
   board.js show
   board.js add --title <text> --owner <role> --model <haiku|sonnet|opus> [--id <id>]
   board.js update <id> [--status <todo|in-progress|review|done|blocked>] [--owner <role>] [--model <m>] [--commit <sha>] [--handoff <path>]
+  board.js round <id>                    count one unresolved round; prints {entry, next} (next.action: retry|raise-model|to-lead|to-owner)
   board.js phase <n>
   (all accept --project <dir>; default: nearest directory with team/config.json)
 `;
@@ -26,6 +30,13 @@ const commands = {
       patch.commits = [...(entry?.commits ?? []), v.commit];
     }
     return updateEntry(root, id, patch);
+  },
+  round: ({ positionals: [, id], root }) => {
+    if (!id) throw new UsageError('Missing entry id');
+    const pluginRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+    const config = loadConfig({ pluginRoot, projectRoot: root });
+    validateConfig(config);
+    return incrementRound(root, id, config);
   },
   phase: ({ positionals: [, n], root }) => {
     if (!/^\d+$/.test(n ?? '')) throw new UsageError('Phase must be a number');
