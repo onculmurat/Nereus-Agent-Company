@@ -60,8 +60,9 @@ export function listInbox(root, role, { state = 'unread' } = {}) {
   const box = teamPaths(root).mailbox;
   if (!fs.existsSync(box)) return [];
   const out = [];
-  for (const thread of fs.readdirSync(box)) {
-    for (const file of messageFiles(path.join(box, thread))) {
+  for (const d of fs.readdirSync(box, { withFileTypes: true })) {
+    if (!d.isDirectory()) continue;
+    for (const file of messageFiles(path.join(box, d.name))) {
       const msg = readMessage(file);
       if (msg.data.to === role && msg.data.state === state) out.push(msg);
     }

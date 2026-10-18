@@ -110,3 +110,10 @@ test('CLI bad input exits 1 with usage', () => {
   assert.equal(r.status, 1);
   assert.match(r.stderr, /usage/i);
 });
+
+test('a plain file in the mailbox root (setup .gitkeep) is ignored', () => {
+  const root = project();
+  writeMessage(root, { from: 'architect', to: 'team-lead', thread: 't1', body: 'hi' });
+  fs.writeFileSync(path.join(teamPaths(root).mailbox, '.gitkeep'), '');
+  assert.equal(listInbox(root, 'team-lead').length, 1);
+});
