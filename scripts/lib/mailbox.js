@@ -11,6 +11,9 @@ const STATES = ['unread', 'read', 'closed'];
 const DUPLICATE_WINDOW_MS = 60_000;
 
 export const isValidThread = (id) => typeof id === 'string' && THREAD_RE.test(id);
+export const isValidRole = (role) => typeof role === 'string' && ROLE_RE.test(role);
+// A helper send gets a 16-hex content hash as id; the hook uses the tool_use_id.
+const isHelperId = (id) => /^[0-9a-f]{16}$/.test(id ?? '');
 
 function stamp(iso) {
   return iso.replace(/[-:]/g, '').replace('.', '');
@@ -26,8 +29,13 @@ function readMessage(file) {
   return { path: file, data, body };
 }
 
-export function writeMessage(root, { id, from, to, thread = 'general', body, date }) {
+export function writeMessage(root, { id, from, to, thread, body, date, state = 'unread' }) {
+  if (thread === undefined) {
+    const fromHeader = parseHeader(body).thread;
+    thread = isValidThread(fromHeader) ? fromHeader : 'general';
+  }
   if (!isValidThread(thread)) throw new Error(`Invalid thread id "${thread}" (allowed: ${THREAD_RE})`);
+  if (!STATES.includes(state)) throw new Error(`Invalid state "${state}"`);
   for (const [k, v] of Object.entries({ from, to })) {
     if (!ROLE_RE.test(v ?? '')) throw new Error(`Invalid ${k} "${v}"`);
   }
@@ -35,16 +43,18 @@ export function writeMessage(root, { id, from, to, thread = 'general', body, dat
   const msgId = id ?? crypto.createHash('sha256').update([from, to, thread, body, when.slice(0, 19)].join('|')).digest('hex').slice(0, 16);
   const dir = path.join(teamPaths(root).mailbox, thread);
   // The hook records a live message under its tool_use_id; a helper send of the same message cannot know
-  // that id, so the same sender, recipient and text within DUPLICATE_WINDOW_MS also counts as a duplicate.
+  // that id, so a hook copy and a helper copy with the same sender, recipient and text within
+  // DUPLICATE_WINDOW_MS also count as one message. Two helper sends are two messages.
   const text = parseHeader(body).rest.trim();
   for (const file of messageFiles(dir)) {
     const m = readMessage(file);
     if (m.data.id === msgId) return { path: file, created: false };
-    const sameText = m.data.from === from && m.data.to === to && parseHeader(m.body).rest.trim() === text;
+    const sameText = isHelperId(m.data.id) !== isHelperId(msgId)
+      && m.data.from === from && m.data.to === to && parseHeader(m.body).rest.trim() === text;
     if (sameText && Math.abs(Date.parse(m.data.date) - Date.parse(when)) <= DUPLICATE_WINDOW_MS) return { path: file, created: false };
   }
   fs.mkdirSync(dir, { recursive: true });
-  const content = stringifyFrontmatter({ id: msgId, from, to, thread, date: when, state: 'unread' }, body.endsWith('\n') ? body : `${body}\n`);
+  const content = stringifyFrontmatter({ id: msgId, from, to, thread, date: when, state }, body.endsWith('\n') ? body : `${body}\n`);
   const base = `${stamp(when)}-${from}-to-${to}`;
   for (let n = 1; ; n++) {
     const file = path.join(dir, n === 1 ? `${base}.md` : `${base}-${n}.md`);
@@ -71,7 +81,8 @@ export function listInbox(root, role, { state = 'unread' } = {}) {
     if (!d.isDirectory()) continue;
     for (const file of messageFiles(path.join(box, d.name))) {
       const msg = readMessage(file);
-      if (msg.data.to === role && msg.data.state === state) out.push(msg);
+      const forRole = msg.data.to === role || (msg.data.to === 'all' && msg.data.from !== role);
+      if (forRole && msg.data.state === state) out.push(msg);
     }
   }
   return out.sort((a, b) => (a.data.date < b.data.date ? -1 : a.data.date > b.data.date ? 1 : 0));

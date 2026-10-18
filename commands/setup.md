@@ -36,4 +36,6 @@ You are the NAC team lead. Set up NAC in the current project. Never write anythi
 
 4. Tell the owner: the lead (you) runs on the session's model, set with `/model`. NAC suggests `/model opus` for the lead.
 
-5. Start phase 0: ask the owner to describe the project, write `team/brief.md` from the answers, and follow your lead instructions from there.
+5. Tell the owner to run `/clear` (or restart Claude Code). This session started before NAC was set up, so it does not have the lead instructions yet; after `/clear` the new session starts as the lead.
+
+6. After `/clear`, the lead starts phase 0: it asks the owner to describe the project and writes `team/brief.md` from the answers.

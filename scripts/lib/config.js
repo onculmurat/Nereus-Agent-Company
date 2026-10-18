@@ -4,6 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 const MODELS = ['haiku', 'sonnet', 'opus'];
+const CLEANUP_MODES = ['archive', 'delete'];
 
 export function defaultUserConfigPath() {
   return path.join(os.homedir(), '.claude', 'nac', 'config.json');
@@ -52,4 +53,9 @@ export function validateConfig(cfg) {
   for (const [key, v] of Object.entries(positive)) {
     if (!Number.isInteger(v) || v < 1) throw new Error(`${key} must be a positive integer; got ${JSON.stringify(v)}`);
   }
+  if (!CLEANUP_MODES.includes(cfg.cleanup?.mode)) {
+    throw new Error(`cleanup.mode must be one of ${CLEANUP_MODES.join(', ')}; got ${JSON.stringify(cfg.cleanup?.mode)}`);
+  }
+  const age = cfg.cleanup?.closedThreadMaxAgeDays;
+  if (!Number.isInteger(age) || age < 0) throw new Error(`cleanup.closedThreadMaxAgeDays must be a whole number of days, 0 or more; got ${JSON.stringify(age)}`);
 }

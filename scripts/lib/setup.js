@@ -36,9 +36,11 @@ function planSettings(projectRoot) {
   const before = readJsonOrNull(file);
   const after = structuredClone(before ?? {});
   const conflicts = [];
+  // 1, "1" and true all mean "on"; an existing equivalent value is kept as it is.
+  const on = (v) => v === true || v === 1 || v === '1';
   const want = (obj, key, value, label) => {
-    if (obj[key] !== undefined && obj[key] !== value) conflicts.push(label);
-    else obj[key] = value;
+    if (obj[key] === undefined) obj[key] = value;
+    else if (obj[key] !== value && !(on(obj[key]) && on(value))) conflicts.push(label);
   };
   after.env ??= {};
   want(after.env, TEAMS_ENV, '1', `env.${TEAMS_ENV}`);
@@ -92,13 +94,14 @@ export function applySetup(plan) {
   }
 }
 
-export function planGlobalModelPointer(claudeMdPath, { pluginRoot }) {
+// The installed plugin path changes with every version, so the pointer names the file, not the path.
+export function planGlobalModelPointer(claudeMdPath) {
   const before = fs.existsSync(claudeMdPath) ? fs.readFileSync(claudeMdPath, 'utf8') : '';
   const block = [
     BLOCK_START,
     '# Model selection',
     'Role models come from the NAC plugin model table (single source of truth):',
-    `${path.join(pluginRoot, 'defaults', 'config.json')}, overridable in ~/.claude/nac/config.json and in each project's team/config.json.`,
+    "defaults/config.json in the installed NAC plugin, overridable in ~/.claude/nac/config.json and in each project's team/config.json.",
     BLOCK_END,
   ].join('\n');
   const start = before.indexOf(BLOCK_START);

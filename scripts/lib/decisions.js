@@ -58,6 +58,23 @@ export function decide(root, questionId, { answer, link = '' }) {
   return d;
 }
 
+// Records how a thread ended when no owner question was involved, so cleanup can archive it.
+export function recordOutcome(root, { thread, outcome, link = '' }) {
+  const all = readDecisions(root);
+  const d = {
+    id: nextId('D', all.decided.map((x) => x.id)),
+    title: outcome,
+    question: '',
+    answer: outcome,
+    date: new Date().toISOString().slice(0, 10),
+    link,
+    thread,
+  };
+  all.decided.push(d);
+  writeDecisions(root, all);
+  return d;
+}
+
 export function isThreadDecided(root, thread) {
   return readDecisions(root).decided.some((d) => d.thread === thread);
 }

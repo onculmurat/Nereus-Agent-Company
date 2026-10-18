@@ -6,13 +6,17 @@ import { listInbox } from './mailbox.js';
 
 function gitStatusOf(root) {
   try {
-    return execFileSync('git', ['status', '--porcelain'], { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
+    return execFileSync('git', ['status', '--porcelain'], { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], timeout: 5000 });
   } catch {
     return '';
   }
 }
 
 const line = (e) => `- ${e.id}: ${e.title} (${e.owner}, ${e.status})`;
+
+// The summary is injected into every lead session, so each list is cut to MAX_LINES.
+const MAX_LINES = 20;
+const capped = (lines) => (lines.length > MAX_LINES ? [...lines.slice(0, MAX_LINES), `- ... and ${lines.length - MAX_LINES} more`] : lines);
 
 export function buildResumeSummary(root, { gitStatus } = {}) {
   const board = readBoard(root);
@@ -25,14 +29,14 @@ export function buildResumeSummary(root, { gitStatus } = {}) {
 
   const parts = [`Phase: ${board.phase}`];
   if (inProgress.length || changes.length) {
-    const lines = inProgress.map(line);
-    if (changes.length) lines.push('- Uncommitted changes (git status):', ...changes.map((c) => `  ${c}`));
+    const lines = capped(inProgress.map(line));
+    if (changes.length) lines.push('- Uncommitted changes (git status):', ...capped(changes).map((c) => `  ${c}`));
     parts.push(['In progress:', ...lines].join('\n'));
   }
-  if (pending.length) parts.push(['Open board items:', ...pending.map(line)].join('\n'));
+  if (pending.length) parts.push(['Open board items:', ...capped(pending.map(line))].join('\n'));
   if (unread) parts.push(`Unread for team-lead: ${unread}`);
   if (questions.length) {
-    parts.push(['Queued owner questions:', ...questions.map((q) => `- ${q.id}: ${q.title}${q.blocking === 'yes' ? ' [blocking]' : ''}`)].join('\n'));
+    parts.push(['Queued owner questions:', ...capped(questions.map((q) => `- ${q.id}: ${q.title}${q.blocking === 'yes' ? ' [blocking]' : ''}`))].join('\n'));
   }
   return `${parts.join('\n\n')}\n`;
 }

@@ -1,6 +1,6 @@
 // Minimal front matter: "key: value" lines between --- fences. Accepts CRLF, writes LF.
 export function parseFrontmatter(text) {
-  const src = text.replace(/\r\n/g, '\n');
+  const src = text.replace(/^﻿/, '').replace(/\r\n/g, '\n');
   const m = /^---\n([\s\S]*?)\n---\n?([\s\S]*)$/.exec(src);
   if (!m) return { data: {}, body: src };
   const data = {};

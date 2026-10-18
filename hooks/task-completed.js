@@ -3,7 +3,7 @@
 // complete when the board marks it done and its hand-off note exists. The board is the source of truth.
 import fs from 'node:fs';
 import path from 'node:path';
-import { runHook, pluginRoot } from '../scripts/lib/hookio.js';
+import { runHook } from '../scripts/lib/hookio.js';
 import { readBoard } from '../scripts/lib/board.js';
 import { teamPaths } from '../scripts/lib/paths.js';
 
@@ -17,8 +17,8 @@ runHook(async (payload, root) => {
   if (entry.status !== 'done') reason = `board status is "${entry.status}"`;
   else if (!fs.existsSync(handoff)) reason = 'hand-off note is missing';
   if (!reason) return;
-  const board = path.join(pluginRoot, 'scripts', 'board.js');
+  // Review comes before done, so the teammate never marks the board itself.
   return {
-    block: `${entry.id} is not complete: ${reason}. Mark it done with node "${board}" update ${entry.id} --status done and write team/work/handoffs/${entry.id}.md.`,
+    block: `${entry.id} is not complete: ${reason}. Send your hand-off to the lead (or write team/work/handoffs/${entry.id}.md if you can write files). Only the lead marks board entries done, after review.`,
   };
 });

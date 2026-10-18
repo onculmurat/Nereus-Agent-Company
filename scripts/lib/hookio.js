@@ -7,8 +7,10 @@ import { findProjectRoot } from './paths.js';
 export const pluginRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 
 export async function readStdinJson() {
-  let raw = '';
-  for await (const chunk of process.stdin) raw += chunk;
+  // Join the raw chunks before decoding: a multi-byte character can be split across two chunks.
+  const chunks = [];
+  for await (const chunk of process.stdin) chunks.push(chunk);
+  const raw = Buffer.concat(chunks).toString('utf8');
   if (!raw.trim()) return null;
   try {
     const value = JSON.parse(raw);

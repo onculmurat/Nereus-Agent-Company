@@ -28,6 +28,12 @@ claude plugin install nac@nereus-agent-company
 claude plugin disable nac@nereus-agent-company --scope user
 ```
 
+Yerel bir kopyadan kurmak için (örneğin depo yayımlanmadan önce) klasörü marketplace olarak ekleyin, sonra aynı kurma ve kapatma komutlarını çalıştırın:
+
+```
+claude plugin marketplace add "<path to the NAC folder>"
+```
+
 NAC, bir projede açana kadar her yerde kapalı kalır; diğer projelerinizde bağlam harcamaz.
 
 ## Proje başlatma
@@ -43,7 +49,7 @@ claude
 /nac:setup
 ```
 
-Kurulum önce bir deneme çıktısı (dry run) gösterir: oluşturacağı her dosya, `.claude/settings.json` değişikliği (agent teams açık, NAC etkin) ve `.gitignore` satırı. Siz onaylamadan hiçbir şey yazılmaz. Var olan bir dosyanın ya da ayarın üzerine asla yazmaz; çakışan bir ayar kurulumu durdurur. Ardından ayrı bir soru olarak, genel `~/.claude/CLAUDE.md` dosyanızdaki model bölümünün NAC model tablosunu göstermesini isteyip istemediğinizi sorar. Son olarak lider 0. aşamayı başlatır.
+Kurulum önce bir deneme çıktısı (dry run) gösterir: oluşturacağı her dosya, `.claude/settings.json` değişikliği (agent teams açık, NAC etkin) ve `.gitignore` satırı. Siz onaylamadan hiçbir şey yazılmaz. Var olan bir dosyanın ya da ayarın üzerine asla yazmaz; çakışan bir ayar kurulumu durdurur. Ardından ayrı bir soru olarak, genel `~/.claude/CLAUDE.md` dosyanızdaki model bölümünün NAC model tablosunu göstermesini isteyip istemediğinizi sorar. Son olarak `/clear` çalıştırın (ya da Claude Code'u yeniden başlatın): kurulumu yapan oturum NAC kurulmadan önce başladığı için lider talimatlarını ancak sonraki oturum yükler. Ardından lider 0. aşamayı başlatır.
 
 Oturumunuz liderdir ve lider oturumunuzun modeliyle çalışır. Lider için `/model opus` kullanın.
 
@@ -81,7 +87,7 @@ Her aşama kısa bir aşama raporuyla (biten, karar verilen, açık kalan) biter
 | doc-writer | Kararları belgelere yazar, proje belgelerini günceller | sonnet |
 | assistant | Özetler, biçim kontrolleri, temizlik denemeleri | haiku |
 
-İncelemeciler ve asistan dosya düzenleyemez. Aynı anda en fazla 5 rol çalışır (ayarlanabilir).
+İncelemecilere ve asistana dosya düzenleme aracı verilmez; okur, komut çalıştırır ve raporlar. Aynı anda en fazla 5 rol çalışır (ayarlanabilir).
 
 ## Sorular ve kararlar
 
@@ -120,7 +126,7 @@ Her eskalasyon `team/work/escalations/` altına kaydedilir. Eşikler ayarlanabil
 
 ## Temizlik
 
-Sonucu `team/decisions.md` içinde olan ve 30 günden eski kapalı konuşmalar arşivlenebilir (varsayılan) ya da silinebilir. Kayıtlı bir karar olmadan hiçbir şey silinmez. Önce deneme çıktısı gösterilir, uygulamadan önce sorulur:
+Sonucu `team/decisions.md` içinde olan ve 30 günden eski kapalı konuşmalar arşivlenebilir (varsayılan) ya da silinebilir. Kayıtlı bir sonuç olmadan hiçbir şey silinmez. Önce deneme çıktısı gösterilir, uygulamadan önce sorulur:
 
 ```
 /nac:cleanup
@@ -157,7 +163,7 @@ Bilmeniz gereken sınırlar:
 
 - Push, merge, deploy, yayın, gönderi, altyapı uygulama ya da satın alma; o işlem için ayrı ve açık onayınız olmadan yapılmaz.
 - Kurulum ve temizlik her zaman önce deneme çıktısı gösterir ve var olan dosyaların üzerine yazmaz.
-- Roller yalnız kendi sorumluluk alanında çalışır; incelemeciler kod düzenleyemez.
+- Roller yalnız kendi sorumluluk alanında çalışır; incelemecilere dosya düzenleme aracı verilmez.
 - Hook'lar bir NAC projesi dışında (`team/config.json` olmayan klasörde) hiçbir şey yapmaz.
 
 ## SSS

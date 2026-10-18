@@ -17,7 +17,7 @@ const usage = `Usage:
 
 function describe(plan) {
   const rel = (p) => path.relative(plan.projectRoot, p).split(path.sep).join('/');
-  const lines = plan.files.map((f) => `${f.action === 'create' ? 'create' : 'skip  '}  ${rel(f.path)}${f.action === 'create' ? '' : ' (exists)'}`);
+  const lines = [`Project: ${plan.projectRoot}`, ...plan.files.map((f) => `${f.action === 'create' ? 'create' : 'skip  '}  ${rel(f.path)}${f.action === 'create' ? '' : ' (exists)'}`)];
   const s = plan.settings;
   if (s.conflicts.length) lines.push(`CONFLICT  ${rel(s.path)}: ${s.conflicts.join(', ')} already set to a different value`);
   else if (JSON.stringify(s.before) !== JSON.stringify(s.after)) lines.push(`${s.before ? 'merge ' : 'create'}  ${rel(s.path)} (agent teams env, enable nac plugin)`);
@@ -35,21 +35,23 @@ runCli(
     'apply-global-model-pointer': { type: 'boolean' },
     'claude-md': { type: 'string' },
   },
-  ({ values, root }) => {
+  ({ values }) => {
     const claudeMd = values['claude-md'] ?? path.join(os.homedir(), '.claude', 'CLAUDE.md');
     if (values['global-model-pointer']) {
-      const p = planGlobalModelPointer(claudeMd, { pluginRoot });
+      const p = planGlobalModelPointer(claudeMd);
       return `File: ${p.path}\n--- before\n${p.before}\n--- after\n${p.after}`;
     }
     if (values['apply-global-model-pointer']) {
-      applyGlobalModelPointer(planGlobalModelPointer(claudeMd, { pluginRoot }));
+      applyGlobalModelPointer(planGlobalModelPointer(claudeMd));
       return `Updated ${claudeMd}\n`;
     }
     if (!values['dry-run'] && !values.apply) throw new UsageError('Pass --dry-run or --apply.');
+    // Setup works on the folder it runs in, never on a parent NAC project, unless --project says otherwise.
+    const root = path.resolve(values.project ?? process.cwd());
     const plan = planSetup(root, { pluginRoot, config: loadConfig({ pluginRoot, projectRoot: root }) });
     if (values['dry-run']) return describe(plan);
     applySetup(plan);
-    return `Applied:\n${describe(plan)}`;
+    return `Applied:\n${describe(plan)}\nNext: run /clear (or restart Claude Code) so this session loads the NAC lead instructions, then start phase 0.\n`;
   },
   { requireProject: false },
 );

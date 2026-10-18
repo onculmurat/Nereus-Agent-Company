@@ -25,7 +25,7 @@ test('registers the four events with quoted plugin-root commands', () => {
 
 test('commands run when the plugin root path contains a space', async () => {
   const copy = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'nac-')), 'Plugin Root');
-  for (const dir of ['hooks', 'scripts', 'defaults', 'prompts']) {
+  for (const dir of ['hooks', 'scripts', 'defaults', 'prompts', 'agents']) {
     fs.cpSync(path.join(pluginRoot, dir), path.join(copy, dir), { recursive: true });
   }
   fs.copyFileSync(path.join(pluginRoot, 'package.json'), path.join(copy, 'package.json'));

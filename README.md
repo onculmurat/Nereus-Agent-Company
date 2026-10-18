@@ -28,6 +28,12 @@ claude plugin install nac@nereus-agent-company
 claude plugin disable nac@nereus-agent-company --scope user
 ```
 
+To install from a local copy instead (for example before the repository is published), add the folder as the marketplace and run the same install and disable commands:
+
+```
+claude plugin marketplace add "<path to the NAC folder>"
+```
+
 NAC stays off everywhere until you turn it on for a project, so it costs no context in your other projects.
 
 ## Starting a project
@@ -43,7 +49,7 @@ claude
 /nac:setup
 ```
 
-Setup first shows a dry run: every file it would create, the change to `.claude/settings.json` (agent teams on, NAC enabled), and the `.gitignore` line. Nothing is written until you approve. It never overwrites an existing file or setting; a conflicting setting stops it. It then asks, as a separate question, whether to point the model section of your global `~/.claude/CLAUDE.md` at NAC's model table. Finally the lead starts phase 0.
+Setup first shows a dry run: every file it would create, the change to `.claude/settings.json` (agent teams on, NAC enabled), and the `.gitignore` line. Nothing is written until you approve. It never overwrites an existing file or setting; a conflicting setting stops it. It then asks, as a separate question, whether to point the model section of your global `~/.claude/CLAUDE.md` at NAC's model table. Finally run `/clear` (or restart Claude Code): the session that ran setup started before NAC was set up, so only the next session loads the lead instructions. The lead then starts phase 0.
 
 Your session is the lead, and the lead runs on your session's model. Use `/model opus` for the lead.
 
@@ -81,7 +87,7 @@ Each phase ends with a short phase report (done, decided, open), and the next ph
 | doc-writer | Writes decisions into docs, keeps project documents | sonnet |
 | assistant | Summaries, format checks, cleanup dry runs | haiku |
 
-Reviewers and the assistant cannot edit files. At most 5 roles are active at once (configurable).
+Reviewers and the assistant get no file-editing tools; they read, run commands and report. At most 5 roles are active at once (configurable).
 
 ## Questions and decisions
 
@@ -120,7 +126,7 @@ Every escalation is recorded in `team/work/escalations/`. Thresholds are configu
 
 ## Cleanup
 
-Closed threads whose outcome is in `team/decisions.md` and that are older than 30 days can be archived (default) or deleted. Nothing is removed without a decision on record. Setup shows a dry run and asks before applying:
+Closed threads whose outcome is in `team/decisions.md` and that are older than 30 days can be archived (default) or deleted. Nothing is removed without a recorded outcome. Cleanup shows a dry run and asks before applying:
 
 ```
 /nac:cleanup
@@ -157,7 +163,7 @@ Limits you should know:
 
 - No push, merge, deploy, publish, post, infrastructure apply or purchase without your separate, explicit approval for that action.
 - Setup and cleanup always show a dry run first and never overwrite existing files.
-- Roles work only inside their responsibility; reviewers cannot edit code.
+- Roles work only inside their responsibility; reviewers get no file-editing tools.
 - Hooks do nothing outside a NAC project (a folder without `team/config.json`).
 
 ## FAQ

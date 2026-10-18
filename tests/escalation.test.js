@@ -15,7 +15,7 @@ const config = loadConfig({ pluginRoot, userConfigPath: null, projectRoot: null 
 test('default ladder', () => {
   assert.deepEqual(nextAction(1, 'haiku', config), { action: 'retry', model: 'haiku' });
   assert.deepEqual(nextAction(2, 'haiku', config), { action: 'raise-model', model: 'sonnet' });
-  assert.deepEqual(nextAction(2, 'opus', config), { action: 'raise-model', model: 'opus' });
+  assert.deepEqual(nextAction(2, 'opus', config), { action: 'retry', model: 'opus' });
   assert.deepEqual(nextAction(3, 'sonnet', config), { action: 'retry', model: 'sonnet' });
   assert.deepEqual(nextAction(4, 'sonnet', config), { action: 'to-lead', model: 'opus' });
   assert.equal(nextAction(5, 'opus', config).action, 'to-owner');

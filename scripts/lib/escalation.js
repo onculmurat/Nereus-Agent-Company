@@ -8,8 +8,8 @@ export function nextAction(failedRounds, currentModel, config) {
   if (failedRounds === m + a) return { action: 'to-lead', model: config.models['team-lead'] };
   if (failedRounds === m) {
     const i = ladder.indexOf(currentModel);
-    const model = i >= 0 && i < ladder.length - 1 ? ladder[i + 1] : currentModel;
-    return { action: 'raise-model', model };
+    // On the top tier (or off the ladder) there is nothing to raise, so this round is another retry.
+    if (i >= 0 && i < ladder.length - 1) return { action: 'raise-model', model: ladder[i + 1] };
   }
   return { action: 'retry', model: currentModel };
 }
