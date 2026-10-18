@@ -1,0 +1,8 @@
+{
+  "hooks": {
+    "SessionStart": [{ "matcher": "startup|resume", "hooks": [{ "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/log-hook.js\"" }] }],
+    "PostToolUse": [{ "matcher": "SendMessage", "hooks": [{ "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/log-hook.js\"" }] }],
+    "TaskCompleted": [{ "hooks": [{ "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/log-hook.js\"" }] }],
+    "TeammateIdle": [{ "hooks": [{ "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/log-hook.js\"" }] }]
+  }
+}

@@ -1,0 +1,5 @@
+{
+  "name": "nac-probe",
+  "version": "0.0.1",
+  "description": "Throwaway probe for the NAC spike: logs hook payloads."
+}
