@@ -8,6 +8,7 @@ import { parseFrontmatter, stringifyFrontmatter } from './frontmatter.js';
 const THREAD_RE = /^[a-z0-9][a-z0-9-]{0,63}$/;
 const ROLE_RE = /^[A-Za-z0-9_-]{1,64}$/;
 const STATES = ['unread', 'read', 'closed'];
+const DUPLICATE_WINDOW_MS = 60_000;
 
 export const isValidThread = (id) => typeof id === 'string' && THREAD_RE.test(id);
 
@@ -33,16 +34,22 @@ export function writeMessage(root, { id, from, to, thread = 'general', body, dat
   const when = date ? new Date(date).toISOString() : new Date().toISOString();
   const msgId = id ?? crypto.createHash('sha256').update([from, to, thread, body, when.slice(0, 19)].join('|')).digest('hex').slice(0, 16);
   const dir = path.join(teamPaths(root).mailbox, thread);
+  // The hook records a live message under its tool_use_id; a helper send of the same message cannot know
+  // that id, so the same sender, recipient and text within DUPLICATE_WINDOW_MS also counts as a duplicate.
+  const text = parseHeader(body).rest.trim();
   for (const file of messageFiles(dir)) {
-    if (readMessage(file).data.id === msgId) return { path: file, created: false };
+    const m = readMessage(file);
+    if (m.data.id === msgId) return { path: file, created: false };
+    const sameText = m.data.from === from && m.data.to === to && parseHeader(m.body).rest.trim() === text;
+    if (sameText && Math.abs(Date.parse(m.data.date) - Date.parse(when)) <= DUPLICATE_WINDOW_MS) return { path: file, created: false };
   }
   fs.mkdirSync(dir, { recursive: true });
-  const text = stringifyFrontmatter({ id: msgId, from, to, thread, date: when, state: 'unread' }, body.endsWith('\n') ? body : `${body}\n`);
+  const content = stringifyFrontmatter({ id: msgId, from, to, thread, date: when, state: 'unread' }, body.endsWith('\n') ? body : `${body}\n`);
   const base = `${stamp(when)}-${from}-to-${to}`;
   for (let n = 1; ; n++) {
     const file = path.join(dir, n === 1 ? `${base}.md` : `${base}-${n}.md`);
     try {
-      fs.writeFileSync(file, text, { flag: 'wx' });
+      fs.writeFileSync(file, content, { flag: 'wx' });
       return { path: file, created: true };
     } catch (e) {
       if (e.code !== 'EEXIST') throw e;

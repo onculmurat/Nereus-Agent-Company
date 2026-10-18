@@ -25,7 +25,7 @@ function walk(dir) {
 function readJsonOrNull(file) {
   if (!fs.existsSync(file)) return null;
   try {
-    return JSON.parse(fs.readFileSync(file, 'utf8'));
+    return JSON.parse(fs.readFileSync(file, 'utf8').replace(/^﻿/, ''));
   } catch {
     throw new Error(`Invalid JSON in ${file}; fix it before setup`);
   }

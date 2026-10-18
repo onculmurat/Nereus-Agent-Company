@@ -10,7 +10,7 @@ test('keeps a teammate working while it has unread mail', async () => {
   const r = runHook('teammate-idle', await fixture('teammate-idle.synthetic', { cwd: root }));
   assert.equal(r.status, 2);
   assert.match(r.stderr, /You have 1 unread message/);
-  assert.match(r.stderr, /mailbox\.js" inbox --role architect/);
+  assert.match(r.stderr, /mailbox\.js" inbox --role architect --mark-read/);
 });
 
 test('lets a teammate go idle with an empty inbox', async () => {

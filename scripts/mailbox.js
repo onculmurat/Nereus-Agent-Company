@@ -6,7 +6,7 @@ import { writeMessage, listInbox, readMessage, setState, closeThread } from './l
 
 const usage = `Usage:
   mailbox.js send --from <role> --to <role> [--thread <id>] (--body <text> | --body-file <file>)
-  mailbox.js inbox --role <role> [--state unread|read|closed]
+  mailbox.js inbox --role <role> [--state unread|read|closed] [--mark-read]
   mailbox.js read --file <message file>
   mailbox.js close-thread --thread <id>
   (all accept --project <dir>; default: nearest directory with team/config.json)
@@ -15,7 +15,7 @@ const usage = `Usage:
 runCli(usage, {
   from: { type: 'string' }, to: { type: 'string' }, thread: { type: 'string' },
   body: { type: 'string' }, 'body-file': { type: 'string' },
-  role: { type: 'string' }, state: { type: 'string' }, file: { type: 'string' },
+  role: { type: 'string' }, state: { type: 'string' }, file: { type: 'string' }, 'mark-read': { type: 'boolean' },
 }, ({ values: v, positionals: [cmd], root }) => {
   switch (cmd) {
     case 'send': {
@@ -24,9 +24,12 @@ runCli(usage, {
       if (body === undefined) throw new UsageError('Missing --body or --body-file');
       return writeMessage(root, { from: v.from, to: v.to, thread: v.thread, body });
     }
-    case 'inbox':
+    case 'inbox': {
       need(v, 'role');
-      return listInbox(root, v.role, { state: v.state ?? 'unread' });
+      const messages = listInbox(root, v.role, { state: v.state ?? 'unread' });
+      if (v['mark-read']) for (const m of messages) if (m.data.state === 'unread') setState(m.path, 'read');
+      return messages;
+    }
     case 'read':
       need(v, 'file');
       setState(v.file, 'read');

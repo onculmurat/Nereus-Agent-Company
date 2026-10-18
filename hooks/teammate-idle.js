@@ -10,5 +10,5 @@ runHook(async (payload, root) => {
   const n = listInbox(root, name).length;
   if (!n) return;
   const cli = path.join(pluginRoot, 'scripts', 'mailbox.js');
-  return { block: `You have ${n} unread message(s). Run: node "${cli}" inbox --role ${name}` };
+  return { block: `You have ${n} unread message(s). Run: node "${cli}" inbox --role ${name} --mark-read` };
 });

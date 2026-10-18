@@ -44,3 +44,13 @@ test('empty stdin: no output, exit 0', () => {
   assert.equal(r.status, 0);
   assert.equal(r.stdout, '');
 });
+
+test('a broken team/config.json is reported to the session instead of silently disabling NAC', async () => {
+  const root = makeProject();
+  fs.writeFileSync(path.join(root, 'team', 'config.json'), '{ "maxActiveRoles": 3, }');
+  const r = runHook('session-start', await fixture('session-start-startup', { cwd: root }));
+  assert.equal(r.status, 0);
+  const ctx = JSON.parse(r.stdout).hookSpecificOutput.additionalContext;
+  assert.match(ctx, /NAC config error/);
+  assert.match(ctx, /Invalid JSON in/);
+});

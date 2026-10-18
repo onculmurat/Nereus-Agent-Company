@@ -117,3 +117,25 @@ test('a plain file in the mailbox root (setup .gitkeep) is ignored', () => {
   fs.writeFileSync(path.join(teamPaths(root).mailbox, '.gitkeep'), '');
   assert.equal(listInbox(root, 'team-lead').length, 1);
 });
+
+test('hook record then helper send of the same message keeps one file', () => {
+  const root = project();
+  writeMessage(root, { id: 'toolu_01', from: 'architect', to: 'team-lead', thread: 'db-choice', body: 'Use Postgres?' });
+  const again = writeMessage(root, { from: 'architect', to: 'team-lead', thread: 'db-choice', body: '[thread:db-choice from:architect] Use Postgres?' });
+  assert.equal(again.created, false);
+  assert.equal(fs.readdirSync(path.join(teamPaths(root).mailbox, 'db-choice')).length, 1);
+});
+
+test('the same text sent again later is a new message', () => {
+  const root = project();
+  writeMessage(root, { from: 'architect', to: 'team-lead', thread: 't', body: 'ok', date: '2026-10-18T10:00:00Z' });
+  assert.equal(writeMessage(root, { from: 'architect', to: 'team-lead', thread: 't', body: 'ok', date: '2026-10-18T10:05:00Z' }).created, true);
+});
+
+test('inbox --mark-read marks the listed messages read', () => {
+  const root = project();
+  writeMessage(root, { from: 'architect', to: 'planner', thread: 't', body: 'hi' });
+  const out = JSON.parse(execFileSync(process.execPath, [cli, 'inbox', '--role', 'planner', '--mark-read', '--project', root], { encoding: 'utf8' }));
+  assert.equal(out.length, 1);
+  assert.equal(listInbox(root, 'planner').length, 0);
+});

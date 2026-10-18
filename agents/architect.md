@@ -22,10 +22,10 @@ Read only what your task needs, not the project history:
 
 1. `team/brief.md`.
 2. Your task brief (the lead names it) and the contract it names in `team/contracts/`.
-3. Your unread messages:
+3. Your unread messages (listing them with `--mark-read` marks them read):
 
    ```
-   node "${CLAUDE_PLUGIN_ROOT}/scripts/mailbox.js" inbox --role architect
+   node "${CLAUDE_PLUGIN_ROOT}/scripts/mailbox.js" inbox --role architect --mark-read
    ```
 
 ## Working rules

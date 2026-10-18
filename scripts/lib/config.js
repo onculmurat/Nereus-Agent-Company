@@ -12,7 +12,7 @@ export function defaultUserConfigPath() {
 function readJson(file) {
   if (!file || !fs.existsSync(file)) return null;
   try {
-    return JSON.parse(fs.readFileSync(file, 'utf8'));
+    return JSON.parse(fs.readFileSync(file, 'utf8').replace(/^﻿/, ''));
   } catch (e) {
     throw new Error(`Invalid JSON in ${file}: ${e.message}`);
   }

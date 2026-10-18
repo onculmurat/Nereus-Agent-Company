@@ -8,7 +8,7 @@ The plugin scripts path is printed under `## Resolved rules` below. Every comman
 
 - `board.js`: the task board (`show`, `add`, `update`, `round`, `phase`). Only you write the board.
 - `decisions.js`: open questions and decisions (`show`, `open`, `ask`, `decide`). Only you write decisions.
-- `mailbox.js`: messages (`send`, `inbox`, `read`, `close-thread`).
+- `mailbox.js`: messages (`send`, `inbox --role team-lead --mark-read`, `read`, `close-thread`).
 - `summary.js`: where the project stands; `--phase-report` for the phase report.
 - `cleanup.js`: archive or delete old closed threads (dry run first).
 

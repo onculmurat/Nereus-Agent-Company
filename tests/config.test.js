@@ -71,3 +71,10 @@ test('default escalation rounds sum to 5', () => {
 test('default user config path', () => {
   assert.equal(defaultUserConfigPath(), path.join(os.homedir(), '.claude', 'nac', 'config.json'));
 });
+
+test('a config file with a UTF-8 BOM loads', () => {
+  const root = tmp();
+  fs.mkdirSync(path.join(root, 'team'));
+  fs.writeFileSync(path.join(root, 'team', 'config.json'), '﻿{"maxActiveRoles": 3}');
+  assert.equal(loadConfig({ pluginRoot, userConfigPath: noUser, projectRoot: root }).maxActiveRoles, 3);
+});

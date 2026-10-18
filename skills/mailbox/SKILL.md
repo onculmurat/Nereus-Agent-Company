@@ -5,7 +5,7 @@ description: Use when sending, reading or closing team messages - the file mailb
 
 # Mailbox
 
-Every message is one file under `team/work/mailbox/<thread>/`, with id, from, to, thread, date and state (`unread`, `read`, `closed`). Live delivery is `SendMessage`; a hook copies each message into the mailbox, and a message seen twice (live and on disk) is handled once by its id.
+Every message is one file under `team/work/mailbox/<thread>/`, with id, from, to, thread, date and state (`unread`, `read`, `closed`). Live delivery is `SendMessage`; a hook copies each message into the mailbox. The mailbox keeps one file per message: a repeat with the same id, or the same sender, recipient, thread and text within 60 seconds, is not stored again.
 
 ## Header
 
@@ -14,7 +14,7 @@ Start every message with `[thread:<thread-id> from:<your role>]`. Thread ids are
 ## Commands
 
 ```
-node "<scripts>/mailbox.js" inbox --role <role>             unread messages, oldest first
+node "<scripts>/mailbox.js" inbox --role <role> --mark-read unread messages, oldest first; marks them read
 node "<scripts>/mailbox.js" read --file <message file>      show it and mark it read
 node "<scripts>/mailbox.js" send --from <role> --to <role> --thread <id> --body <text>
 node "<scripts>/mailbox.js" close-thread --thread <id>      lead only, after the outcome is in decisions.md
@@ -22,6 +22,6 @@ node "<scripts>/mailbox.js" close-thread --thread <id>      lead only, after the
 
 ## When
 
-- Every role checks its inbox at start, after each step and before finishing.
+- Every role checks its inbox at start, after each step and before finishing, with `--mark-read`. A teammate with unread messages is not allowed to go idle.
 - Use `send` only when the hook did not record a live message, or in subagent mode where messages go through the lead.
 - When a thread is resolved, the lead records the outcome with `decisions.js decide` (with `--link` or the question's thread) and then closes the thread.
