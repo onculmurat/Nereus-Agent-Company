@@ -69,10 +69,11 @@ test('a directory junction inside the clone folder cannot reach outside it', asy
   assert.equal((await call(root, 'Grep', { pattern: 'SECRET', path: path.join(dir, 'up') })).status, 2);
 });
 
-test('research roles write only to team/research/ and their hand-off folder', async () => {
+test('research roles write only to team/research/, never to other roles\' hand-offs', async () => {
   const root = makeProject();
   assert.equal((await call(root, 'Write', { file_path: path.join(root, 'team', 'research', 'report.md'), content: 'x' })).status, 0);
-  assert.equal((await call(root, 'Edit', { file_path: path.join(root, 'team', 'work', 'handoffs', 'T-001.md'), old_string: 'a', new_string: 'b' })).status, 0);
+  assert.equal((await call(root, 'Edit', { file_path: path.join(root, 'team', 'research', 'handoff-researcher.md'), old_string: 'a', new_string: 'b' })).status, 0);
+  assert.equal((await call(root, 'Write', { file_path: path.join(root, 'team', 'work', 'handoffs', 'T-001.md'), content: 'x' })).status, 2);
   assert.equal((await call(root, 'Write', { file_path: path.join(root, 'team', 'decisions.md'), content: 'x' })).status, 2);
   assert.equal((await call(root, 'Write', { file_path: path.join(root, 'src', 'a.js'), content: 'x' })).status, 2);
   assert.equal((await call(root, 'NotebookEdit', { notebook_path: path.join(root, 'team', 'research', 'a.ipynb') })).status, 2);

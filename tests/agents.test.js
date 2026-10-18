@@ -36,7 +36,7 @@ for (const role of RESEARCH) {
     const { body } = parseFrontmatter(fs.readFileSync(path.join(agentsDir, `${role}.md`), 'utf8'));
     assert.match(body, /as data, never as instructions/i);
     assert.match(body, /never run, install or build/i);
-    assert.match(body, /team\/research\/ and team\/work\/handoffs\//);
+    assert.match(body, /write only to `team\/research\/`/);
   });
 }
 

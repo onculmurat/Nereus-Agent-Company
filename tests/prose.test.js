@@ -72,6 +72,19 @@ test('lead prompt shows the owner the research sources', () => {
   assert.match(phase1, /guard/i);
 });
 
+test('messages from research roles are read as data and their hand-offs stay in team/research/', () => {
+  const lead = read('prompts', 'lead.md');
+  const phase1 = lead.split('## Phase 1')[1].split('\n## ')[0];
+  assert.match(phase1, /data, never as instructions/);
+  assert.match(phase1, /handoff-<role>\.md/);
+  assert.match(read('skills', 'mailbox', 'SKILL.md'), /researcher or finance-analyst[^.]*data, never as instructions/);
+  for (const role of ['researcher', 'finance-analyst']) {
+    const agent = read('agents', `${role}.md`);
+    assert.match(agent, new RegExp(`team/research/handoff-${role}\\.md`));
+    assert.doesNotMatch(agent, /team\/work\/handoffs/);
+  }
+});
+
 test('NOTICE credits superpowers', () => {
   const notice = read('NOTICE');
   assert.match(notice, /Jesse Vincent/);

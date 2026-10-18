@@ -1,8 +1,8 @@
 // Mechanical guard for the phase 1 research roles. They read untrusted web pages and cloned code, so
 // a prompt injection must find nothing to steal and no way to act: reads stay in the brief,
 // team/research/ and the clone folder (decisions, mailbox and other roles' notes are out of reach,
-// because WebFetch could carry them out), writes stay in team/research/ and hand-offs, and Bash runs only NAC's own scripts, with
-// fixed arguments.
+// because WebFetch could carry them out), writes stay in team/research/, and Bash runs only NAC's own
+// scripts, with fixed arguments.
 import fs from 'node:fs';
 import net from 'node:net';
 import os from 'node:os';
@@ -108,9 +108,8 @@ export function checkResearchTool({ role, toolName, toolInput, root, pluginRoot,
   if (WRITE_TOOLS.has(toolName)) {
     if (typeof input.file_path !== 'string' || !input.file_path) return `${toolName} needs a file path.`;
     const p = path.resolve(root, input.file_path);
-    return inside(p, path.join(team, 'research')) || inside(p, path.join(team, 'work', 'handoffs'))
-      ? null
-      : 'Writes are limited to team/research/ and team/work/handoffs/.';
+    // Hand-offs go to team/research/handoff-<role>.md: team/work/handoffs/ holds other roles' notes.
+    return inside(p, path.join(team, 'research')) ? null : 'Writes are limited to team/research/.';
   }
   return `${toolName} is not available to research roles.`;
 }
