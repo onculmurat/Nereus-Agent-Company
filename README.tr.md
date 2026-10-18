@@ -55,7 +55,7 @@ Oturumunuz liderdir ve lider oturumunuzun modeliyle çalışır. Lider için `/m
 
 ### Kurulumun oluşturdukları
 
-- `team/`: `config.json`, `brief.md`, `decisions.md`, `glossary.md`, `contracts/` ve `team/work/` (pano, devir notları, eskalasyonlar, posta kutusu, arşiv; git dışında).
+- `team/`: `config.json`, `brief.md`, `decisions.md`, `glossary.md`, `contracts/`, `research/` ve `team/work/` (pano, devir notları, eskalasyonlar, posta kutusu, arşiv; git dışında).
 - Proje belgeleri, her biri ayardan kapatılabilir: `memory.md`, `plan.md`, `article_dev.md`, `docs/setup-requirements.md`.
 
 ## Aşamalar
@@ -187,7 +187,7 @@ Sonraki oturum bir devam özetiyle başlar: aşama, süren iş (`git status` ile
 
 ### Ekip durumu commit'lenir mi?
 
-`team/brief.md`, `decisions.md`, `contracts/`, `glossary.md` ve `config.json` commit'lenmek içindir. `team/work/` git dışındadır.
+`team/brief.md`, `decisions.md`, `contracts/`, `research/`, `glossary.md` ve `config.json` commit'lenmek içindir. `team/work/` git dışındadır.
 
 ## Lisans
 

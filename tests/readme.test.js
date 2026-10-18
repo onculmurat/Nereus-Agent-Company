@@ -59,3 +59,8 @@ test('plugin and package versions match the release the READMEs describe', () =>
   assert.equal(version('package.json'), '1.1.0');
   assert.match(en, /v1\.1/);
 });
+
+test('both READMEs list team/research/ among the committed files', () => {
+  assert.match(en, /`team\/brief\.md`[^\n]*`research\/`[^\n]*committed/);
+  assert.match(tr, /`team\/brief\.md`[^\n]*`research\/`[^\n]*commit/);
+});

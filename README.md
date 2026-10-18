@@ -55,7 +55,7 @@ Your session is the lead, and the lead runs on your session's model. Use `/model
 
 ### What setup creates
 
-- `team/`: `config.json`, `brief.md`, `decisions.md`, `glossary.md`, `contracts/`, and `team/work/` (board, hand-offs, escalations, mailbox, archive; git-ignored).
+- `team/`: `config.json`, `brief.md`, `decisions.md`, `glossary.md`, `contracts/`, `research/`, and `team/work/` (board, hand-offs, escalations, mailbox, archive; git-ignored).
 - Project documents, each switchable in config: `memory.md`, `plan.md`, `article_dev.md`, `docs/setup-requirements.md`.
 
 ## Phases
@@ -187,7 +187,7 @@ The next session starts with a resume summary: phase, work in progress (with `gi
 
 ### Is team state committed?
 
-`team/brief.md`, `decisions.md`, `contracts/`, `glossary.md` and `config.json` are meant to be committed. `team/work/` is git-ignored.
+`team/brief.md`, `decisions.md`, `contracts/`, `research/`, `glossary.md` and `config.json` are meant to be committed. `team/work/` is git-ignored.
 
 ## License
 
