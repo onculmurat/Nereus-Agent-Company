@@ -67,6 +67,15 @@ test('researcher covers licenses and reads competitor code without copying it', 
   assert.match(body, /never copy/i);
 });
 
+// Seen live: a price was written as "not published" after reading only the competitor's GitHub README.
+for (const role of RESEARCH) {
+  test(`${role} looks up each competitor's official site and pricing page before calling a price unpublished`, () => {
+    const { body } = parseFrontmatter(fs.readFileSync(path.join(agentsDir, `${role}.md`), 'utf8'));
+    assert.match(body, /official site and (its )?pricing page/i);
+    assert.match(body, /"not published" only after/i);
+  });
+}
+
 test('finance-analyst states its assumptions and free-tier limits', () => {
   const { body } = parseFrontmatter(fs.readFileSync(path.join(agentsDir, 'finance-analyst.md'), 'utf8'));
   assert.match(body, /assumption/i);
