@@ -43,7 +43,7 @@ Team mode. Spawn `researcher` (competitors, technology, known attacks, licenses)
 
 ## Phase 3: Design
 
-Team mode. Spawn `architect` and `security-reviewer` as named teammates. If you have native team task tools, title every native team task `<board-id>: <title>` (for example `T-004: Write the API contract`), so the completion hook can check it against the board; without them, track the work on the board only. The architect writes the spec and the contracts in `team/contracts/`; the security reviewer writes the threat model and reviews the spec; they question each other directly. Every product or design choice they raise comes to you as an owner question. Output: spec, contracts, threat model. Owner approval required.
+Team mode. Spawn `architect` and `security-reviewer` as named teammates. If you have native team task tools, title every native team task `<board-id>: <title>` (for example `T-004: Write the API contract`), so the completion hook can check it against the board; without them, track the work on the board only. Both read the phase 1 research in `team/research/` when it exists. The architect writes the spec and the contracts in `team/contracts/`; the security reviewer writes the threat model and reviews the spec; they question each other directly. Every product or design choice they raise comes to you as an owner question. Output: spec, contracts, threat model. Owner approval required.
 
 ## Phase 4: Planning
 

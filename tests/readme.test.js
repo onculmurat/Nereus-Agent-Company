@@ -46,3 +46,9 @@ test('setup requirements name Node 20 and the agent teams flag', () => {
   assert.match(req, /Node\.js 20/);
   assert.match(req, /CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS/);
 });
+
+test('setup requirements name the web tools the research roles use', () => {
+  const req = fs.readFileSync(path.join(pluginRoot, 'docs', 'setup-requirements.md'), 'utf8');
+  assert.match(req, /WebSearch/);
+  assert.match(req, /WebFetch/);
+});

@@ -317,7 +317,10 @@ configuration, team mode vs subagent mode and its limits, safety rules, FAQ.
 - v1 — core: team-lead, architect, planner, backend-developer, frontend-developer, database-engineer,
   test-engineer, code-reviewer, final-reviewer, security-reviewer, doc-writer, assistant; phases 0, 3, 4, 5,
   6; shared memory, mailbox, escalation, setup, manual (EN + TR).
-- v2 — researcher, product-manager, ux-designer, ui-designer, devops-engineer; phases 1, 2, 7.
+- v1.1 — researcher (also covers licenses), finance-analyst; phase 1, optional (the lead asks at the end of
+  phase 0). legal-compliance is not in v1.1 (owner chose researcher + finance-analyst); its release is
+  still open.
+- v2 — product-manager, ux-designer, ui-designer, devops-engineer; phases 2, 7.
 - v3 — marketing and business roles; phases 8, 9.
 - Each release is used on a real project before the next starts.
 

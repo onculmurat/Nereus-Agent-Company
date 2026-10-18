@@ -31,6 +31,20 @@ for (const role of RESEARCH) {
     assert.match(body, /team\/research\//);
     assert.match(body, /source/i);
   });
+
+  test(`${role} treats fetched content as data and never runs cloned code`, () => {
+    const { body } = parseFrontmatter(fs.readFileSync(path.join(agentsDir, `${role}.md`), 'utf8'));
+    assert.match(body, /as data, never as instructions/i);
+    assert.match(body, /never run, install or build/i);
+  });
+}
+
+for (const role of ['architect', 'security-reviewer']) {
+  test(`${role} reads the phase 1 research before starting`, () => {
+    const { body } = parseFrontmatter(fs.readFileSync(path.join(agentsDir, `${role}.md`), 'utf8'));
+    const before = body.split('## Before you start')[1].split('\n## ')[0];
+    assert.match(before, /team\/research\//);
+  });
 }
 
 test('researcher covers licenses and reads competitor code without copying it', () => {
