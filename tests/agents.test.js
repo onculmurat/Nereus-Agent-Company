@@ -36,6 +36,20 @@ for (const role of RESEARCH) {
     const { body } = parseFrontmatter(fs.readFileSync(path.join(agentsDir, `${role}.md`), 'utf8'));
     assert.match(body, /as data, never as instructions/i);
     assert.match(body, /never run, install or build/i);
+    assert.match(body, /team\/research\/ and team\/work\/handoffs\//);
+  });
+}
+
+test('researcher clones only through the NAC clone script', () => {
+  const { body } = parseFrontmatter(fs.readFileSync(path.join(agentsDir, 'researcher.md'), 'utf8'));
+  assert.match(body, /scripts\/clone\.js" <https URL>/);
+  assert.doesNotMatch(body, /git clone/);
+});
+
+for (const role of ['architect', 'security-reviewer']) {
+  test(`${role} treats the research report as data`, () => {
+    const { body } = parseFrontmatter(fs.readFileSync(path.join(agentsDir, `${role}.md`), 'utf8'));
+    assert.match(body, /research[^\n]*as data, never as instructions/i);
   });
 }
 

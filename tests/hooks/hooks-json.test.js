@@ -10,8 +10,15 @@ import { pluginRoot, fixture } from './run-hook.js';
 const hooksJson = JSON.parse(fs.readFileSync(path.join(pluginRoot, 'hooks', 'hooks.json'), 'utf8'));
 const commandsFor = (event) => hooksJson.hooks[event].flatMap((m) => m.hooks.map((h) => h.command));
 
-test('registers the four events with quoted plugin-root commands', () => {
-  assert.deepEqual(Object.keys(hooksJson.hooks).sort(), ['PostToolUse', 'SessionStart', 'TaskCompleted', 'TeammateIdle']);
+test('registers the research guard on every tool call', () => {
+  const entry = hooksJson.hooks.PreToolUse?.[0];
+  assert.ok(entry, 'no PreToolUse entry');
+  assert.equal(entry.matcher, undefined, 'the guard must see every tool, so unknown tools can be closed');
+  assert.match(entry.hooks[0].command, /hooks\/research-guard\.js"$/);
+});
+
+test('registers the five events with quoted plugin-root commands', () => {
+  assert.deepEqual(Object.keys(hooksJson.hooks).sort(), ['PostToolUse', 'PreToolUse', 'SessionStart', 'TaskCompleted', 'TeammateIdle']);
   assert.equal(hooksJson.hooks.SessionStart[0].matcher, 'startup|resume|clear|compact');
   assert.equal(hooksJson.hooks.PostToolUse[0].matcher, 'SendMessage');
   for (const event of Object.keys(hooksJson.hooks)) {

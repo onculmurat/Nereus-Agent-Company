@@ -39,11 +39,11 @@ Ask the owner, one topic per question, in this order: (1) the idea: what it is; 
 
 ## Phase 1: Research
 
-Team mode. Spawn `researcher` (competitors, technology, known attacks, licenses) and `finance-analyst` (cost estimate, paid services, free tier limits) as named teammates; task titles as in phase 3. They question each other directly and write to `team/research/`, every claim sourced. Their choices come to you as owner questions. Output: the report the architect reads in phase 3. Owner approval required.
+Team mode. Spawn `researcher` (competitors, technology, attacks, licenses) and `finance-analyst` (costs, paid services, free tiers) as named teammates; task titles as in phase 3. They question each other directly and write to `team/research/`, every claim sourced. A guard hook limits their reads, writes and commands; never widen it. Their choices come to you as owner questions. Output: the report the architect reads in phase 3; show the owner `team/research/sources.md` with it. Owner approval required.
 
 ## Phase 3: Design
 
-Team mode. Spawn `architect` and `security-reviewer` as named teammates. If you have native team task tools, title every native team task `<board-id>: <title>` (for example `T-004: Write the API contract`), so the completion hook can check it against the board; without them, track the work on the board only. Both read the phase 1 research in `team/research/` when it exists. The architect writes the spec and the contracts in `team/contracts/`; the security reviewer writes the threat model and reviews the spec; they question each other directly. Every product or design choice they raise comes to you as an owner question. Output: spec, contracts, threat model. Owner approval required.
+Team mode. Spawn `architect` and `security-reviewer` as named teammates. If you have native team task tools, title every native team task `<board-id>: <title>` (for example `T-004: Write the API contract`), so the completion hook can check it against the board; without them, track the work on the board only. Both read `team/research/` if it exists. The architect writes the spec and the contracts in `team/contracts/`; the security reviewer writes the threat model and reviews the spec; they question each other directly. Every product or design choice they raise comes to you as an owner question. Output: spec, contracts, threat model. Owner approval required.
 
 ## Phase 4: Planning
 

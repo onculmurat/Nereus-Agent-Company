@@ -65,6 +65,13 @@ test('lead prompt hands the phase 1 research to phase 3 design', () => {
   assert.match(phase3, /team\/research\//);
 });
 
+test('lead prompt shows the owner the research sources', () => {
+  const lead = read('prompts', 'lead.md');
+  const phase1 = lead.split('## Phase 1')[1].split('\n## ')[0];
+  assert.match(phase1, /sources\.md/);
+  assert.match(phase1, /guard/i);
+});
+
 test('NOTICE credits superpowers', () => {
   const notice = read('NOTICE');
   assert.match(notice, /Jesse Vincent/);
