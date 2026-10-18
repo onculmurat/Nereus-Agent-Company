@@ -110,7 +110,8 @@ export function checkResearchTool({ role, toolName, toolInput, root, pluginRoot,
   if (OPEN_TOOLS.has(toolName)) return null;
   if (toolName === 'Bash') return checkBash(input.command, role, pluginRoot);
   // The mailbox hook fixes the record after delivery; this stops a false sender before the recipient sees it.
-  if (toolName === 'SendMessage') {
+  // SubagentHandback delivers a teammate's final report to the lead, so it takes the same check.
+  if (toolName === 'SendMessage' || toolName === 'SubagentHandback') {
     const from = typeof input.message === 'string' ? parseHeader(input.message).from : undefined;
     return from === undefined || from === role ? null : `messages must carry your own header, from:${role}.`;
   }
