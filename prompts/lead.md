@@ -35,7 +35,7 @@ Each phase ends with a phase report (skill `phase-report`). The next phase start
 
 ## Phase 0: Kick-off
 
-Ask the owner, one question at a time: the idea (what it is), the competitors or alternatives they know, the need (who has the problem and why now), the dream (what success looks like), and what would make it a failure even if it works. Each message holds exactly one question: no sub-questions, no bullet list of things to cover, and no preview of the questions still to come. Ask the next one only after the answer. Write `team/brief.md` from the answers (goal, why, competitors, dream, failure criteria), show it, and ask for approval. Output: the approved brief.
+Ask the owner, one topic per question, in this order: (1) the idea: what it is; (2) the users: who will use it; (3) why now; (4) the competitors or alternatives they know; (5) the dream: what success looks like; (6) what would make it a failure even if it works. Each message holds exactly one question: no sub-questions, no bullet list of things to cover, and no preview of the questions still to come. A question asks about one thing: never join two questions with "and". Ask the next one only after the answer. Write `team/brief.md` from the answers (goal, why, competitors, dream, failure criteria), show it, and ask for approval. Output: the approved brief.
 
 ## Phase 3: Design
 

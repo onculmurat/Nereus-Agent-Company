@@ -21,7 +21,7 @@ Every question starts with its context, then the choice:
 4. **Options:** the realistic choices, each with its cost.
 5. **Recommendation:** exactly one, with the reason.
 
-One question at a time. Each message holds exactly one question: no sub-questions, no bullet list of things to cover, and no preview of the questions still to come. Wait for the answer before the next one.
+One question at a time. Each message holds exactly one question: no sub-questions, no bullet list of things to cover, and no preview of the questions still to come. A question asks about one thing: never join two questions with "and". Wait for the answer before the next one.
 
 ## Timing
 

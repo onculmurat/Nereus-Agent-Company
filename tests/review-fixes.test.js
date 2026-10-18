@@ -107,6 +107,15 @@ test('A1 one question per message is spelled out in phase 0 and the question pro
   assert.match(read('skills', 'question-protocol', 'SKILL.md'), rule);
 });
 
+// Live test A1, second run: "Who will use it and what sets it apart?" is still two questions.
+test('A1 a question asks about one thing and phase 0 topics are single', () => {
+  const rule = /never join two questions with "and"/i;
+  const phase0 = read('prompts', 'lead.md').split('## Phase 0')[1].split('\n## ')[0];
+  assert.match(phase0, rule);
+  assert.match(read('skills', 'question-protocol', 'SKILL.md'), rule);
+  assert.doesNotMatch(phase0, /who has the problem and why now/);
+});
+
 // Live test C3: after a restart the lead asked Q-001 at once and never told the owner about an unread message.
 test('C3 after a restart the lead reports the state, unread messages included, before asking', () => {
   const restart = read('prompts', 'lead.md').split('## After a restart')[1].split('\n## ')[0];
