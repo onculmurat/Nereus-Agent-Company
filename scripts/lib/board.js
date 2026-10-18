@@ -1,0 +1,64 @@
+// team/work/board.md: the authoritative task board. Only the lead writes it (through scripts/board.js).
+import fs from 'node:fs';
+import path from 'node:path';
+import { teamPaths } from './paths.js';
+import { parseEntries, formatEntry, toLines, nextId } from './sections.js';
+
+export const STATUSES = ['todo', 'in-progress', 'review', 'done', 'blocked'];
+const ID_RE = /^[A-Za-z0-9-]{1,64}$/;
+
+export function readBoard(root) {
+  const file = teamPaths(root).board;
+  if (!fs.existsSync(file)) return { phase: 0, entries: [] };
+  const lines = toLines(fs.readFileSync(file, 'utf8'));
+  const phaseLine = lines.find((l) => /^phase:\s*\d+\s*$/.test(l));
+  const entries = parseEntries(lines, '##').map(({ id, title, fields: f }) => ({
+    id,
+    title,
+    owner: f.owner ?? '',
+    status: f.status ?? 'todo',
+    rounds: Number(f.rounds ?? 0),
+    model: f.model ?? '',
+    commits: (f.commits ?? '').split(',').map((s) => s.trim()).filter(Boolean),
+    handoff: f.handoff ?? '',
+  }));
+  return { phase: phaseLine ? Number(phaseLine.split(':')[1]) : 0, entries };
+}
+
+export function writeBoard(root, board) {
+  const file = teamPaths(root).board;
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  const blocks = board.entries.map((e) => formatEntry('##', e.id, e.title, {
+    owner: e.owner, status: e.status, rounds: e.rounds, model: e.model, commits: e.commits.join(', '), handoff: e.handoff,
+  }));
+  fs.writeFileSync(file, [`# Board\nphase: ${board.phase}`, ...blocks].join('\n\n') + '\n');
+}
+
+export function addEntry(root, { id, title, owner, model }) {
+  const board = readBoard(root);
+  const entryId = id ?? nextId('T', board.entries.map((e) => e.id));
+  if (!ID_RE.test(entryId)) throw new Error(`Invalid board id "${entryId}"`);
+  if (board.entries.some((e) => e.id === entryId)) throw new Error(`Board entry ${entryId} already exists`);
+  const entry = { id: entryId, title, owner, status: 'todo', rounds: 0, model, commits: [], handoff: '' };
+  board.entries.push(entry);
+  writeBoard(root, board);
+  return entry;
+}
+
+export function updateEntry(root, id, patch) {
+  if (patch.status !== undefined && !STATUSES.includes(patch.status)) {
+    throw new Error(`Invalid status "${patch.status}" (allowed: ${STATUSES.join(', ')})`);
+  }
+  const board = readBoard(root);
+  const entry = board.entries.find((e) => e.id === id);
+  if (!entry) throw new Error(`No board entry ${id}`);
+  Object.assign(entry, patch);
+  writeBoard(root, board);
+  return entry;
+}
+
+export function setPhase(root, n) {
+  const board = readBoard(root);
+  board.phase = Number(n);
+  writeBoard(root, board);
+}
