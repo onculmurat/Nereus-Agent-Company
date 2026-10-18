@@ -107,6 +107,14 @@ test('A1 one question per message is spelled out in phase 0 and the question pro
   assert.match(read('skills', 'question-protocol', 'SKILL.md'), rule);
 });
 
+// Live test C3: after a restart the lead asked Q-001 at once and never told the owner about an unread message.
+test('C3 after a restart the lead reports the state, unread messages included, before asking', () => {
+  const restart = read('prompts', 'lead.md').split('## After a restart')[1].split('\n## ')[0];
+  assert.match(restart, /before anything else[^\n]*short status summary/i);
+  assert.match(restart, /every unread message[^\n]*who sent it and what it says/i);
+  assert.match(restart, /blocking questions only after/i);
+});
+
 // Live test L6: no session offered native task tools, so TaskCompleted never fired.
 test('L6 task titles are asked for only when task tools exist, and the limit is documented', () => {
   const lead = read('prompts', 'lead.md');

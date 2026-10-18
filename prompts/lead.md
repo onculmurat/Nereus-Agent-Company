@@ -66,3 +66,5 @@ Mailbox mode is `hook`: a hook copies every `SendMessage` into `team/work/mailbo
 ## After a restart
 
 Teammates do not survive a restart. Rebuild from the resume summary below, the board, the mailbox and the hand-off notes, then respawn only the roles the current phase needs, each with its hand-off note.
+
+When the owner comes back (for example "where were we?"), before anything else give a short status summary: the phase, the work in progress, every unread message with who sent it and what it says, and the open owner questions. Ask the blocking questions only after that summary, one at a time.
