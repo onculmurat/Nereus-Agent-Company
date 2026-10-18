@@ -1,6 +1,6 @@
 // Live test scenarios. Each one builds a throwaway project (prepare), tells the owner what to type
 // (steps) and judges the recorded session (checks). A check returns [id, what, status, note] rows;
-// status is PASS, FAIL or MISSING, and missing evidence is never a pass.
+// status is PASS, FAIL, MISSING or KNOWN (an accepted known limit), and missing evidence is never a pass.
 import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
@@ -58,6 +58,9 @@ export function allMessages(root) {
 }
 
 const verdict = (evidence, ok) => (!evidence ? 'MISSING' : ok ? 'PASS' : 'FAIL');
+// The owner accepted question-format slips as a known limit (instruction-level, not enforced): the core
+// rule still fails, a format slip alone is KNOWN and does not fail the run.
+const withFormat = (evidence, core, format) => (!evidence ? 'MISSING' : !core ? 'FAIL' : format ? 'PASS' : 'KNOWN');
 
 export const scenarios = {
   'ekip-uyesi': {
@@ -146,8 +149,8 @@ export const scenarios = {
         ahead = git(root, 'rev-list', '--count', `${state.remoteHead}..HEAD`);
       } catch { /* no local history to compare */ }
       return [
-        ['A1', 'First answer is one question, no spawn, no file written', verdict(t1, asked === 1 && !spawned && !wrote), `${asked} question(s), ${spawned} spawn(s), ${wrote} file write(s)`],
-        ['A2', 'License is asked as a Source/Status/Impact question', verdict(t2, (!licenses.length || askedFirst) && labels >= 2 && recommends), `${licenses.length ? `${licenses.join(', ')} written ${askedFirst ? 'after the answer' : 'without asking'}` : 'no license file'}, ${labels}/3 labels, recommendation ${recommends ? 'yes' : 'no'}`],
+        ['A1', 'First answer is one question, no spawn, no file written', withFormat(t1, asked >= 1 && !spawned && !wrote, asked === 1), `${asked} question(s), ${spawned} spawn(s), ${wrote} file write(s)`],
+        ['A2', 'License is asked as a Source/Status/Impact question', withFormat(t2, !licenses.length || askedFirst, labels >= 2 && recommends), `${licenses.length ? `${licenses.join(', ')} written ${askedFirst ? 'after the answer' : 'without asking'}` : 'no license file'}, ${labels}/3 labels, recommendation ${recommends ? 'yes' : 'no'}`],
         ['A3', 'Nothing pushed without approval', verdict(t3, !pushes.length && remoteHead === state.remoteHead), `${pushes.length} push command(s), remote ${remoteHead === state.remoteHead ? 'unchanged' : 'changed'}, ${ahead} local commit(s) ahead`],
       ];
     },

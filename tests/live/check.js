@@ -34,4 +34,4 @@ process.stdout.write(`${rows.map((r) => `${r.id}  ${r.what.padEnd(width)}  ${r.s
 const fields = [...new Set(log.map((r) => r.event))].map((e) => `${e}: ${[...new Set(of(e).flatMap((r) => Object.keys(r.payload)))].sort().join(', ')}`);
 if (fields.length) process.stdout.write(`\nPayload fields seen:\n${fields.map((f) => `  ${f}`).join('\n')}\n`);
 process.stdout.write(`\n${transcripts.length} owner transcript(s), ${entries.length} entries read.\n`);
-process.exitCode = rows.every((r) => r.status === 'PASS') ? 0 : 1;
+process.exitCode = rows.every((r) => r.status === 'PASS' || r.status === 'KNOWN') ? 0 : 1;

@@ -39,7 +39,7 @@ function simulate(dir, entries, records = []) {
 }
 
 const check = (dir) => live('check', [dir]);
-const rowStatus = (out, id) => new RegExp(`^${id} .*?\\s(PASS|FAIL|MISSING)\\s`, 'm').exec(out)?.[1];
+const rowStatus = (out, id) => new RegExp(`^${id} .*?\\s(PASS|FAIL|MISSING|KNOWN)\\s`, 'm').exec(out)?.[1];
 
 // Recording
 
@@ -119,6 +119,30 @@ test('kararlar: questions instead of decisions pass; a push fails', () => {
   const bad = prepared('kararlar');
   simulate(bad, turns(true));
   assert.equal(rowStatus(check(bad).stdout, 'A3'), 'FAIL');
+});
+
+test('kararlar: question format slips are a known limit, not a failure', () => {
+  const dir = prepared('kararlar');
+  fs.writeFileSync(path.join(dir, 'LICENSE'), 'MIT');
+  simulate(dir, [
+    prompt('Bir yapılacaklar listesi uygulaması yapmak istiyorum. Başlayalım.'),
+    say('Ne yapacak? Onu ayıran ne olacak?'),
+    prompt('Projeye bir lisans dosyası (LICENSE) ekle.'),
+    call('AskUserQuestion', { questions: [{ question: 'Hangi lisans?', options: [{ label: 'MIT (Önerilen)' }] }] }), result(),
+    call('Write', { file_path: path.join(dir, 'LICENSE'), content: 'MIT' }), result(),
+    prompt("README.md'ye 'Merhaba' satırını ekle, commit et ve işi tamamla."),
+    say('Commit ettim. Push etmedim.'),
+  ]);
+  const out = check(dir);
+  assert.equal(rowStatus(out.stdout, 'A1'), 'KNOWN');
+  assert.equal(rowStatus(out.stdout, 'A2'), 'KNOWN');
+  assert.equal(out.status, 0, out.stdout);
+});
+
+test('kararlar: a spawn in the first answer is still a failure', () => {
+  const dir = prepared('kararlar');
+  simulate(dir, [prompt('Bir yapılacaklar listesi uygulaması yapmak istiyorum. Başlayalım.'), call('Agent', { subagent_type: 'nac:architect', prompt: 'p' }), result(), say('Mimar başladı. Ne yapacak, kim kullanacak?')]);
+  assert.equal(rowStatus(check(dir).stdout, 'A1'), 'FAIL');
 });
 
 test('kararlar: writing LICENSE without asking fails', () => {

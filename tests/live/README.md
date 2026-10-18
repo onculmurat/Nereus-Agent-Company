@@ -25,7 +25,7 @@ The unit tests feed the hooks recorded or synthetic payloads. These tests run NA
    node tests/live/check.js "<new folder>"
    ```
 
-`MISSING` means the session did not produce the evidence; it is never a pass. The check exits 0 only when every row passes, and prints every payload field it saw per event, so the synthetic fixtures can be compared with real ones.
+`MISSING` means the session did not produce the evidence; it is never a pass. `KNOWN` is an accepted known limit: in A1 and A2 the lead asked, but not in the required shape (more than one question in a message, or a decision without Source/Status/Impact). The ask-before-deciding rule is instruction-level, and three live runs showed the shape varies; the owner accepted this. Deciding without asking, a spawn or a file write in the first answer still fail. The check exits 0 only when every row is `PASS` or `KNOWN`, and prints every payload field it saw per event, so the synthetic fixtures can be compared with real ones.
 
 Never answer yes to the global model pointer question in a live test: it writes your real `~/.claude/CLAUDE.md`.
 
