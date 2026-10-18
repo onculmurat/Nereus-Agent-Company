@@ -7,9 +7,10 @@ import fs from 'node:fs';
 import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
+import { parseHeader } from './mailbox.js';
 
 export const RESEARCH_ROLES = { researcher: ['mailbox.js', 'clone.js'], 'finance-analyst': ['mailbox.js'] };
-const OPEN_TOOLS = new Set(['WebFetch', 'WebSearch', 'SendMessage']);
+const OPEN_TOOLS = new Set(['WebFetch', 'WebSearch']);
 const READ_TOOLS = new Set(['Read', 'Grep', 'Glob']);
 const WRITE_TOOLS = new Set(['Write', 'Edit', 'MultiEdit']);
 
@@ -94,6 +95,11 @@ export function checkResearchTool({ role, toolName, toolInput, root, pluginRoot,
   const cloneRoot = tmpRootProblem(tmpRoot) ? null : tmpRoot;
   if (OPEN_TOOLS.has(toolName)) return null;
   if (toolName === 'Bash') return checkBash(input.command, role, pluginRoot);
+  // The mailbox hook fixes the record after delivery; this stops a false sender before the recipient sees it.
+  if (toolName === 'SendMessage') {
+    const from = typeof input.message === 'string' ? parseHeader(input.message).from : undefined;
+    return from === undefined || from === role ? null : `messages must carry your own header, from:${role}.`;
+  }
   if (READ_TOOLS.has(toolName)) {
     const target = toolName === 'Read' ? input.file_path : input.path;
     if (typeof target !== 'string' || !target) return `${toolName} needs an explicit path inside team/research/ or the clone folder.`;
