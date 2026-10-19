@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { teamPaths } from './paths.js';
 import { loadConfig } from './config.js';
 import { toLines } from './sections.js';
+import { readBoard } from './board.js';
 
 const ID_RE = /^[A-Za-z0-9-]{1,64}$/;
 const ROLE_RE = /^[a-z][a-z0-9-]{0,63}$/;
@@ -18,6 +19,10 @@ const budgetLine = (root) => {
   const n = loadConfig({ pluginRoot, projectRoot: root }).turnBudget;
   return `Budget: ${n} model turns (parallel tool calls share a turn). When you reach it, stop and report what is done, what is left and what you need.`;
 };
+// A hardening task is reviewed on its own changes only; this line is the scope statement the reviewer reads first.
+const hardeningNote = (root, id) => (readBoard(root).entries.find((e) => e.id === id)?.hardening === 'yes'
+  ? '\nHardening task: the review scope is its changed lines and their direct impact sites only; do not re-scan the module. A blocker is fixed inside this task (it counts against the round cap); every other finding is recorded with `findings.js add --origin hardening` and waits for the phase end.'
+  : '');
 const uniq = (list) => [...new Set(list)];
 
 // References in a brief header such as:
@@ -153,7 +158,7 @@ function buildDelta(root, { id, role, base, gate, round, findings, paths }, brie
   if (findings === undefined && gate === undefined) throw new Error('Delta mode needs --findings or --gate');
   if (base === undefined) throw new Error('Delta mode needs --base (the commit of the previous attempt)');
   const notFound = [];
-  const parts = [`# Pack: ${id} for ${role} (round ${round}, delta)\n\n${budgetLine(root)}`];
+  const parts = [`# Pack: ${id} for ${role} (round ${round}, delta)\n\n${budgetLine(root)}${hardeningNote(root, id)}`];
   if (findings !== undefined) parts.push(`## Findings\n\n${readFindings(findings)}`);
   if (gate !== undefined) {
     const tail = gateTail(gate);
@@ -184,7 +189,7 @@ export function buildPack(root, { id, role, base, gate, round, findings, paths }
 
   const refs = parseRefs(brief);
   const notFound = [];
-  const parts = [`# Pack: ${id} for ${role}\n\n${budgetLine(root)}`, `## Task brief\n\n${brief.trimEnd()}`];
+  const parts = [`# Pack: ${id} for ${role}\n\n${budgetLine(root)}${hardeningNote(root, id)}`, `## Task brief\n\n${brief.trimEnd()}`];
 
   const spec = readIf(p.spec);
   for (const n of refs.specSections) {

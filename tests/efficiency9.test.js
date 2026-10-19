@@ -73,3 +73,82 @@ test('A2 the phase gate still lists ALL deferred findings (minor, migrated, hard
   assert.equal(r.status, 0, r.err);
   assert.deepEqual(r.out.deferredFindings.map((f) => f.id), ['F-001', 'F-002', 'F-003']);
 });
+
+// ---- A1: hardening loop ----
+
+import { readBoard } from '../scripts/lib/board.js';
+import { teamPaths } from '../scripts/lib/paths.js';
+
+const board = (root, ...a) => cli('board.js', root, ...a);
+const addHard = (root, module, ...extra) => board(root, 'add', '--title', `Harden ${module}`, '--owner', 'backend-developer', '--model', 'sonnet', '--module', module, '--hardening', 'yes', ...extra);
+
+test('A1 a hardening task is stored with its phase', () => {
+  const root = makeProject();
+  const r = addHard(root, 'auth');
+  assert.equal(r.status, 0, r.err);
+  assert.equal(r.out.hardening, 'yes');
+  assert.equal(readBoard(root).entries[0].hardening, 'yes');
+});
+
+test('A1 --hardening needs a module', () => {
+  const root = makeProject();
+  const r = board(root, 'add', '--title', 't', '--owner', 'backend-developer', '--model', 'sonnet', '--hardening', 'yes');
+  assert.equal(r.status, 1);
+  assert.match(r.err, /--module/);
+});
+
+test('A1 a second hardening task for the same module in the same phase is refused without a recorded decision', () => {
+  const root = makeProject();
+  assert.equal(addHard(root, 'auth').status, 0);
+  const second = addHard(root, 'auth');
+  assert.equal(second.status, 1);
+  assert.match(second.err, /--decision D-xxx/);
+  assert.equal(addHard(root, 'db').status, 0, 'another module is fine');
+  const bad = addHard(root, 'auth', '--decision', 'D-001');
+  assert.equal(bad.status, 1);
+  assert.match(bad.err, /no decision/i);
+});
+
+test('A1 with a recorded decision the second hardening task is allowed; a new phase resets the limit', () => {
+  const root = makeProject();
+  addHard(root, 'auth');
+  const d = cli('decisions.js', root, 'record', '--outcome', 'Second hardening for auth approved');
+  assert.equal(d.status, 0, d.err);
+  const ok = addHard(root, 'auth', '--decision', d.out.id);
+  assert.equal(ok.status, 0, ok.err);
+  assert.equal(ok.out.hdecision, d.out.id);
+  assert.equal(board(root, 'phase', '5').status, 0);
+  assert.equal(addHard(root, 'auth').status, 0, 'new phase: first hardening of the module again');
+});
+
+test('A1 the pack of a hardening task states the review scope and the blocker/defer rule', () => {
+  const root = makeProject();
+  addHard(root, 'auth', '--id', 'T-070');
+  fs.mkdirSync(teamPaths(root).tasks, { recursive: true });
+  fs.writeFileSync(path.join(teamPaths(root).tasks, 'T-070.md'), '# T-070\n\nHarden auth.\n');
+  const r = cli('pack.js', root, 'T-070', '--role', 'code-reviewer');
+  assert.equal(r.status, 0, r.err);
+  const pack = fs.readFileSync(r.out.path, 'utf8');
+  assert.match(pack, /Hardening task/);
+  assert.match(pack, /changed lines and their direct impact sites only/);
+  assert.match(pack, /--origin hardening/);
+});
+
+test('A1 a normal task pack has no hardening note', () => {
+  const root = makeProject();
+  board(root, 'add', '--title', 't', '--owner', 'backend-developer', '--model', 'sonnet', '--id', 'T-001');
+  fs.mkdirSync(teamPaths(root).tasks, { recursive: true });
+  fs.writeFileSync(path.join(teamPaths(root).tasks, 'T-001.md'), '# T-001\n');
+  const r = cli('pack.js', root, 'T-001', '--role', 'code-reviewer');
+  assert.doesNotMatch(fs.readFileSync(r.out.path, 'utf8'), /Hardening task/);
+});
+
+test('A1 guidance lives in skills and agents: invariant brief, blocker rule, review scope, no lead growth', () => {
+  const loop = read('skills', 'task-loop', 'SKILL.md');
+  assert.match(loop, /violated invariant/);
+  assert.match(loop, /every route/);
+  assert.match(loop, /--decision/);
+  assert.match(loop, /--origin hardening/);
+  assert.match(read('agents', 'planner.md'), /violated invariant/);
+  assert.match(read('agents', 'code-reviewer.md'), /changed lines and their direct impact sites only/);
+});
