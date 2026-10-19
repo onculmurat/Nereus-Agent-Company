@@ -11,6 +11,17 @@ export const STATUSES = ['todo', 'in-progress', 'review', 'done', 'blocked'];
 const ID_RE = /^[A-Za-z0-9-]{1,64}$/;
 // The lead hands off and restarts its session after this many tasks are marked done.
 export const ROTATE_EVERY = 5;
+// Research roles work only in phase 1. From phase 4 on, a spike goes to a developer role or test-engineer.
+const RESEARCH_OWNERS = ['researcher', 'research-reviewer', 'finance-analyst'];
+export const BUILD_PHASE = 4;
+
+function checkOwner(board, owner) {
+  if (board.phase < BUILD_PHASE || typeof owner !== 'string') return;
+  const role = owner.replace(/^.*:/, '');
+  if (RESEARCH_OWNERS.includes(role)) {
+    throw new Error(`Owner "${owner}" is not allowed from phase ${BUILD_PHASE} on: research roles work only in phase 1. Give the spike to a developer role (backend-developer, frontend-developer, database-engineer) or test-engineer.`);
+  }
+}
 
 export function readBoard(root) {
   const file = teamPaths(root).board;
@@ -50,6 +61,7 @@ export function writeBoard(root, board) {
 // code: 'no' marks a task that produces no code (spike, research, docs only); its gate checks the report file.
 export function addEntry(root, { id, title, owner, model, code }) {
   const board = readBoard(root);
+  checkOwner(board, owner);
   const entryId = id ?? nextId('T', board.entries.map((e) => e.id));
   if (!ID_RE.test(entryId)) throw new Error(`Invalid board id "${entryId}"`);
   if (board.entries.some((e) => e.id === entryId)) throw new Error(`Board entry ${entryId} already exists`);
@@ -66,6 +78,7 @@ export function updateEntry(root, id, patch) {
   const board = readBoard(root);
   const entry = board.entries.find((e) => e.id === id);
   if (!entry) throw new Error(`No board entry ${id}`);
+  checkOwner(board, patch.owner);
   if (patch.status === 'done' && entry.status !== 'done') board.doneSinceRotation = (board.doneSinceRotation ?? 0) + 1;
   Object.assign(entry, patch);
   if (entry.code !== 'no') delete entry.code;
