@@ -38,7 +38,7 @@ Every role stages only its own paths (`git add <path>`), never `git add -A` or `
 
 ## Role rule
 
-Every role that gets a pack follows this rule, which its agent file repeats: "Start from the pack. Do not explore files the pack does not name; if you need more, read only that and say what and why in your report." Reviewers (`security-reviewer`, `final-reviewer`) get the same pack form with their own `--role`.
+Every role gets a pack and follows this rule, which its agent file repeats: "Start from the pack. Do not explore files the pack does not name; if you need more, read only that and say what and why in your report." Reviewers (`security-reviewer`, `final-reviewer`) get the same pack form with their own `--role`. Roles that work on a phase rather than a task (architect, planner, researchers, assistant) treat their assignment file as the pack; the research roles' file lives under `team/research/` so the research guard stays as it is.
 
 ## Never
 

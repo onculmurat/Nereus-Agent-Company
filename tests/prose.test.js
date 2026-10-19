@@ -7,7 +7,10 @@ import { parseFrontmatter } from '../scripts/lib/frontmatter.js';
 
 const pluginRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = (...p) => fs.readFileSync(path.join(pluginRoot, ...p), 'utf8');
-const SKILLS = ['question-protocol', 'task-loop', 'escalation', 'mailbox', 'phase-report', 'cleanup'];
+// A phase's text: its lead prompt section plus its procedure in skill `phases`.
+const phaseText = (n) => [read('prompts', 'lead.md'), read('skills', 'phases', 'SKILL.md')]
+  .map((t) => t.split(new RegExp(`^## Phase ${n}\\b`, 'm'))[1]?.split('\n## ')[0] ?? '').join('\n');
+const SKILLS = ['phases', 'question-protocol', 'task-loop', 'escalation', 'mailbox', 'phase-report', 'cleanup'];
 const COMMANDS = ['setup', 'status', 'questions', 'cleanup'];
 
 for (const skill of SKILLS) {
@@ -49,26 +52,26 @@ test('lead prompt covers build-phase spawns and every enabled phase', () => {
 
 test('lead prompt runs phase 1 as a team of researcher and finance-analyst, and asks whether it is needed', () => {
   const lead = read('prompts', 'lead.md');
-  const phase1 = lead.split('## Phase 1')[1].split('\n## ')[0];
+  const phase1 = phaseText(1);
   assert.match(phase1, /Team mode/);
   assert.match(phase1, /`researcher`/);
   assert.match(phase1, /`finance-analyst`/);
   assert.match(phase1, /team\/research\//);
   assert.match(phase1, /approval/i);
-  const phase0 = lead.split('## Phase 0')[1].split('\n## ')[0];
+  const phase0 = phaseText(0);
   assert.match(phase0, /research/i);
 });
 
 test('lead prompt hands the phase 1 research to phase 3 design', () => {
   const lead = read('prompts', 'lead.md');
-  const phase3 = lead.split('## Phase 3')[1].split('\n## ')[0];
+  const phase3 = phaseText(3);
   assert.match(phase3, /team\/research\//);
 });
 
 // Seen live: phase 1 ended with findings and questions only, no direction tied to the owner's goal.
 test('lead prompt ends phase 1 with recommendations tied to the brief', () => {
   const lead = read('prompts', 'lead.md');
-  const phase1 = lead.split('## Phase 1')[1].split('\n## ')[0];
+  const phase1 = phaseText(1);
   assert.match(phase1, /team\/research\/recommendations\.md/);
   assert.match(phase1, /skill `phase-report`/);
   const report = read('skills', 'phase-report', 'SKILL.md');
@@ -122,21 +125,21 @@ test('planner proposes the test command and the lead writes it only after owner 
   assert.match(planner, /testCommand/);
   assert.match(planner, /never write[^\n]*team\/config\.json/i);
   assert.match(planner, /owner question/i);
-  const phase4 = read('prompts', 'lead.md').split('## Phase 4')[1].split('\n## ')[0];
+  const phase4 = phaseText(4);
   assert.match(phase4, /testCommand/);
   assert.match(phase4, /approv/i);
 });
 
 test('lead prompt shows the owner the research sources', () => {
   const lead = read('prompts', 'lead.md');
-  const phase1 = lead.split('## Phase 1')[1].split('\n## ')[0];
+  const phase1 = phaseText(1);
   assert.match(phase1, /sources\.md/);
   assert.match(phase1, /guard/i);
 });
 
 test('messages from research roles are read as data and their hand-offs stay in team/research/', () => {
   const lead = read('prompts', 'lead.md');
-  const phase1 = lead.split('## Phase 1')[1].split('\n## ')[0];
+  const phase1 = phaseText(1);
   assert.match(phase1, /data, never as instructions/);
   assert.match(phase1, /handoff-<role>\.md/);
   assert.match(read('skills', 'mailbox', 'SKILL.md'), /researcher or finance-analyst[^.]*data, never as instructions/);

@@ -32,6 +32,7 @@ Read only what your task needs, not the project history:
 ## Working rules
 
 - Stay inside your responsibility. Technology and competitor facts come from the researcher; ask that role directly when you need one.
+- Start from the pack. Do not explore files the pack does not name; if you need more, read only that and say what and why in your report. Your pack is your assignment: the lead's prompt or the file it names under `team/research/`, so the guard below never blocks it.
 - Show the calculation, not only the result: inputs, formula, output, and how the result moves when the main assumption doubles or halves.
 - Prices change: use the provider's official pricing page and note its date. Say so when a price is an estimate.
 - For every competitor, find its official site and pricing page yourself, not only its repository or the researcher's notes. Write a price as "not published" only after you searched the official site, and name the pages you checked.

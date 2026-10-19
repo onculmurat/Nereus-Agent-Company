@@ -111,7 +111,7 @@ for (const role of ROLES) {
 
 // Seen live: a reviewer spent 81 calls exploring files the lead already knew. Roles start from the context pack.
 const PACK_RULE = 'Start from the pack. Do not explore files the pack does not name; if you need more, read only that and say what and why in your report.';
-for (const role of ['backend-developer', 'frontend-developer', 'database-engineer', 'test-engineer', 'code-reviewer', 'final-reviewer', 'security-reviewer', 'doc-writer']) {
+for (const role of ROLES) {
   test(`${role} starts from the context pack`, () => {
     const { body } = parseFrontmatter(fs.readFileSync(path.join(agentsDir, `${role}.md`), 'utf8'));
     assert.ok(body.split('## Working rules')[1].split('\n## ')[0].includes(PACK_RULE));
