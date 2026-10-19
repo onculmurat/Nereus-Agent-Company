@@ -93,18 +93,47 @@ export function decide(root, questionId, { answer, link = '', now = new Date() }
 }
 
 // Records how a thread ended when no owner question was involved, so cleanup can archive it.
-export function recordOutcome(root, { thread, outcome, title = outcome, link = '', now = new Date() }) {
+// supersedes: the old decision gets "superseded-by" with the new id, the new one "supersedes" with the old id.
+export function recordOutcomes(root, items, { now = new Date() } = {}) {
   const all = readDecisions(root);
-  const d = {
-    id: nextId('D', all.decided.map((x) => x.id)),
-    title,
-    question: '',
-    answer: outcome,
-    date: localDate(now),
-    link,
-    thread,
-  };
-  all.decided.push(d);
+  const made = items.map(({ thread, outcome, title = outcome, link = '', supersedes }) => {
+    const d = {
+      id: nextId('D', all.decided.map((x) => x.id)),
+      title,
+      question: '',
+      answer: outcome,
+      date: localDate(now),
+      link,
+      thread,
+    };
+    if (supersedes) {
+      const old = all.decided.find((x) => x.id === supersedes);
+      if (!old) throw new Error(`Cannot supersede ${supersedes}: no such decision`);
+      old['superseded-by'] = d.id;
+      d.supersedes = supersedes;
+    }
+    all.decided.push(d);
+    return d;
+  });
+  writeDecisions(root, all);
+  return made;
+}
+
+export const recordOutcome = (root, { now, ...item }) => recordOutcomes(root, [item], { now })[0];
+
+const AMENDABLE = ['title', 'answer', 'date', 'link', 'thread'];
+
+// Changes fields of a decided item in place; "outcome" is the same field as "answer".
+export function amendDecision(root, id, fields) {
+  const patch = { ...fields };
+  if (patch.outcome !== undefined) patch.answer = patch.outcome;
+  delete patch.outcome;
+  const keys = Object.keys(patch).filter((k) => patch[k] !== undefined);
+  if (!keys.length) throw new Error(`Nothing to amend: pass one of ${AMENDABLE.map((k) => `--${k}`).join(', ')}`);
+  const all = readDecisions(root);
+  const d = all.decided.find((x) => x.id === id);
+  if (!d) throw new Error(`No decision ${id}`);
+  for (const k of keys) d[k] = patch[k];
   writeDecisions(root, all);
   return d;
 }

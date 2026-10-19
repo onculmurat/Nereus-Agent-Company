@@ -22,6 +22,10 @@ The board (`team/work/board.md`) is the source of truth. A task whose board stat
 9. **Commit the team state.** `team/work/` is committed (only `team/work/packs/` is ignored). After each task is marked done, commit what changed there (board, briefs, hand-offs, escalations, mailbox, and `team/decisions.md` if it changed) as its own commit `chore(team): <what>` (for example `chore(team): T-004 done`). Stage explicit paths (`git add team/work/board.md team/work/handoffs/T-004.md ...`), never `git add -A` or `.`, and never mix these files into a code commit: the task's code commit is already made by the role before step 8.
    Measure the task first: `node "<scripts>/cost.js" --save --task <id>` writes `team/metrics/cost-<id>-<date>-<HHMM>.md` (that task only, lead included) and appends the rows to `team/metrics/cost.jsonl` (and one summary line to `~/.claude/nac/metrics.md`, on this machine only). Include those files in the same `chore(team)` commit. `team/metrics/` is committed, not ignored. To keep a reference for later comparison, `cost.js --baseline <name> [--session <id>] [--until <iso>]` writes `team/metrics/baseline-<name>.md`.
 
+## Decisions and checks
+
+You never Edit `team/decisions.md` by hand. Record several outcomes in one call with `decisions.js record --file <json>`, fix a field with `decisions.js amend D-xxx --<field> <value>` and replace an earlier decision with `record --supersedes D-xxx` (also per item in the file). The lead does not run builds or tests itself: read the gate script result (step 4) or the developer's report summary line.
+
 ## Session rotation
 
 The lead session grows with every task. Rotate it at each milestone end and after every 5 tasks marked done since the last rotation, whichever comes first. `board.js update <id> --status done` prints `rotate: true` when the fifth done is reached; a milestone end is your own call.

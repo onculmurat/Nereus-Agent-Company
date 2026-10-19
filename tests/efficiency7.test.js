@@ -66,3 +66,69 @@ test('question-protocol and task-loop describe defer, flush and the 4-question c
   assert.match(qp, /one `AskUserQuestion` call[^\n]*up to 4/);
   assert.match(read('skills', 'task-loop', 'SKILL.md'), /flush --task <id>/);
 });
+
+// Item 4: decision batching.
+const decisions = (root, ...a) => cli('decisions.js', root, ...a);
+const decided = (root) => decisions(root, 'show').out.decided;
+
+test('record --file records an array of decisions in one call and prints the ids', () => {
+  const root = makeProject();
+  const file = path.join(root, 'batch.json');
+  fs.writeFileSync(file, JSON.stringify([{ outcome: 'Use Rust', title: 'Language' }, { outcome: 'Use SQLite', thread: 'db', link: 'docs/db.md' }]));
+  const r = decisions(root, 'record', '--file', file);
+  assert.equal(r.status, 0, r.err);
+  assert.deepEqual(r.out.ids, ['D-001', 'D-002']);
+  const [a, b] = decided(root);
+  assert.equal(a.title, 'Language');
+  assert.equal(a.thread, 'language');
+  assert.equal(b.answer, 'Use SQLite');
+  assert.equal(b.thread, 'db');
+  assert.equal(b.link, 'docs/db.md');
+});
+
+test('record --file rejects a non-array or an item without an outcome and writes nothing', () => {
+  const root = makeProject();
+  const file = path.join(root, 'bad.json');
+  fs.writeFileSync(file, JSON.stringify([{ outcome: 'ok' }, { title: 'no outcome' }]));
+  const r = decisions(root, 'record', '--file', file);
+  assert.equal(r.status, 1);
+  assert.match(r.err, /outcome/);
+  assert.equal(decided(root).length, 0);
+  fs.writeFileSync(file, '{}');
+  assert.equal(decisions(root, 'record', '--file', file).status, 1);
+});
+
+test('record --supersedes marks the old decision, on the command line and per item in a file', () => {
+  const root = makeProject();
+  decisions(root, 'record', '--outcome', 'Use MySQL');
+  const r = decisions(root, 'record', '--outcome', 'Use Postgres', '--supersedes', 'D-001');
+  assert.equal(r.out.supersedes, 'D-001');
+  assert.equal(decided(root)[0]['superseded-by'], 'D-002');
+  const file = path.join(root, 'b.json');
+  fs.writeFileSync(file, JSON.stringify([{ outcome: 'Use Cockroach', supersedes: 'D-002' }]));
+  decisions(root, 'record', '--file', file);
+  assert.equal(decided(root)[1]['superseded-by'], 'D-003');
+  const bad = decisions(root, 'record', '--outcome', 'x', '--supersedes', 'D-999');
+  assert.equal(bad.status, 1);
+  assert.match(bad.err, /D-999/);
+  assert.equal(decided(root).length, 3);
+});
+
+test('amend changes a field of an existing decision in place', () => {
+  const root = makeProject();
+  decisions(root, 'record', '--outcome', 'Use MySQL', '--title', 'DB');
+  const r = decisions(root, 'amend', 'D-001', '--answer', 'Use Postgres', '--link', 'docs/x.md');
+  assert.equal(r.status, 0, r.err);
+  const d = decided(root)[0];
+  assert.equal(d.answer, 'Use Postgres');
+  assert.equal(d.link, 'docs/x.md');
+  assert.equal(d.title, 'DB');
+  assert.equal(decisions(root, 'amend', 'D-404', '--answer', 'x').status, 1);
+  assert.equal(decisions(root, 'amend', 'D-001').status, 1);
+});
+
+test('lead skills forbid hand edits of decisions.md and keep builds out of the lead', () => {
+  const loop = read('skills', 'task-loop', 'SKILL.md');
+  assert.match(loop, /never Edit `team\/decisions\.md` by hand[^\n]*record[^\n]*amend[^\n]*--supersedes/i);
+  assert.match(loop, /lead does not run builds or tests itself[^\n]*gate script/i);
+});
