@@ -8,6 +8,7 @@ import { teamPaths } from './paths.js';
 import { loadConfig } from './config.js';
 import { toLines } from './sections.js';
 import { readBoard } from './board.js';
+import { TEST_RE } from './findings.js';
 import { parseRefs } from './refs.js';
 
 const ID_RE = /^[A-Za-z0-9-]{1,64}$/;
@@ -84,19 +85,35 @@ const readIf = (file) => (fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : 
 const fenceFor = (text) => '`'.repeat(Math.max(3, ...[...text.matchAll(/`+/g)].map((m) => m[0].length + 1)));
 
 // Pathspecs for the diff: --paths (comma separated) or the whole tree, always minus team/ (state, not code).
-function pathspecs(paths) {
+function pathspecs(paths, leaveOut = []) {
   let list = ['.'];
   if (paths !== undefined) {
     list = String(paths).split(',').map((p) => p.trim());
     if (!list.length || list.some((p) => !p || p.startsWith('-') || p.startsWith(':'))) throw new Error(`Invalid path in --paths "${paths}"`);
   }
-  return [...list, ':(exclude)team'];
+  return [...list, ':(exclude)team', ...leaveOut.map((f) => `:(exclude,literal)${f}`)];
 }
 
-function gitDiff(root, base, paths) {
+// A pack up to this much over packMaxChars is accepted without asking.
+export const PACK_TOLERANCE = 1.25;
+
+const leftOutSection = (files) => `## Test files left out of this pack\n\nThe pack was over the size limit, so the diff of these test files is not included. Read them in the repository when you need them:\n\n${files.map((f) => `- ${f}`).join('\n')}`;
+
+// Test files that changed against base, for the pack to leave out.
+function changedTestFiles(root, base, paths) {
+  if (!BASE_RE.test(base)) return [];
+  try {
+    const out = execFileSync('git', ['diff', '--name-only', '-z', base, '--', ...pathspecs(paths)], { cwd: root, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, stdio: ['ignore', 'pipe', 'pipe'] });
+    return out.split('\0').filter((f) => f && TEST_RE.test(f));
+  } catch {
+    return [];
+  }
+}
+
+function gitDiff(root, base, paths, leaveOut = []) {
   if (!BASE_RE.test(base)) throw new Error(`Invalid base "${base}"`);
   try {
-    return execFileSync('git', ['diff', base, '--', ...pathspecs(paths)], { cwd: root, encoding: 'utf8', maxBuffer: 256 * 1024 * 1024, stdio: ['ignore', 'pipe', 'pipe'] });
+    return execFileSync('git', ['diff', base, '--', ...pathspecs(paths, leaveOut)], { cwd: root, encoding: 'utf8', maxBuffer: 256 * 1024 * 1024, stdio: ['ignore', 'pipe', 'pipe'] });
   } catch (e) {
     throw new Error(`git diff ${base} failed: ${String(e.stderr || e.message).trim()}`);
   }
@@ -129,7 +146,7 @@ function readFindings(file) {
 
 // Delta pack for a fix round or a re-review: findings (or gate output), the diff since the previous attempt and the
 // acceptance criteria. The full brief, spec, contracts and decisions are not repeated: the role already saw them.
-function buildDelta(root, { id, role, base, gate, round, findings, paths }, brief) {
+function buildDelta(root, { id, role, base, gate, round, findings, paths, leaveOut }, brief) {
   if (!Number.isInteger(round) || round < 1) throw new Error(`Invalid round "${round}"`);
   if (findings === undefined && gate === undefined) throw new Error('Delta mode needs --findings or --gate');
   if (base === undefined) throw new Error('Delta mode needs --base (the commit of the previous attempt)');
@@ -147,20 +164,21 @@ function buildDelta(root, { id, role, base, gate, round, findings, paths }, brie
     notFound.push('acceptance criteria');
     parts.push('## Acceptance criteria\n\nNot found in the brief: read the task brief itself.');
   }
-  const diff = gitDiff(root, base, paths).trimEnd();
+  const diff = gitDiff(root, base, paths, leaveOut).trimEnd();
   const fence = fenceFor(diff);
   parts.push(`## Diff since ${base}\n\n${fence}diff\n${diff}\n${fence}`);
+  if (leaveOut?.length) parts.push(leftOutSection(leaveOut));
   return { text: `${parts.join('\n\n')}\n`, notFound };
 }
 
-export function buildPack(root, { id, role, base, gate, round, findings, paths }) {
+export function buildPack(root, { id, role, base, gate, round, findings, paths, leaveOut }) {
   if (!ID_RE.test(id ?? '')) throw new Error(`Invalid task id "${id}"`);
   if (!ROLE_RE.test(role ?? '')) throw new Error(`Invalid role "${role}"`);
   const p = teamPaths(root);
   const briefFile = path.join(p.work, 'tasks', `${id}.md`);
   const brief = readIf(briefFile);
   if (brief === null) throw new Error(`No task brief at ${briefFile}`);
-  if (round !== undefined) return buildDelta(root, { id, role, base, gate, round, findings, paths }, brief);
+  if (round !== undefined) return buildDelta(root, { id, role, base, gate, round, findings, paths, leaveOut }, brief);
   if (findings !== undefined) throw new Error('--findings needs --round');
 
   const refs = parseRefs(brief);
@@ -196,9 +214,10 @@ export function buildPack(root, { id, role, base, gate, round, findings, paths }
   if (found.length) parts.push(`## Decisions\n\n${found.join('\n\n')}`);
   if (notFound.length) parts.push(`## Not found\n\n${notFound.map((n) => `- ${n}`).join('\n')}`);
   if (base !== undefined) {
-    const diff = gitDiff(root, base, paths).trimEnd();
+    const diff = gitDiff(root, base, paths, leaveOut).trimEnd();
     const fence = fenceFor(diff);
     parts.push(`## Diff against ${base}\n\n${fence}diff\n${diff}\n${fence}`);
+    if (leaveOut?.length) parts.push(leftOutSection(leaveOut));
   }
   if (gate !== undefined) {
     const tail = gateTail(gate);
@@ -208,12 +227,27 @@ export function buildPack(root, { id, role, base, gate, round, findings, paths }
   return { text: `${parts.join('\n\n')}\n`, notFound };
 }
 
+// Size rule: up to 25% over packMaxChars is accepted with a note. Above that, the test files of the diff are left out
+// and named in the pack (the prompt names them too); only a pack still over 125% is a stop (tooLarge).
 export function writePack(root, opts) {
-  const { text, notFound } = buildPack(root, opts);
+  const limit = loadConfig({ pluginRoot, projectRoot: root }).packMaxChars;
+  const hard = limit * PACK_TOLERANCE;
+  let { text, notFound } = buildPack(root, opts);
+  let testsLeftOut;
+  if (text.length > hard && opts.base !== undefined) {
+    const tests = changedTestFiles(root, opts.base, opts.paths);
+    if (tests.length) {
+      ({ text, notFound } = buildPack(root, { ...opts, leaveOut: tests }));
+      testsLeftOut = tests;
+    }
+  }
   const dir = teamPaths(root).packs;
   fs.mkdirSync(dir, { recursive: true });
   const file = path.join(dir, `${opts.id}-${opts.role}${opts.round === undefined ? '' : `-r${opts.round}`}.md`);
   fs.writeFileSync(file, text);
-  const limit = loadConfig({ pluginRoot, projectRoot: root }).packMaxChars;
-  return { path: file, chars: text.length, notFound, limit, tooLarge: text.length > limit };
+  const over = Math.round((text.length / limit - 1) * 100);
+  let note;
+  if (testsLeftOut) note = `Test files left out of the pack (${testsLeftOut.join(', ')}); name them in the prompt so the role reads them in the repository.`;
+  else if (text.length > limit && text.length <= hard) note = `Pack is ${text.length} characters, over packMaxChars by ${over}% (within the 25% tolerance): accepted.`;
+  return { path: file, chars: text.length, notFound, limit, tooLarge: text.length > hard, ...(testsLeftOut ? { testsLeftOut } : {}), ...(note ? { note } : {}) };
 }

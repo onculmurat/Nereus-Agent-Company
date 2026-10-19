@@ -231,3 +231,72 @@ test('A4 --security no in the same call is respected', () => {
   briefFor(root, 'T-003', 'threat-model T5\n');
   assert.equal(board(root, 'update', 'T-003', '--status', 'in-progress', '--security', 'no').out.security, undefined);
 });
+
+// ---- A5: pack size tolerance ----
+
+import { makeGitProject } from './helpers.js';
+
+function packRepo(files) {
+  const { root, git } = makeGitProject();
+  fs.mkdirSync(path.join(root, 'team', 'work', 'tasks'), { recursive: true });
+  fs.writeFileSync(path.join(root, 'team', 'work', 'tasks', 'T-1.md'), '# T-1\n\nBrief.\n');
+  fs.mkdirSync(path.join(root, 'src'));
+  fs.mkdirSync(path.join(root, 'tests'));
+  fs.writeFileSync(path.join(root, 'src', 'a.js'), 'one\n');
+  git('add', '.');
+  git('commit', '-q', '-m', 'base');
+  const base = git('rev-parse', 'HEAD');
+  for (const [name, size] of Object.entries(files)) fs.writeFileSync(path.join(root, name), `${'z'.repeat(size)}\n`);
+  git('add', '.');
+  git('commit', '-q', '-m', 'work');
+  return { root, base };
+}
+const runPack = (root, base, limit, ...extra) => {
+  fs.writeFileSync(path.join(root, 'team', 'config.json'), JSON.stringify({ packMaxChars: limit }));
+  const r = spawnSync(process.execPath, [path.join(pluginRoot, 'scripts', 'pack.js'), 'T-1', '--role', 'code-reviewer', '--base', base, '--project', root, ...extra], { encoding: 'utf8' });
+  return { status: r.status, out: r.stdout ? JSON.parse(r.stdout) : null, err: r.stderr };
+};
+const sizeOf = (files) => {
+  const { root, base } = packRepo(files);
+  return runPack(root, base, 1000000).out.chars;
+};
+
+test('A5 a pack up to 25% over packMaxChars is accepted automatically with a note', () => {
+  const files = { 'src/b.js': 3000 };
+  const chars = sizeOf(files);
+  const limit = Math.floor(chars / 1.1);
+  const { root, base } = packRepo(files);
+  const r = runPack(root, base, limit);
+  assert.equal(r.status, 0, r.err);
+  assert.match(r.err, /over packMaxChars by \d+%.*accepted/);
+  assert.match(r.out.note, /accepted/);
+});
+
+test('A5 a pack more than 25% over first leaves test files out and names them', () => {
+  const files = { 'src/b.js': 1500, 'tests/b.test.js': 6000 };
+  const { root, base } = packRepo(files);
+  const noTests = sizeOf({ 'src/b.js': 1500 });
+  const r = runPack(root, base, Math.floor(noTests / 1.1));
+  assert.equal(r.status, 0, r.err);
+  assert.deepEqual(r.out.testsLeftOut, ['tests/b.test.js']);
+  const pack = fs.readFileSync(r.out.path, 'utf8');
+  assert.doesNotMatch(pack, /diff --git a\/tests\/b\.test\.js/);
+  assert.match(pack, /Test files left out of this pack/);
+  assert.match(pack, /tests\/b\.test\.js/);
+  assert.match(r.err, /left out/);
+});
+
+test('A5 still too large after leaving tests out (or no tests): stop with exit 3 as before', () => {
+  const { root, base } = packRepo({ 'src/b.js': 6000, 'tests/b.test.js': 100 });
+  const r = runPack(root, base, 1000);
+  assert.equal(r.status, 3);
+  assert.match(r.err, /over the limit of 1000/);
+  const { root: r2, base: b2 } = packRepo({ 'src/b.js': 6000 });
+  assert.equal(runPack(r2, b2, 1000).status, 3);
+});
+
+test('A5 task-loop documents the tolerance and the test-file step', () => {
+  const loop = read('skills', 'task-loop', 'SKILL.md');
+  assert.match(loop, /25%/);
+  assert.match(loop, /test files/);
+});

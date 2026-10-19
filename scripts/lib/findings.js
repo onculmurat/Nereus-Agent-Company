@@ -100,7 +100,7 @@ export function closeFinding(root, id, { commit }) {
 
 // ---- Hardening pack: the open findings of one module with the lines around them and what else uses the symbol. ----
 
-const TEST_RE = /(^|\/)(tests?|__tests__|spec)\/|\.(test|spec)\.|_test\./;
+export const TEST_RE = /(^|\/)(tests?|__tests__|spec)\/|\.(test|spec)\.|_test\./;
 const FN_RES = [/\bfunction\s*\*?\s+([A-Za-z_$][\w$]*)/, /\bfn\s+([A-Za-z_]\w*)/, /\bdef\s+([A-Za-z_]\w*)/, /\bfunc\s+(?:\([^)]*\)\s*)?([A-Za-z_]\w*)/, /\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*(?:async\s*)?(?:function\b|\([^)]*\)\s*=>|[A-Za-z_$][\w$]*\s*=>)/];
 
 // The function that holds the line, found by a plain look upwards; '' when nothing looks like one.
