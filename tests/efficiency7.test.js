@@ -132,3 +132,45 @@ test('lead skills forbid hand edits of decisions.md and keep builds out of the l
   assert.match(loop, /never Edit `team\/decisions\.md` by hand[^\n]*record[^\n]*amend[^\n]*--supersedes/i);
   assert.match(loop, /lead does not run builds or tests itself[^\n]*gate script/i);
 });
+
+// Item 5: security-reviewer gate.
+const board = (root, ...a) => cli('board.js', root, ...a);
+const entry = (root, id = 'T-001') => board(root, 'show').out.entries.find((e) => e.id === id);
+
+test('board add/update --security stores the tag and the board file shows it', () => {
+  const root = makeProject();
+  assert.equal(addTask(root, '--security', 'yes').out.security, 'yes');
+  assert.match(fs.readFileSync(path.join(root, 'team', 'work', 'board.md'), 'utf8'), /^- security: yes$/m);
+  assert.equal(entry(root).security, 'yes');
+  assert.equal(board(root, 'update', 'T-001', '--security', 'no').out.security, undefined);
+  assert.equal(board(root, 'update', 'T-001', '--security', 'maybe').status, 1);
+  assert.equal(addTask(root).out.security, undefined);
+});
+
+test('a security: yes task cannot be done without a security-reviewer pass', () => {
+  const root = makeProject();
+  addTask(root, '--security', 'yes');
+  const refused = board(root, 'update', 'T-001', '--status', 'done');
+  assert.equal(refused.status, 1);
+  assert.match(refused.err, /security-reviewer/);
+  assert.match(refused.err, /board\.js review T-001 --role security-reviewer --verdict pass/);
+  assert.equal(board(root, 'review', 'T-001', '--role', 'security-reviewer', '--verdict', 'fail').status, 0);
+  assert.equal(board(root, 'update', 'T-001', '--status', 'done').status, 1, 'a failed review is not a pass');
+  assert.deepEqual(board(root, 'review', 'T-001', '--role', 'security-reviewer', '--verdict', 'pass').out.reviews, { 'security-reviewer': 'pass' });
+  assert.deepEqual(entry(root).reviews, { 'security-reviewer': 'pass' });
+  assert.equal(board(root, 'update', 'T-001', '--status', 'done').status, 0);
+});
+
+test('an untagged task needs no review; review rejects an unknown verdict, role or task', () => {
+  const root = makeProject();
+  addTask(root);
+  assert.equal(board(root, 'update', 'T-001', '--status', 'done').status, 0);
+  assert.equal(board(root, 'review', 'T-001', '--role', 'code-reviewer', '--verdict', 'meh').status, 1);
+  assert.equal(board(root, 'review', 'T-404', '--role', 'code-reviewer', '--verdict', 'pass').status, 1);
+  assert.equal(board(root, 'review', 'T-001', '--verdict', 'pass').status, 1);
+});
+
+test('planner tags security tasks and the lead skill says tagged tasks need security-reviewer before done', () => {
+  assert.match(read('agents', 'planner.md'), /`security: yes`[^\n]*threat-model[^\n]*auth[^\n]*crypto[^\n]*secret[^\n]*`security\/`/i);
+  assert.match(read('skills', 'task-loop', 'SKILL.md'), /`security: yes`[^\n]*security-reviewer[^\n]*before[^\n]*done[^\n]*board\.js review/i);
+});
