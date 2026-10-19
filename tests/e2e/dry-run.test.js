@@ -38,6 +38,8 @@ test('setup to phase report on a sample project', async () => {
   assert.equal(idle.status, 2);
   assert.match(idle.stderr, /unread message/);
 
+  // the ladder test needs more rounds than the default review round cap
+  fs.writeFileSync(path.join(dir, 'team', 'config.json'), JSON.stringify({ reviewRoundCap: 10 }));
   let round;
   for (let i = 0; i < 4; i++) round = json('board', 'round', 'T-001');
   assert.equal(round.next.action, 'to-lead');

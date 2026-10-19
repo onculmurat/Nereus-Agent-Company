@@ -51,6 +51,7 @@ export function validateConfig(cfg) {
     maxActiveRoles: cfg.maxActiveRoles,
     callBudget: cfg.callBudget,
     packMaxChars: cfg.packMaxChars,
+    reviewRoundCap: cfg.reviewRoundCap,
     foldInRounds: cfg.foldInRounds,
   };
   for (const [key, v] of Object.entries(positive)) {

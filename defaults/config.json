@@ -14,6 +14,7 @@
   "maxActiveRoles": 5,
   "callBudget": 40,
   "packMaxChars": 60000,
+  "reviewRoundCap": 2,
   "foldInRounds": 2,
   "cleanup": { "closedThreadMaxAgeDays": 30, "mode": "archive" },
   "documents": { "memory": true, "plan": true, "articleDev": true, "setupRequirements": true },

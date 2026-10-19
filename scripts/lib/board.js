@@ -6,6 +6,7 @@ import { teamPaths } from './paths.js';
 import { parseEntries, formatEntry, toLines, nextId } from './sections.js';
 import { nextAction } from './escalation.js';
 import { execFileSync } from 'node:child_process';
+import { readDecisions } from './decisions.js';
 
 export const STATUSES = ['todo', 'in-progress', 'review', 'done', 'blocked'];
 const ID_RE = /^[A-Za-z0-9-]{1,64}$/;
@@ -38,6 +39,7 @@ export function readBoard(root) {
     commits: (f.commits ?? '').split(',').map((s) => s.trim()).filter(Boolean),
     handoff: f.handoff ?? '',
     ...(Number(f.foldins) > 0 ? { foldins: Number(f.foldins) } : {}),
+    ...(f.approach ? { approach: f.approach, roundsBase: Number(f.roundsbase ?? 0) } : {}),
     ...(f.code === 'no' ? { code: 'no' } : {}),
   }));
   const rotLine = lines.find((l) => /^done-since-rotation:\s*\d+\s*$/.test(l));
@@ -52,6 +54,7 @@ export function writeBoard(root, board) {
   const blocks = board.entries.map((e) => formatEntry('##', e.id, e.title, {
     owner: e.owner, status: e.status, rounds: e.rounds, model: e.model, commits: e.commits.join(', '), handoff: e.handoff,
     ...(e.foldins > 0 ? { foldins: e.foldins } : {}),
+    ...(e.approach ? { approach: e.approach, roundsbase: e.roundsBase ?? 0 } : {}),
     ...(e.code === 'no' ? { code: 'no' } : {}),
   }));
   const rotation = board.doneSinceRotation > 0 ? `\ndone-since-rotation: ${board.doneSinceRotation}` : '';
@@ -127,10 +130,23 @@ export function countFoldIn(root, id, { foldInRounds, reset = false }) {
 
 // Counts one more unresolved round on an entry and applies the escalation ladder.
 // Only the lead calls this, so no agent has to remember the count.
-export function incrementRound(root, id, config, { now = new Date() } = {}) {
+// Review round cap: after reviewRoundCap rounds (counted from the last approach decision) a task gets no further fix
+// round. The lead sends the findings and round history to the architect as one approach question, brings it to the
+// owner, records the decision and continues with --approach <decision id>. The round with --approach is the first of the next window.
+export function incrementRound(root, id, config, { now = new Date(), approach } = {}) {
   const board = readBoard(root);
   const entry = board.entries.find((e) => e.id === id);
   if (!entry) throw new Error(`No board entry ${id}`);
+  const cap = config.reviewRoundCap;
+  if (approach !== undefined) {
+    if (!readDecisions(root).decided.some((d) => d.id === approach)) {
+      throw new Error(`--approach ${approach}: no decision with that id in team/decisions.md. Record the owner's decision first (decisions.js), then pass its id.`);
+    }
+    entry.approach = approach;
+    entry.roundsBase = entry.rounds;
+  } else if (Number.isInteger(cap) && entry.rounds - (entry.roundsBase ?? 0) >= cap) {
+    throw new Error(`Review round cap reached for ${id}: ${entry.rounds - (entry.roundsBase ?? 0)} rounds since ${entry.approach ? `approach ${entry.approach}` : 'the start'} (reviewRoundCap ${cap}). No further fix round. Next step: send the open findings and the round history to the architect as one approach question (options, root causes, cost of each; read-only answer), bring the decision to the owner as one question (Source/Status/Impact, options, one recommendation), record it with decisions.js, then run: board.js round ${id} --approach <decision-id>.`);
+  }
   entry.rounds += 1;
   const next = nextAction(entry.rounds, entry.model, config);
   if (next.action === 'raise-model') entry.model = next.model;

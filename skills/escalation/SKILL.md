@@ -20,6 +20,8 @@ It prints `{ entry, next }`. Act on `next.action`:
 - `to-lead`: you take one round yourself, the only action in which you fix anything yourself: read the findings and the hand-off, then fix or re-brief.
 - `to-owner`: stop and ask the owner (skill `question-protocol`, blocking). Do not try again without an answer.
 
+Review round cap: `reviewRoundCap` (2 by default) is a hard limit on rounds per task, checked before the ladder. When `board.js round <id>` refuses because the cap is reached, the ladder does not continue: send the open findings and the round history to the `architect` as one approach question (read-only answer), bring the decision to the owner as one question, record it, then `board.js round <id> --approach <decision-id>` (skill `task-loop`, "Review round cap"). The cap applies again after that round.
+
 Thresholds come from `escalation` in the resolved rules (defaults: 2 model rounds, 2 authority rounds, 1 lead round). Every action other than `retry` is recorded in `team/work/escalations/`.
 
 When `next.action` is `to-lead` or `to-owner`, also record a lesson: `node "<scripts>/lessons.js" add --trigger "<the escalation>" --what "<what went wrong>" --rule "<the rule that would have prevented it>" --task <id>`. A lesson is a proposal; the owner decides at the phase report which become NAC rules.
