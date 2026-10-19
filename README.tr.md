@@ -65,8 +65,8 @@ Oturumunuz liderdir ve lider oturumunuzun modeliyle çalışır. Lider için `/m
 | 0 Başlangıç | lider | Proje özeti: amaç, neden, rakipler, hayal, başarısızlık ölçütleri | evet |
 | 1 Araştırma (isteğe bağlı: lider sorar) | araştırmacı, finans analisti, araştırma incelemecisi | `team/research/` altında kaynaklı rapor: rakipler, teknoloji, bilinen saldırılar, lisanslar, maliyet tahmini ve ücretsiz katman sınırları; liderin önerileri (rakiplerin boşlukları, farklılaşma, aralarından seçeceğin 2-3 ürün yönü). Rapordan önce bir betik kaynakları, atıfları, fiyat tablosunu ve önerileri denetler, ardından taze bağlamlı bir incelemeci içeriği denetler | evet |
 | 3 Tasarım | mimar, güvenlik incelemecisi | Spec, sözleşmeler, tehdit modeli | evet |
-| 4 Planlama | planlayıcı | Görev özetleri ve pano kayıtları | evet |
-| 5 Geliştirme | geliştiriciler, veritabanı mühendisi, test mühendisi, kod incelemecisi, doküman yazarı | Görev başına: kod, test, inceleme, belge | yalnız kararlar için |
+| 4 Planlama | planlayıcı | Görev özetleri, pano kayıtları ve projenin test komutu (siz onaylayınca `team/config.json` içine `testCommand` olarak yazılır) | evet |
+| 5 Geliştirme | geliştiriciler, veritabanı mühendisi, test mühendisi, kod incelemecisi, doküman yazarı | Görev başına: kod, test, inceleme, belge. Her uygulamadan sonra test kapısı (`gate.js`) test komutunu çalıştırır; testler kırılırsa iş incelemeye gitmez, uygulayıcıya döner ve bu bir tur sayılır | yalnız kararlar için |
 | 6 Son kontrol | son incelemeci, güvenlik incelemecisi | Bulgular ve düzeltmeler | evet |
 
 Her aşama kısa bir aşama raporuyla (biten, karar verilen, açık kalan) biter; sonraki aşama ancak siz onaylayınca başlar. Aşamalar geri dönebilir: bir inceleme işi tasarıma geri gönderebilir.
@@ -149,6 +149,8 @@ Ayarlar üç katmanda çözülür, sonraki kazanır: eklenti varsayılanları (`
   "cleanup": { "closedThreadMaxAgeDays": 14, "mode": "delete" }
 }
 ```
+
+`testCommand` (örneğin `"cargo test"`) projenin tüm testlerini proje kökünden çalıştıran komuttur. Test kapısı bu komutu her görevde shell'de çalıştırır. Planlayıcı önerir, siz faz 4 raporunda onaylarsınız, lider yazar.
 
 ## Ekip modu ve alt ajan modu, sınırlar
 

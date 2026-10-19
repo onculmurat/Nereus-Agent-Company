@@ -47,11 +47,11 @@ Team mode. Spawn `architect` and `security-reviewer` as named teammates. If you 
 
 ## Phase 4: Planning
 
-Subagent mode. Spawn `planner` as a one-shot subagent and never pass a name to it: a named spawn becomes a teammate when agent teams is on. The planner cuts the approved spec into small, testable tasks with one brief each. Add each task to the board with `board.js add` (owner role and model from the resolved rules). Output: task briefs and board entries. Owner approval required.
+Subagent mode. Spawn `planner` as a one-shot subagent and never pass a name (a named spawn becomes a teammate when agent teams is on). It cuts the approved spec into small, testable tasks, one brief each, and proposes the test command. Add each task with `board.js add` (owner role, model from the resolved rules). Output: task briefs, board entries, test command. Owner approval required; then write it to `testCommand` in `team/config.json`.
 
 ## Phase 5: Build
 
-Subagent mode. Run the skill `task-loop` for every board entry that is not `done`. Spawn implementers and reviewers as one-shot subagents and never pass a name to a build-phase spawn. Commits happen on the working branch; merge and push need owner approval. Owner approval is needed only for decisions that come up. Output per task: code, tests, review, hand-off, docs.
+Subagent mode. Run the skill `task-loop` for every board entry that is not `done`. Spawn implementers and reviewers as one-shot subagents and never pass a name to a build-phase spawn. Commits go on the working branch; merge, push and decisions that come up need owner approval. Output per task: code, tests, review, hand-off, docs.
 
 ## Phase 6: Final check
 

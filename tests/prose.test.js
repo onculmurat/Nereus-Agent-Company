@@ -106,6 +106,27 @@ test('phase 1 research is reviewed by research-reviewer after the check passes',
   assert.match(report, /APPROVED/);
 });
 
+// Loop engineering: a deterministic test run gates every review, so a reviewer never reads code whose tests fail.
+test('task-loop runs gate.js between implement and review, and a failing gate is a round', () => {
+  const loop = read('skills', 'task-loop', 'SKILL.md');
+  const gate = loop.indexOf('gate.js');
+  const review = loop.indexOf('`code-reviewer`');
+  assert.ok(gate >= 0 && review > gate, 'gate runs before the reviewer is spawned');
+  assert.match(loop, /failing gate[^\n]*one round/i);
+  assert.match(loop, /never[^\n]*review[^\n]*failing|failing[^\n]*never[^\n]*review/i);
+});
+
+// The gate runs testCommand as a shell command on every task, so only an owner-approved command reaches the config.
+test('planner proposes the test command and the lead writes it only after owner approval', () => {
+  const planner = read('agents', 'planner.md');
+  assert.match(planner, /testCommand/);
+  assert.match(planner, /never write[^\n]*team\/config\.json/i);
+  assert.match(planner, /owner question/i);
+  const phase4 = read('prompts', 'lead.md').split('## Phase 4')[1].split('\n## ')[0];
+  assert.match(phase4, /testCommand/);
+  assert.match(phase4, /approv/i);
+});
+
 test('lead prompt shows the owner the research sources', () => {
   const lead = read('prompts', 'lead.md');
   const phase1 = lead.split('## Phase 1')[1].split('\n## ')[0];

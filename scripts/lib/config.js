@@ -56,6 +56,9 @@ export function validateConfig(cfg) {
   if (!CLEANUP_MODES.includes(cfg.cleanup?.mode)) {
     throw new Error(`cleanup.mode must be one of ${CLEANUP_MODES.join(', ')}; got ${JSON.stringify(cfg.cleanup?.mode)}`);
   }
+  if (cfg.testCommand !== undefined && (typeof cfg.testCommand !== 'string' || !cfg.testCommand.trim())) {
+    throw new Error(`testCommand must be a non-empty command string; got ${JSON.stringify(cfg.testCommand)}`);
+  }
   const age = cfg.cleanup?.closedThreadMaxAgeDays;
   if (!Number.isInteger(age) || age < 0) throw new Error(`cleanup.closedThreadMaxAgeDays must be a whole number of days, 0 or more; got ${JSON.stringify(age)}`);
 }

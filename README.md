@@ -65,8 +65,8 @@ Your session is the lead, and the lead runs on your session's model. Use `/model
 | 0 Kick-off | lead | Project brief: goal, why, competitors, dream, failure criteria | yes |
 | 1 Research (optional: the lead asks) | researcher, finance analyst, research reviewer | Sourced report in `team/research/`: competitors, technology, known attacks, licenses, cost estimate and free tier limits; the lead's recommendations (competitor gaps, differentiation, 2-3 product directions) for you to choose from. A script checks the sources, citations, pricing table and recommendations, then a reviewer with a fresh context checks the content, before the report | yes |
 | 3 Design | architect, security reviewer | Spec, contracts, threat model | yes |
-| 4 Planning | planner | Task briefs and board entries | yes |
-| 5 Build | developers, database engineer, test engineer, code reviewer, doc writer | Per task: code, tests, review, docs | only for decisions |
+| 4 Planning | planner | Task briefs, board entries and the project's test command (written to `testCommand` in `team/config.json` once you approve it) | yes |
+| 5 Build | developers, database engineer, test engineer, code reviewer, doc writer | Per task: code, tests, review, docs. After each implementation a test gate (`gate.js`) runs the test command; failing tests never go to review, they go back to the implementer as one round | only for decisions |
 | 6 Final check | final reviewer, security reviewer | Findings and fixes | yes |
 
 Each phase ends with a short phase report (done, decided, open), and the next phase starts only when you approve. Phases can loop back: a review can send work back to design.
@@ -149,6 +149,8 @@ Settings resolve in three layers, later wins: plugin defaults (`defaults/config.
   "cleanup": { "closedThreadMaxAgeDays": 14, "mode": "delete" }
 }
 ```
+
+`testCommand` (for example `"cargo test"`) is the one command that runs the project's whole suite from the project root. The test gate runs it as a shell command on every task. The planner proposes it, you approve it in the phase 4 report, and the lead writes it.
 
 ## Team mode vs subagent mode and limits
 
