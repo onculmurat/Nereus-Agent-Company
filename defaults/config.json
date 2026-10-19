@@ -16,6 +16,7 @@
   "packMaxChars": 60000,
   "reviewRoundCap": 2,
   "foldInRounds": 2,
+  "findingsBatch": 8,
   "cleanup": { "closedThreadMaxAgeDays": 30, "mode": "archive" },
   "documents": { "memory": true, "plan": true, "articleDev": true, "setupRequirements": true },
   "phases": { "enabled": [0, 1, 3, 4, 5, 6], "teamMode": [1, 3, 6, 8] },

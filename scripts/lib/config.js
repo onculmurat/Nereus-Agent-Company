@@ -56,6 +56,7 @@ export function validateConfig(cfg) {
     packMaxChars: cfg.packMaxChars,
     reviewRoundCap: cfg.reviewRoundCap,
     foldInRounds: cfg.foldInRounds,
+    findingsBatch: cfg.findingsBatch,
   };
   for (const [key, v] of Object.entries(positive)) {
     if (!Number.isInteger(v) || v < 1) throw new Error(`${key} must be a positive integer; got ${JSON.stringify(v)}`);

@@ -20,10 +20,11 @@ const ROLE_RULES = {
   batch: 'Batch edits: one Edit or Write per file change set, not many micro-edits or scripted in-place patches.',
   filtered: 'While iterating run the filtered test (`cargo test <filter>`, `npm test -- <file>`); run the full suite once before you commit.',
   reread: 'Do not re-read a file that is in the pack or that you already read in this dispatch, unless it changed.',
+  hardening: "On a hardening task read only the pack's addresses and impact sites; do not scan the rest of the module. A review of it covers only the pack items and the diff.",
   rounds: "The board's `rounds` field is the only round count. Do not keep or report your own count.",
 };
 
-test('every agent carries the nine shared working rules, word for word', () => {
+test('every agent carries the ten shared working rules, word for word', () => {
   assert.equal(agents.length, 14);
   for (const file of agents) {
     const text = read('agents', file);
