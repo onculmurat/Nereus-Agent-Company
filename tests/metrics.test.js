@@ -69,7 +69,7 @@ test('metric rows: one per role, task, model and session with calls, tokens, dis
     { date: '2026-10-19', project: path.basename(root), session: 's1', scope: 'all', role: 'backend-developer', task: 'T-001', model: 'claude-sonnet-5-5', calls: 3, input: 3, cacheWrite: 30, cacheRead: 300, output: 15, weighted: 3 + 37.5 + 30 + 75, dispatches: 1, packed: 1, overBudget: 1 },
   );
   const rev = find('code-reviewer', 's1');
-  assert.equal(rev.packed, 1, 'a hand-off path with backslashes counts as packed');
+  assert.equal(rev.packed, 0, 'a hand-off is not a pack, even for the same task');
   assert.equal(rev.overBudget, 0);
   assert.equal(rev.task, 'T-001', 'a hand-off named after a task gives the task');
   const be2 = find('backend-developer', 's2');
@@ -129,7 +129,7 @@ test('shared summary: one line per run in ~/.claude/nac/metrics.md', () => {
   assert.equal(cells[2], 'all');
   assert.equal(cells[3], '8');
   assert.equal(cells[6], '3');
-  assert.equal(cells[7], '67%');
+  assert.equal(cells[7], '33%');
   assert.equal(cells[8], '1');
 });
 

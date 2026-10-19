@@ -18,7 +18,7 @@ const usage = `Usage:
           else team/work/tasks/<id>.md, else a hand-off named after a task, else the first T-<n> id in the text;
           otherwise "unassigned". Lead messages take the task of the latest subagent dispatch (by start time, same
           session) at or before them; lead messages before the first dispatch stay "unassigned". packed counts
-          dispatches whose prompt names a pack or the hand-off of their own task.
+          dispatches whose prompt names a pack file; a hand-off is not a pack.
   (accepts --project <dir>; --transcripts <dir> overrides ~/.claude/projects)
 `;
 

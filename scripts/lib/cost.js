@@ -27,14 +27,10 @@ function knownRoles() {
   }
 }
 
-// A dispatch is "packed" when its prompt names prepared context: a file under team/work/packs/, or the hand-off of
-// the task it works on (team/work/handoffs/<task id>.md). A hand-off of another task does not count.
-export function namesPack(text, task) {
-  const t = text ?? '';
-  if (/team[\\/]+work[\\/]+packs[\\/]/.test(t)) return true;
-  if (!task || task === 'unassigned') return false;
-  const escaped = task.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  return new RegExp(`team[\\\\/]+work[\\\\/]+handoffs[\\\\/]+${escaped}\\.md`, 'i').test(t);
+// A dispatch is "packed" when its prompt names a file under team/work/packs/. A hand-off, even of the same task, is
+// not a pack: pre-pack sessions named hand-offs and the roles still explored the project from scratch.
+export function namesPack(text) {
+  return /team[\\/]+work[\\/]+packs[\\/]/.test(text ?? '');
 }
 
 const PACK_RE = /team[\\/]+work[\\/]+packs[\\/]+([^\s"'`<>|*?\\/]+?)\.md/;
@@ -168,7 +164,7 @@ function collect(dirs, since, until, session) {
           const first = records.find((r) => r?.type === 'user');
           const prompt = textOf(first?.message?.content);
           const task = taskFromPrompt(prompt);
-          const packed = namesPack(prompt, task);
+          const packed = namesPack(prompt);
           const began = Date.parse(records.find((r) => r?.timestamp)?.timestamp);
           if (Number.isFinite(began)) starts.set(e.name, [...(starts.get(e.name) ?? []), { t: began, task }].sort((a, b) => a.t - b.t));
           const role = roleOf(meta.agentType);

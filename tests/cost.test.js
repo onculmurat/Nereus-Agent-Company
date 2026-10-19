@@ -216,10 +216,10 @@ test('taskFromPrompt falls back to the task file, the hand-off file name, then t
   assert.equal(taskFromPrompt('no id here, T-x is not one'), 'unassigned');
 });
 
-test('namesPack counts a pack, or the hand-off of the same task, but not another task hand-off', () => {
+test('namesPack counts only a pack file, never a hand-off', () => {
   assert.equal(namesPack('team/work/packs/T-001-backend-developer.md', 'T-001'), true);
-  assert.equal(namesPack('read team/work/handoffs/T-001.md', 'T-001'), true);
-  assert.equal(namesPack('read D:\\p\\team\\work\\handoffs\\t-001.md', 'T-001'), true);
+  assert.equal(namesPack('read team/work/handoffs/T-001.md', 'T-001'), false);
+  assert.equal(namesPack('read D:\\p\\team\\work\\packs\\T-001-code-reviewer.md'), true);
   assert.equal(namesPack('read team/work/handoffs/T-002.md', 'T-001'), false);
   assert.equal(namesPack('read team/work/handoffs/T-002.md', 'unassigned'), false);
   assert.equal(namesPack('', 'T-001'), false);
