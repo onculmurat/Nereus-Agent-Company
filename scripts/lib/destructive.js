@@ -314,6 +314,48 @@ function shellString(name, args) {
   return i < 0 ? null : (args[i + 1]?.text ?? null);
 }
 
+// Variables assigned a literal value earlier in the same command line (VAR=x, export VAR=x, $Var = "x").
+// A literal has no $, backtick or parenthesis, so nothing is guessed; any other variable stays unresolved (blocked).
+const LITERAL = /^[^$`()]*$/;
+function noteAssignments(command, style, vars) {
+  let tokens = command.tokens;
+  if (style !== 'ps' && tokens[0]?.text === 'export') tokens = tokens.slice(1);
+  const texts = tokens.map((t) => t.text);
+  let name;
+  let value;
+  if (style === 'ps') {
+    const m = /^\$([A-Za-z_]\w*)(?:=(.*))?$/.exec(texts[0] ?? '');
+    if (m && m[2] !== undefined) [name, value] = [m[1], m[2]];
+    else if (m && texts[1] === '=' && texts.length === 3) [name, value] = [m[1], texts[2]];
+    else if (m && texts[1]?.startsWith('=') && texts.length === 2) [name, value] = [m[1], texts[1].slice(1)];
+  } else if (tokens.length && tokens.every((t) => /^[A-Za-z_]\w*=/.test(t.text))) {
+    for (const t of tokens) {
+      const i = t.text.indexOf('=');
+      setVar(vars, t.text.slice(0, i), t.text.slice(i + 1), style);
+    }
+    return null;
+  }
+  if (name !== undefined) {
+    setVar(vars, name, value, style);
+    return null;
+  }
+  if (!vars.size) return command;
+  return { ...command, tokens: command.tokens.map((t) => ({ ...t, text: substitute(t.text, vars, style) })) };
+}
+
+function setVar(vars, name, value, style) {
+  const key = style === 'ps' ? name.toLowerCase() : name;
+  if (LITERAL.test(value)) vars.set(key, value);
+  else vars.delete(key);
+}
+
+function substitute(text, vars, style) {
+  return text.replace(/\$(?:\{([A-Za-z_]\w*)\}|([A-Za-z_]\w*))/g, (whole, a, b) => {
+    const key = style === 'ps' ? (a ?? b).toLowerCase() : (a ?? b);
+    return vars.has(key) ? vars.get(key) : whole;
+  });
+}
+
 function analyzeText(text, style, ctx, depth) {
   if (depth > MAX_DEPTH) return 'it is nested too deeply to check';
   const body = stripBodies(text, style);
@@ -323,7 +365,10 @@ function analyzeText(text, style, ctx, depth) {
   }
   const commands = parse(body, style);
   if (commands.unterminated && mentionsDelete(body)) return 'the command has an unbalanced quote, so it cannot be checked';
-  for (const command of commands) {
+  const vars = ctx.vars ?? (ctx.vars = new Map());
+  for (const raw of commands) {
+    const command = noteAssignments(raw, style, vars);
+    if (!command) continue;
     const r = analyzeCommand(command, style, ctx, depth);
     if (r) return r;
   }

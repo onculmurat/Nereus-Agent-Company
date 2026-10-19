@@ -178,3 +178,20 @@ test('a script outside the project and the temp folder is not read', () => {
   const env = { root, cwd: root, tmpDirs: [path.join(base, 'tmpd')], toolName: 'Bash' };
   assert.equal(checkDestructive(`bash ${fwd(base)}/other.sh`, env), null);
 });
+
+// Item 4: variables assigned a literal value earlier in the same command are resolved.
+test('literal assignments in the same command are substituted before the rules apply', () => {
+  allowed(POSIX, [
+    'S="/tmp/x"; rm -rf "$S"', 'SP=/tmp/sp; rm -rf "$SP"', "P='/tmp/p y'; rm -rf \"$P\"", 'export P=/tmp/e && rm -rf $P', 'D=build; rm -rf ${D}/out',
+    'A=/tmp/a; B=/tmp/b; rm -rf "$A" "$B"',
+  ]);
+  allowed(WIN, ['$Dir = "C:/proj/out"; Remove-Item -Recurse -Force $Dir', "$d = 'C:/proj/o'; Remove-Item -Recurse $d"], 'PowerShell');
+  blocked(POSIX, ['P=/; rm -rf "$P"', 'P="$HOME"; rm -rf "$P"', 'P=~; rm -rf $P', 'P=/home/u; rm -rf "$P"', 'P=$(pwd); rm -rf "$P"', 'P=$Q; rm -rf "$P"', 'P=`pwd`; rm -rf "$P"',
+    'rm -rf "$UNSET"', 'export P=/; rm -rf $P', 'P=/tmp/x; Q=$P/..; rm -rf "$Q"']);
+  blocked(WIN, ['$p = "C:\\"; Remove-Item -Recurse -Force $p', '$p = $env:USERPROFILE; Remove-Item -Recurse $p'], 'PowerShell');
+});
+
+test('a reassignment after the delete does not count, and a later one replaces an earlier one', () => {
+  blocked(POSIX, ['rm -rf "$S"; S=/tmp/x', 'S=/tmp/x; S=/; rm -rf "$S"', 'S=/tmp/x; rm -rf "$S"; S=/; rm -rf "$S"']);
+  allowed(POSIX, ['S=/; S=/tmp/x; rm -rf "$S"']);
+});
