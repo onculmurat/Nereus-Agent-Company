@@ -10,6 +10,9 @@
     "PostToolUse": [
       { "matcher": "SendMessage", "hooks": [{ "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/post-send-message.js\"" }] }
     ],
+    "Stop": [
+      { "hooks": [{ "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/stop-question.js\"" }] }
+    ],
     "TaskCompleted": [
       { "hooks": [{ "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/task-completed.js\"" }] }
     ],

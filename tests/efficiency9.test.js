@@ -385,3 +385,70 @@ test('A8 session-start prints the warning for the lead only', async () => {
   const mate = JSON.parse(runHookScript('session-start', { ...payload, agent_type: 'planner', agent_id: 'x' }, { env: { NAC_PLUGINS_DIR: plugins } }).stdout).hookSpecificOutput.additionalContext;
   assert.doesNotMatch(mate, /drift/);
 });
+
+// ---- A7: plain-text owner questions ----
+
+import { askedWithoutRecommendation } from '../scripts/lib/owner-question.js';
+
+test('A7 a final message ending in a question without a recommendation is flagged', () => {
+  assert.equal(askedWithoutRecommendation('T-070 is done. Should I start T-071?'), true);
+  assert.equal(askedWithoutRecommendation('Devam edeyim mi?\n\n'), true);
+  assert.equal(askedWithoutRecommendation('Proceed? **yes / no?**'), true);
+  assert.equal(askedWithoutRecommendation('Evet / hayır?'), true);
+});
+
+test('A7 a recommendation marker, a statement, or an empty message is not flagged', () => {
+  assert.equal(askedWithoutRecommendation('Options: a) now b) later. I recommend a. Which one?'), false);
+  assert.equal(askedWithoutRecommendation('Seçenekler a / b. Önerim a. Hangisi?'), false);
+  assert.equal(askedWithoutRecommendation('Source: x\nRecommendation: b\nWhich one?'), false);
+  assert.equal(askedWithoutRecommendation('Done. Tests are green.'), false);
+  assert.equal(askedWithoutRecommendation('Why does this work? It does because of X.'), false);
+  assert.equal(askedWithoutRecommendation(''), false);
+  assert.equal(askedWithoutRecommendation(undefined), false);
+});
+
+const stopPayload = (cwd, patch = {}) => ({ session_id: 's', cwd, hook_event_name: 'Stop', stop_hook_active: false, ...patch });
+
+test('A7 the Stop hook blocks the lead once and points at decisions.js ask', () => {
+  const root = makeProject();
+  const r = runHookScript('stop-question', stopPayload(root, { last_assistant_message: 'Shall I start T-071?' }));
+  assert.equal(r.status, 2);
+  assert.match(r.stderr, /decisions\.js/);
+  assert.match(r.stderr, /recommend/i);
+});
+
+test('A7 the Stop hook lets go when a recommendation is there, when it already blocked once, for teammates and outside NAC', () => {
+  const root = makeProject();
+  assert.equal(runHookScript('stop-question', stopPayload(root, { last_assistant_message: 'I recommend a. Which one?' })).status, 0);
+  assert.equal(runHookScript('stop-question', stopPayload(root, { last_assistant_message: 'Shall I?', stop_hook_active: true })).status, 0);
+  assert.equal(runHookScript('stop-question', stopPayload(root, { last_assistant_message: 'Shall I?', agent_id: 'a1', agent_type: 'planner' })).status, 0);
+  const plain = fs.mkdtempSync(path.join(os.tmpdir(), 'nac plain '));
+  assert.equal(runHookScript('stop-question', stopPayload(plain, { last_assistant_message: 'Shall I?' })).status, 0);
+});
+
+test('A7 fail-open: bad stdin, no message, unreadable transcript', () => {
+  const root = makeProject();
+  assert.equal(runHookScript('stop-question', 'not json').status, 0);
+  assert.equal(runHookScript('stop-question', stopPayload(root)).status, 0);
+  assert.equal(runHookScript('stop-question', stopPayload(root, { transcript_path: path.join(root, 'missing.jsonl') })).status, 0);
+});
+
+test('A7 without last_assistant_message the hook reads the end of the transcript', () => {
+  const root = makeProject();
+  const file = path.join(root, 't.jsonl');
+  const line = (o) => JSON.stringify(o);
+  fs.writeFileSync(file, [
+    line({ type: 'assistant', message: { content: [{ type: 'text', text: 'Earlier statement.' }] } }),
+    line({ type: 'user', message: { content: 'ok' } }),
+    line({ type: 'assistant', message: { content: [{ type: 'tool_use', name: 'Bash' }, { type: 'text', text: 'Should I merge?' }] } }),
+  ].join('\n'));
+  assert.equal(runHookScript('stop-question', stopPayload(root, { transcript_path: file })).status, 2);
+});
+
+test('A7 hooks.json registers the Stop hook and question-protocol says plain-text questions are not allowed', () => {
+  const hooks = JSON.parse(read('hooks', 'hooks.json')).hooks;
+  assert.match(hooks.Stop[0].hooks[0].command, /hooks\/stop-question\.js"$/);
+  const t = read('skills', 'question-protocol', 'SKILL.md');
+  assert.match(t, /plain chat/i);
+  assert.match(t, /Stop hook/);
+});
