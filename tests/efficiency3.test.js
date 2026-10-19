@@ -103,3 +103,15 @@ test('updateEntry itself stays git-free (only the CLI verifies commits)', () => 
   addEntry(root, { title: 'T', owner: 'backend-developer', model: 'sonnet' });
   assert.deepEqual(updateEntry(root, 'T-001', { commits: ['x'] }).commits, ['x']);
 });
+
+test('board update --commit records a commit once, also when one side is the short form of the other', () => {
+  const { root, commit, git } = makeGitProject();
+  const sha = commit('a.txt');
+  const full = git('rev-parse', 'HEAD');
+  addEntry(root, { title: 'T', owner: 'backend-developer', model: 'sonnet' });
+  board(root, 'update', 'T-001', '--commit', sha);
+  assert.deepEqual(JSON.parse(board(root, 'update', 'T-001', '--commit', sha).stdout).commits, [sha]);
+  assert.deepEqual(JSON.parse(board(root, 'update', 'T-001', '--commit', full).stdout).commits, [sha]);
+  const second = commit('b.txt');
+  assert.deepEqual(JSON.parse(board(root, 'update', 'T-001', '--commit', second).stdout).commits, [sha, second]);
+});

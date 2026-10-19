@@ -6,7 +6,7 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { makeProject } from './helpers.js';
-import { projectSlug, taskFromPrompt, buildCostReport } from '../scripts/lib/cost.js';
+import { projectSlug, taskFromPrompt, namesPack, buildCostReport } from '../scripts/lib/cost.js';
 import { buildPhaseReport } from '../scripts/lib/summary.js';
 
 const pluginRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -204,4 +204,23 @@ test('cost.js documents the weights and the phase-report skill ranks by weighted
   assert.ok(help.includes('weighted = input + 1.25 x cache_creation + 0.1 x cache_read + 5 x output'));
   const skill = fs.readFileSync(path.join(pluginRoot, 'skills', 'phase-report', 'SKILL.md'), 'utf8');
   assert.match(skill, /ranked by .?weighted/i);
+});
+
+test('taskFromPrompt falls back to the task file, the hand-off file name, then the first task id in the text', () => {
+  assert.equal(taskFromPrompt('Work on team/work/tasks/T-009.md now'), 'T-009');
+  assert.equal(taskFromPrompt('see D:\\p\\team\\work\\tasks\\T-018c.md'), 'T-018c');
+  assert.equal(taskFromPrompt('read team/work/handoffs/T-018c.md'), 'T-018c');
+  assert.equal(taskFromPrompt('read team/work/handoffs/architect-t-018c-approach-assignment.md'), 'T-018c');
+  assert.equal(taskFromPrompt('Plan the work for t-12B please'), 'T-12b');
+  assert.equal(taskFromPrompt('pack wins team/work/packs/T-001-backend-developer.md and T-002 elsewhere'), 'T-001');
+  assert.equal(taskFromPrompt('no id here, T-x is not one'), 'unassigned');
+});
+
+test('namesPack counts only a pack file, never a hand-off', () => {
+  assert.equal(namesPack('team/work/packs/T-001-backend-developer.md', 'T-001'), true);
+  assert.equal(namesPack('read team/work/handoffs/T-001.md', 'T-001'), false);
+  assert.equal(namesPack('read D:\\p\\team\\work\\packs\\T-001-code-reviewer.md'), true);
+  assert.equal(namesPack('read team/work/handoffs/T-002.md', 'T-001'), false);
+  assert.equal(namesPack('read team/work/handoffs/T-002.md', 'unassigned'), false);
+  assert.equal(namesPack('', 'T-001'), false);
 });

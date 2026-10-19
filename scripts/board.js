@@ -41,7 +41,10 @@ const commands = {
     if (v.commit !== undefined) {
       verifyCommit(root, v.commit);
       const entry = readBoard(root).entries.find((e) => e.id === id);
-      patch.commits = [...(entry?.commits ?? []), v.commit];
+      const known = entry?.commits ?? [];
+      // a sha already recorded is not added again; a short form and its full form are the same commit
+      const seen = known.some((c) => c.startsWith(v.commit) || v.commit.startsWith(c));
+      patch.commits = seen ? known : [...known, v.commit];
     }
     const entry = updateEntry(root, id, patch);
     return v.status === 'done' ? { ...entry, rotate: rotationDue(root) } : entry;
