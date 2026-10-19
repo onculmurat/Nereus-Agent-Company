@@ -23,6 +23,8 @@ Every question starts with its context, then the choice:
 
 One question at a time. Each message holds exactly one question: no sub-questions, no bullet list of things to cover, and no preview of the questions still to come. A question asks about one thing: never join two questions with "and". Wait for the answer before the next one.
 
+A question gets its own message: no status report, summary or news in it; send those in a message before it. Ask a question in full every time, re-asks included: never refer to it only by its id ("waiting for your answer to Q-010"), so the owner never has to search earlier messages for it. When several questions are queued, ask them one after another, each after the previous answer.
+
 ## Timing
 
 - **Blocking** (work cannot continue): ask immediately.

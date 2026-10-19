@@ -9,7 +9,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { parseHeader } from './mailbox.js';
 
-export const RESEARCH_ROLES = { researcher: ['mailbox.js', 'clone.js'], 'finance-analyst': ['mailbox.js'] };
+export const RESEARCH_ROLES = { researcher: ['mailbox.js', 'clone.js'], 'finance-analyst': ['mailbox.js'], 'research-reviewer': ['mailbox.js'] };
 const OPEN_TOOLS = new Set(['WebFetch', 'WebSearch']);
 const READ_TOOLS = new Set(['Read', 'Grep', 'Glob']);
 const WRITE_TOOLS = new Set(['Write', 'Edit', 'MultiEdit']);

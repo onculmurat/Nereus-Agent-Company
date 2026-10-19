@@ -63,7 +63,7 @@ Oturumunuz liderdir ve lider oturumunuzun modeliyle çalışır. Lider için `/m
 | Aşama | Roller | Çıktı | Onayınız |
 |---|---|---|---|
 | 0 Başlangıç | lider | Proje özeti: amaç, neden, rakipler, hayal, başarısızlık ölçütleri | evet |
-| 1 Araştırma (isteğe bağlı: lider sorar) | araştırmacı, finans analisti | `team/research/` altında kaynaklı rapor: rakipler, teknoloji, bilinen saldırılar, lisanslar, maliyet tahmini ve ücretsiz katman sınırları | evet |
+| 1 Araştırma (isteğe bağlı: lider sorar) | araştırmacı, finans analisti, araştırma incelemecisi | `team/research/` altında kaynaklı rapor: rakipler, teknoloji, bilinen saldırılar, lisanslar, maliyet tahmini ve ücretsiz katman sınırları; liderin önerileri (rakiplerin boşlukları, farklılaşma, aralarından seçeceğin 2-3 ürün yönü). Rapordan önce bir betik kaynakları, atıfları, fiyat tablosunu ve önerileri denetler, ardından taze bağlamlı bir incelemeci içeriği denetler | evet |
 | 3 Tasarım | mimar, güvenlik incelemecisi | Spec, sözleşmeler, tehdit modeli | evet |
 | 4 Planlama | planlayıcı | Görev özetleri ve pano kayıtları | evet |
 | 5 Geliştirme | geliştiriciler, veritabanı mühendisi, test mühendisi, kod incelemecisi, doküman yazarı | Görev başına: kod, test, inceleme, belge | yalnız kararlar için |
@@ -78,6 +78,7 @@ Her aşama kısa bir aşama raporuyla (biten, karar verilen, açık kalan) biter
 | ekip lideri (oturumunuz) | Sizinle konuşur, iş dağıtır, panoyu tutar, size sorar | oturum modeliniz |
 | researcher | Rakipler, teknoloji seçenekleri, bilinen saldırılar, lisanslar; kaynaklı | opus |
 | finance-analyst | Maliyet tahmini, ücretli servisler, ücretsiz katman sınırları; kaynaklı | opus |
+| research-reviewer | Faz 1 araştırmasının taze bağlamla incelenmesi: kaynak iddiayı destekliyor mu, öneriler brief'e uyuyor mu | opus |
 | architect | Spec, servis ayrımı, veri modeli, sözleşmeler | opus |
 | planner | Spec'i küçük, test edilebilir görevlere ve özetlere böler | sonnet |
 | backend-developer | Sunucu kodu ve testleri | sonnet |

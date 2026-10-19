@@ -129,6 +129,15 @@ test('A1 a question asks about one thing and phase 0 topics are single', () => {
   assert.doesNotMatch(phase0, /who has the problem and why now/);
 });
 
+// Seen live (Memory Agent, phase 3): questions sat at the end of long status messages, and a re-ask said only "waiting for your answer to Q-010".
+test('a question gets its own message and is always asked in full, never by id', () => {
+  const protocol = read('skills', 'question-protocol', 'SKILL.md');
+  assert.match(protocol, /no status report/i);
+  assert.match(protocol, /in full[^\n]*never[^\n]*by its id/i);
+  assert.match(protocol, /one after another/i);
+  assert.match(read('commands', 'questions.md'), /in full/i);
+});
+
 // Live test C3: after a restart the lead asked Q-001 at once and never told the owner about an unread message.
 test('C3 after a restart the lead reports the state, unread messages included, before asking', () => {
   const restart = read('prompts', 'lead.md').split('## After a restart')[1].split('\n## ')[0];
