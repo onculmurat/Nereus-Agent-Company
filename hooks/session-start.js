@@ -36,8 +36,7 @@ runHook(async (payload, root) => {
   const drift = pluginSourceDrift();
   const additionalContext = [
     lead.trim(),
-    `NAC-LEAD-ACTIVE${guardHint}${drift ? `
-${drift}` : ''}`,
+    `NAC-LEAD-ACTIVE${guardHint}${drift ? `\n${drift}` : ''}`,
     `## Resolved rules\n\nPlugin scripts: ${path.join(pluginRoot, 'scripts')}\n\n\`\`\`json\n${JSON.stringify(rules)}\n\`\`\``,
     `## Resume (session ${payload.source ?? 'startup'})\n\n${buildResumeSummary(root)}`,
   ].join('\n\n');
