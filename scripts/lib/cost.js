@@ -201,13 +201,15 @@ function parseInstant(name, value) {
   return ms;
 }
 
-function itemsFor(root, { since, until, session, projectsDir = defaultProjectsDir() }) {
-  return collect(projectDirs(root, projectsDir), parseInstant('since', since), parseInstant('until', until), session);
+// --task keeps one task's messages: its subagents and the lead messages attributed to it.
+function itemsFor(root, { since, until, session, task, projectsDir = defaultProjectsDir() }) {
+  const items = collect(projectDirs(root, projectsDir), parseInstant('since', since), parseInstant('until', until), session);
+  return task === undefined ? items : items.filter((m) => m.task.toLowerCase() === task.toLowerCase());
 }
 
-export function buildCostReport(root, { by = 'role', since, until, session, projectsDir = defaultProjectsDir() } = {}) {
+export function buildCostReport(root, { by = 'role', since, until, session, task, projectsDir = defaultProjectsDir() } = {}) {
   if (!BY.includes(by)) throw new Error(`--by must be one of ${BY.join(', ')}; got "${by}"`);
-  const items = itemsFor(root, { since, until, session, projectsDir });
+  const items = itemsFor(root, { since, until, session, task, projectsDir });
 
   const groups = new Map();
   const totals = zero();
@@ -238,9 +240,10 @@ const metricsDir = (root) => path.join(teamPaths(root).team, 'metrics');
 const jsonlPath = (root) => path.join(metricsDir(root), 'cost.jsonl');
 export const sharedMetricsPath = (home = os.homedir()) => path.join(home, '.claude', 'nac', 'metrics.md');
 
-function scopeOf({ since, until, session, baseline }) {
+function scopeOf({ since, until, session, task, baseline }) {
   if (baseline !== undefined) return 'baseline';
   const parts = [];
+  if (task !== undefined) parts.push(`task ${task}`);
   if (session !== undefined) parts.push(`session ${session}`);
   if (since !== undefined) parts.push(`since ${since}`);
   if (until !== undefined) parts.push(`until ${until}`);
@@ -249,12 +252,12 @@ function scopeOf({ since, until, session, baseline }) {
 
 // One row per role, task, model and session. dispatches = subagent runs in the row; packed = those whose dispatch
 // prompt names a pack or hand-off; overBudget = those with more tool calls than callBudget.
-export function buildMetricRows(root, { since, until, session, baseline, projectsDir = defaultProjectsDir(), now = new Date() } = {}) {
-  const items = itemsFor(root, { since, until, session, projectsDir });
+export function buildMetricRows(root, { since, until, session, task, baseline, projectsDir = defaultProjectsDir(), now = new Date() } = {}) {
+  const items = itemsFor(root, { since, until, session, task, projectsDir });
   const budget = loadConfig({ pluginRoot, projectRoot: root }).callBudget;
   const date = localDate(now);
   const project = path.basename(path.resolve(root));
-  const scope = scopeOf({ since, until, session, baseline });
+  const scope = scopeOf({ since, until, session, task, baseline });
   const dispatchCalls = new Map();
   for (const m of items) if (m.agentId) dispatchCalls.set(m.agentId, (dispatchCalls.get(m.agentId) ?? 0) + 1);
   const rows = new Map();
@@ -299,7 +302,7 @@ function totalsOf(rows) {
   return { calls: sum(rows, (r) => r.calls), tokens: sum(rows, tokensOf), weighted: round(sum(rows, (r) => r.weighted), 1), dispatches, packed, overBudget: sum(rows, (r) => r.overBudget), packedShare: dispatches ? Math.round((100 * packed) / dispatches) : 0 };
 }
 
-// Saves the run: team/metrics/cost-<date>-<HHMM>.md (or baseline-<name>.md), appends the rows to cost.jsonl and one
+// Saves the run: team/metrics/cost-<date>-<HHMM>.md (cost-<task>-<date>-<HHMM>.md with a task, or baseline-<name>.md), appends the rows to cost.jsonl and one
 // line to the shared ~/.claude/nac/metrics.md (this machine only).
 export function saveMetrics(root, opts = {}) {
   const { baseline, home = os.homedir(), now = new Date() } = opts;
@@ -309,7 +312,7 @@ export function saveMetrics(root, opts = {}) {
   fs.mkdirSync(dir, { recursive: true });
   const hhmm = `${pad(now.getHours())}${pad(now.getMinutes())}`;
   const stamp = `${localDate(now)} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
-  const name = baseline !== undefined ? `baseline-${baseline}.md` : `cost-${localDate(now)}-${hhmm}.md`;
+  const name = baseline !== undefined ? `baseline-${baseline}.md` : `cost-${opts.task !== undefined ? `${opts.task}-` : ''}${localDate(now)}-${hhmm}.md`;
   const md = path.join(dir, name);
   const scope = rows[0]?.scope ?? scopeOf({ ...opts, baseline });
   const t = totalsOf(rows);

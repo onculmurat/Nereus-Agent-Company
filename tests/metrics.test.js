@@ -182,7 +182,7 @@ test('team/metrics/ is committed: setup does not ignore it', () => {
 
 test('task-loop saves the cost after each done task; phase-report compares with the baseline', () => {
   const loop = read('skills', 'task-loop', 'SKILL.md');
-  assert.match(loop, /cost\.js" --save --since <[^>]*start[^>]*>/);
+  assert.match(loop, /cost.js" --save --task <id>/);
   assert.match(loop, /chore\(team\)/);
   const report = read('skills', 'phase-report', 'SKILL.md');
   assert.match(report, /baseline/i);
@@ -242,4 +242,39 @@ test('packed ignores a hand-off that belongs to another task', () => {
   const row = buildMetricRows(root, { projectsDir: projects }).find((r) => r.task === 'T-005');
   assert.equal(row.dispatches, 1);
   assert.equal(row.packed, 0);
+});
+
+test('--task keeps only that task rows (lead included); the printed report is filtered the same way', () => {
+  const { root, projects } = leadFixture();
+  const rows = buildMetricRows(root, { projectsDir: projects, task: 'T-002' });
+  assert.deepEqual(rows.map((r) => [r.role, r.task]).sort(), [['backend-developer', 'T-002'], ['lead', 'T-002']]);
+  for (const r of rows) assert.equal(r.scope, 'task T-002');
+  const report = buildCostReport(root, { by: 'task', projectsDir: projects, task: 'T-002' });
+  assert.deepEqual(report.rows.map((r) => r.key), ['T-002']);
+});
+
+test('save --task writes cost-<id>-<date>-<HHMM>.md, rows with scope task <id> and a shared line with that scope', () => {
+  const { root, projects } = leadFixture();
+  const h = home();
+  const r = saveMetrics(root, { projectsDir: projects, home: h, task: 'T-001', now: new Date(2026, 9, 19, 14, 5) });
+  assert.equal(path.basename(r.md), 'cost-T-001-2026-10-19-1405.md');
+  assert.match(fs.readFileSync(r.md, 'utf8'), /^Scope: task T-001\./m);
+  const saved = jsonl(root);
+  assert.ok(saved.length > 0);
+  for (const row of saved) {
+    assert.equal(row.scope, 'task T-001');
+    assert.equal(row.task, 'T-001');
+  }
+  const line = fs.readFileSync(path.join(h, '.claude', 'nac', 'metrics.md'), 'utf8').trim().split('\n').pop();
+  assert.equal(line.split('|').slice(1, -1)[2].trim(), 'task T-001');
+});
+
+test('cli --save --task writes only that task', () => {
+  const { root, projects } = leadFixture();
+  const h = home();
+  const out = spawnSync(process.execPath, [cli, '--transcripts', projects, '--project', root, '--save', '--task', 'T-002'], { encoding: 'utf8', env: { ...process.env, HOME: h, USERPROFILE: h } });
+  assert.equal(out.status, 0, out.stderr);
+  const saved = JSON.parse(out.stdout).saved;
+  assert.match(path.basename(saved.md), /^cost-T-002-/);
+  for (const row of jsonl(root)) assert.equal(row.task, 'T-002');
 });
