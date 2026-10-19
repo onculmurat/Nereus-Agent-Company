@@ -15,8 +15,8 @@ const GATE_TAIL_LINES = 60;
 const pluginRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 
 const budgetLine = (root) => {
-  const n = loadConfig({ pluginRoot, projectRoot: root }).callBudget;
-  return `Budget: ${n} tool calls. When you reach it, stop and report what is done, what is left and what you need.`;
+  const n = loadConfig({ pluginRoot, projectRoot: root }).turnBudget;
+  return `Budget: ${n} model turns (parallel tool calls share a turn). When you reach it, stop and report what is done, what is left and what you need.`;
 };
 const uniq = (list) => [...new Set(list)];
 

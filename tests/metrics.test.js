@@ -20,9 +20,9 @@ const u = (input, create, cacheRead, output) => ({ input_tokens: input, cache_cr
 
 // Two lead sessions. s1 (Oct 1): lead 2 calls; agent aaa (backend-developer, forward slashes, pack, 3 calls);
 // agent bbb (code-reviewer, backslashes, hand-off, 1 call). s2 (Oct 5): lead 1 call; agent ccc (backend-developer, no pack, 1 call).
-function fixture({ callBudget = 2 } = {}) {
+function fixture({ turnBudget = 2 } = {}) {
   const root = makeProject();
-  fs.writeFileSync(path.join(root, 'team', 'config.json'), JSON.stringify({ callBudget }));
+  fs.writeFileSync(path.join(root, 'team', 'config.json'), JSON.stringify({ turnBudget }));
   const projects = fs.mkdtempSync(path.join(os.tmpdir(), 'nac projects '));
   const dir = path.join(projects, projectSlug(root));
   const put = (file, lines) => {
@@ -60,7 +60,7 @@ test('--until is an inclusive upper bound next to --since; a bad value is an err
 });
 
 test('metric rows: one per role, task, model and session with calls, tokens, dispatches, packed and over-budget', () => {
-  const { root, projects } = fixture({ callBudget: 2 });
+  const { root, projects } = fixture({ turnBudget: 2 });
   const rows = buildMetricRows(root, { projectsDir: projects, now: new Date(2026, 9, 19, 14, 5) });
   const find = (role, session) => rows.find((r) => r.role === role && r.session === session);
   assert.equal(rows.length, 5);
@@ -112,7 +112,7 @@ test('baseline writes baseline-<name>.md and rows with scope baseline', () => {
 });
 
 test('shared summary: one line per run in ~/.claude/nac/metrics.md', () => {
-  const { root, projects } = fixture({ callBudget: 2 });
+  const { root, projects } = fixture({ turnBudget: 2 });
   const h = home();
   const now = new Date(2026, 9, 19, 14, 5);
   saveMetrics(root, { projectsDir: projects, home: h, now });
@@ -277,4 +277,21 @@ test('cli --save --task writes only that task', () => {
   const saved = JSON.parse(out.stdout).saved;
   assert.match(path.basename(saved.md), /^cost-T-002-/);
   for (const row of jsonl(root)) assert.equal(row.task, 'T-002');
+});
+
+test('overBudget counts model turns (distinct message ids), not content blocks, against turnBudget', () => {
+  const root = makeProject();
+  fs.writeFileSync(path.join(root, 'team', 'config.json'), JSON.stringify({ turnBudget: 2 }));
+  const projects = fs.mkdtempSync(path.join(os.tmpdir(), 'nac projects '));
+  const sub = path.join(projects, projectSlug(root), 's1', 'subagents');
+  fs.mkdirSync(sub, { recursive: true });
+  // 5 records, 2 distinct message ids: two turns, within a budget of 2
+  const recs = [user('Read team/work/packs/T-001-backend-developer.md', '2026-10-01T11:00:00Z'), ...['m1', 'm1', 'm1', 'm2', 'm2'].map((id) => assistant(id, u(1, 1, 1, 1), '2026-10-01T11:00:01Z'))];
+  fs.writeFileSync(path.join(sub, 'agent-ddd.jsonl'), `${recs.join('\n')}\n`);
+  fs.writeFileSync(path.join(sub, 'agent-ddd.meta.json'), JSON.stringify({ agentType: 'nac:backend-developer' }));
+  const row = buildMetricRows(root, { projectsDir: projects }).find((r) => r.role === 'backend-developer');
+  assert.equal(row.calls, 2);
+  assert.equal(row.overBudget, 0);
+  fs.writeFileSync(path.join(root, 'team', 'config.json'), JSON.stringify({ turnBudget: 1 }));
+  assert.equal(buildMetricRows(root, { projectsDir: projects }).find((r) => r.role === 'backend-developer').overBudget, 1);
 });

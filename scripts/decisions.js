@@ -1,23 +1,50 @@
 #!/usr/bin/env node
-// Decision log CLI (lead only): show | open | ask | decide | record.
+// Decision log CLI (lead only): show | open | ask | flush | decide | record | amend.
 import { runCli, need, UsageError } from './lib/cli.js';
-import { readDecisions, addQuestion, decide, recordOutcome, threadFromText } from './lib/decisions.js';
+import fs from 'node:fs';
+import { readDecisions, addQuestion, flushQuestions, decide, recordOutcomes, amendDecision, threadFromText } from './lib/decisions.js';
 import { isValidThread } from './lib/mailbox.js';
 
 const usage = `Usage:
   decisions.js show
   decisions.js open                      open questions, blocking first
   decisions.js ask --title <t> --source <s> --status <s> --impact <i> --blocking <yes|no> --thread <id>
+                                         [--defer] [--task <id>] [--options "a|b"] [--recommend <option>]
+                                         --defer: not blocking, asked later in a batch; board.js refuses done for the --task until flushed
+  decisions.js flush [--task <id>]       prints deferred questions as JSON groups of at most 4 (one AskUserQuestion call each), marks them open
   decisions.js decide <Q-id> --answer <text> [--link <path or url>]
   decisions.js record --outcome <text> [--thread <id>] [--title <t>] [--link <path or url>]
                                          an outcome without a question; the thread defaults to one made from the title
+                                         [--supersedes D-xxx]  marks the old decision "superseded-by" the new id
+  decisions.js record --file <json>      an array of {outcome, thread?, title?, link?, supersedes?}: records all in one call, prints {ids, decisions}
+  decisions.js amend D-xxx [--title <t>] [--answer <text>] [--link <l>] [--thread <id>] [--date <YYYY-MM-DD>]
+                                         changes fields of a decision in place (never edit team/decisions.md by hand)
   (all accept --project <dir>; default: nearest directory with team/config.json)
 `;
+
+function readItems(file) {
+  let items;
+  try {
+    items = JSON.parse(fs.readFileSync(file, 'utf8').replace(/^﻿/, ''));
+  } catch (e) {
+    throw new UsageError(`Cannot read ${file}: ${e.message}`);
+  }
+  if (!Array.isArray(items) || !items.length) throw new UsageError('--file must hold a non-empty JSON array of decisions');
+  return items;
+}
+
+// One decision to record: it needs an outcome; the thread defaults to one made from the title.
+function normalize(item, i) {
+  if (typeof item?.outcome !== 'string' || !item.outcome.trim()) throw new UsageError(`Decision ${i + 1} has no outcome`);
+  const thread = item.thread ?? threadFromText(item.title ?? item.outcome);
+  if (!isValidThread(thread)) throw new UsageError(`Invalid thread id "${thread}"`);
+  return { ...item, thread };
+}
 
 runCli(usage, {
   title: { type: 'string' }, source: { type: 'string' }, status: { type: 'string' }, impact: { type: 'string' },
   blocking: { type: 'string' }, thread: { type: 'string' }, answer: { type: 'string' }, link: { type: 'string' },
-  outcome: { type: 'string' },
+  outcome: { type: 'string' }, file: { type: 'string' }, supersedes: { type: 'string' }, date: { type: 'string' }, defer: { type: 'boolean' }, task: { type: 'string' }, options: { type: 'string' }, recommend: { type: 'string' },
 }, ({ values: v, positionals: [cmd, id], root }) => {
   switch (cmd) {
     case 'show':
@@ -28,16 +55,20 @@ runCli(usage, {
       need(v, 'title', 'source', 'status', 'impact', 'blocking', 'thread');
       if (!['yes', 'no'].includes(v.blocking)) throw new UsageError('--blocking must be yes or no');
       return addQuestion(root, v);
+    case 'flush':
+      return flushQuestions(root, { task: v.task });
     case 'decide':
       if (!id) throw new UsageError('Missing question id');
       need(v, 'answer');
       return decide(root, id, { answer: v.answer, link: v.link });
     case 'record': {
-      need(v, 'outcome');
-      const thread = v.thread ?? threadFromText(v.title ?? v.outcome);
-      if (!isValidThread(thread)) throw new UsageError(`Invalid thread id "${thread}"`);
-      return recordOutcome(root, { thread, outcome: v.outcome, title: v.title, link: v.link });
+      const items = v.file === undefined ? [{ outcome: v.outcome, thread: v.thread, title: v.title, link: v.link, supersedes: v.supersedes }] : readItems(v.file);
+      const made = recordOutcomes(root, items.map(normalize));
+      return v.file === undefined ? made[0] : { ids: made.map((d) => d.id), decisions: made };
     }
+    case 'amend':
+      if (!id) throw new UsageError('Missing decision id');
+      return amendDecision(root, id, { title: v.title, answer: v.answer, outcome: v.outcome, link: v.link, thread: v.thread, date: v.date });
     default:
       throw new UsageError(`Unknown command "${cmd ?? ''}"`);
   }

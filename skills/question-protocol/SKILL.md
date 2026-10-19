@@ -28,18 +28,18 @@ A question gets its own message: no status report, summary or news in it; send t
 ## Timing
 
 - **Blocking** (work cannot continue): ask immediately.
-- **Not blocking:** record it and keep working on everything that is not blocked:
+- **Not blocking:** record it deferred and keep working on everything that is not blocked:
 
   ```
-  node "<scripts>/decisions.js" ask --title <t> --source <s> --status <s> --impact <i> --blocking no --thread <id>
+  node "<scripts>/decisions.js" ask --title <t> --source <s> --status <s> --impact <i> --blocking no --thread <id> --defer --task <id> [--options "a|b" --recommend a]
   ```
 
-  Ask queued questions when the owner says "any questions?" (list them with `decisions.js open`, blocking first) or in the phase report.
+  At task end (and when the owner says "any questions?" or in the phase report) run `node "<scripts>/decisions.js" flush [--task <id>]`: it prints the deferred questions as groups of at most 4, each group shaped for one `AskUserQuestion` call, and marks them open. `board.js update <id> --status done` refuses while the task still has deferred questions.
 - Record every answer with `decisions.js decide <Q-id> --answer <text>`.
 
 ## Batching
 
-Non-blocking or low-impact questions that are ready at the same time go in one `AskUserQuestion` call, up to 4 questions. Each of them keeps the full shape: Source, Status and Impact in its text, the realistic options with their cost, and one recommendation. More than 4 ready questions go in further calls of up to 4, one call after the previous answers. Blocking questions are still asked at once, and the phase 0 interview stays one question per message. The owner still answers every question; nothing is decided for them, and an unanswered question stays open in `decisions.js`.
+Non-blocking or low-impact questions that are ready at the same time go in one `AskUserQuestion` call, up to 4 questions (the groups `flush` prints). Each of them keeps the full shape: Source, Status and Impact in its text, the realistic options with their cost, and one recommendation. More than 4 ready questions go in further calls of up to 4, one call after the previous answers. Blocking questions are still asked at once, and the phase 0 interview stays one question per message. The owner still answers every question; nothing is decided for them, and an unanswered question stays open in `decisions.js`.
 
 ## Manual steps for the owner
 

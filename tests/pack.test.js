@@ -251,7 +251,7 @@ test('delta pack holds the findings, the diff since the previous attempt and onl
   const { root, base, findings } = deltaRepo();
   const { text } = buildPack(root, { id: 'T-018d', role: 'backend-developer', round: 2, findings, base });
   assert.match(text, /^# Pack: T-018d for backend-developer \(round 2, delta\)/);
-  assert.match(text, /Budget: 40 tool calls/);
+  assert.match(text, /Budget: 40 model turns/);
   assert.ok(text.includes('## Findings\n\n1. Missing null check in a.txt'));
   assert.ok(text.includes('## Acceptance criteria\n\n## Kabul kriterleri\n- Criterion alpha holds.\n- Criterion beta holds.'));
   assert.match(text.split(`\n## Diff since ${base}\n`)[1], /\+two/);

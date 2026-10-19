@@ -6,7 +6,8 @@ import { teamPaths } from './paths.js';
 import { parseEntries, formatEntry, toLines, nextId } from './sections.js';
 import { nextAction } from './escalation.js';
 import { execFileSync } from 'node:child_process';
-import { readDecisions } from './decisions.js';
+import { readDecisions, deferredFor } from './decisions.js';
+import { listFindings } from './findings.js';
 
 export const STATUSES = ['todo', 'in-progress', 'review', 'done', 'blocked'];
 const ID_RE = /^[A-Za-z0-9-]{1,64}$/;
@@ -33,6 +34,12 @@ function checkCodeOwner(owner, code) {
   }
 }
 
+// reviews are stored as "role:verdict, role:verdict" and read as { role: verdict }.
+// security: yes marks a task for the module-level security review; contract (a changed security contract) also needs a pass before done.
+const SECURITY_TAGS = ['yes', 'contract'];
+const parseReviews = (s) => Object.fromEntries(s.split(',').map((p) => p.trim().split(':')).filter(([r, v]) => r && v));
+const formatReviews = (r) => Object.entries(r).map(([role, verdict]) => `${role}:${verdict}`).join(', ');
+
 export function readBoard(root) {
   const file = teamPaths(root).board;
   if (!fs.existsSync(file)) return { phase: 0, entries: [] };
@@ -50,6 +57,9 @@ export function readBoard(root) {
     ...(Number(f.foldins) > 0 ? { foldins: Number(f.foldins) } : {}),
     ...(f.approach ? { approach: f.approach, roundsBase: Number(f.roundsbase ?? 0) } : {}),
     ...(f.code === 'no' ? { code: 'no' } : {}),
+    ...(SECURITY_TAGS.includes(f.security) ? { security: f.security } : {}),
+    ...(f.module ? { module: f.module } : {}),
+    ...(f.reviews ? { reviews: parseReviews(f.reviews) } : {}),
   }));
   const rotLine = lines.find((l) => /^done-since-rotation:\s*\d+\s*$/.test(l));
   const board = { phase: phaseLine ? Number(phaseLine.split(':')[1]) : 0, entries };
@@ -65,23 +75,38 @@ export function writeBoard(root, board) {
     ...(e.foldins > 0 ? { foldins: e.foldins } : {}),
     ...(e.approach ? { approach: e.approach, roundsbase: e.roundsBase ?? 0 } : {}),
     ...(e.code === 'no' ? { code: 'no' } : {}),
+    ...(SECURITY_TAGS.includes(e.security) ? { security: e.security } : {}),
+    ...(e.module ? { module: e.module } : {}),
+    ...(e.reviews && Object.keys(e.reviews).length ? { reviews: formatReviews(e.reviews) } : {}),
   }));
   const rotation = board.doneSinceRotation > 0 ? `\ndone-since-rotation: ${board.doneSinceRotation}` : '';
   fs.writeFileSync(file, [`# Board\nphase: ${board.phase}${rotation}`, ...blocks].join('\n\n') + '\n');
 }
 
 // code: 'no' marks a task that produces no code (spike, research, docs only); its gate checks the report file.
-export function addEntry(root, { id, title, owner, model, code }) {
+export function addEntry(root, { id, title, owner, model, code, security, module }) {
   const board = readBoard(root);
   checkOwner(board, owner);
   checkCodeOwner(owner, code);
   const entryId = id ?? nextId('T', board.entries.map((e) => e.id));
   if (!ID_RE.test(entryId)) throw new Error(`Invalid board id "${entryId}"`);
   if (board.entries.some((e) => e.id === entryId)) throw new Error(`Board entry ${entryId} already exists`);
-  const entry = { id: entryId, title, owner, status: 'todo', rounds: 0, model, commits: [], handoff: '', ...(code === 'no' ? { code: 'no' } : {}) };
+  const entry = { id: entryId, title, owner, status: 'todo', rounds: 0, model, commits: [], handoff: '', ...(code === 'no' ? { code: 'no' } : {}), ...(SECURITY_TAGS.includes(security) ? { security } : {}), ...(module ? { module: checkModuleName(module) } : {}) };
   board.entries.push(entry);
   writeBoard(root, board);
   return entry;
+}
+
+// A task is not done while it has questions the owner has not been given yet, or while a security: contract task
+// lacks a security-reviewer pass.
+function checkDone(root, entry) {
+  if (entry.security === 'contract' && entry.reviews?.['security-reviewer'] !== 'pass') {
+    throw new Error(`${entry.id} is tagged security: contract and has no security-reviewer pass${entry.reviews?.['security-reviewer'] ? ` (latest verdict: ${entry.reviews['security-reviewer']})` : ''}. Dispatch security-reviewer, then record it: board.js review ${entry.id} --role security-reviewer --verdict pass`);
+  }
+  const deferred = deferredFor(root, entry.id);
+  if (deferred.length) {
+    throw new Error(`${entry.id} has ${deferred.length} deferred question(s) (${deferred.map((q) => q.id).join(', ')}). Ask them first: run decisions.js flush --task ${entry.id} and put the groups to the owner (one AskUserQuestion call per group).`);
+  }
 }
 
 export function updateEntry(root, id, patch) {
@@ -93,11 +118,66 @@ export function updateEntry(root, id, patch) {
   if (!entry) throw new Error(`No board entry ${id}`);
   checkOwner(board, patch.owner);
   checkCodeOwner(patch.owner ?? entry.owner, patch.code ?? entry.code);
+  if (patch.status === 'done') checkDone(root, { ...entry, ...(patch.security === undefined ? {} : { security: patch.security }) });
   if (patch.status === 'done' && entry.status !== 'done') board.doneSinceRotation = (board.doneSinceRotation ?? 0) + 1;
+  if (patch.module !== undefined && patch.module !== '') checkModuleName(patch.module);
   Object.assign(entry, patch);
+  if (!entry.module) delete entry.module;
   if (entry.code !== 'no') delete entry.code;
+  if (!SECURITY_TAGS.includes(entry.security)) delete entry.security;
   writeBoard(root, board);
   return entry;
+}
+
+const MODULE_RE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
+const checkModuleName = (m) => {
+  if (!MODULE_RE.test(m)) throw new Error(`Invalid module "${m}": letters, digits, dot, dash and underscore only`);
+  return m;
+};
+
+const REVIEW_ROLE_RE = /^[a-z][a-z0-9-]{0,63}$/;
+const VERDICTS = ['pass', 'fail'];
+
+// Records the latest verdict of a reviewer role on a task (a later verdict of the same role replaces the earlier one).
+export function recordReview(root, id, { role, verdict }) {
+  if (!REVIEW_ROLE_RE.test(role ?? '')) throw new Error(`Invalid review role "${role}"`);
+  if (!VERDICTS.includes(verdict)) throw new Error(`Invalid verdict "${verdict}" (allowed: ${VERDICTS.join(', ')})`);
+  const board = readBoard(root);
+  const entry = board.entries.find((e) => e.id === id);
+  if (!entry) throw new Error(`No board entry ${id}`);
+  entry.reviews = { ...entry.reviews, [role]: verdict };
+  writeBoard(root, board);
+  return entry;
+}
+
+// A module review covers the security-tagged tasks of the module that are done now; tasks done later need a new one.
+export function recordModuleReview(root, module, { role, verdict }) {
+  checkModuleName(module);
+  if (!REVIEW_ROLE_RE.test(role ?? '')) throw new Error(`Invalid review role "${role}"`);
+  if (!VERDICTS.includes(verdict)) throw new Error(`Invalid verdict "${verdict}" (allowed: ${VERDICTS.join(', ')})`);
+  const board = readBoard(root);
+  const inModule = board.entries.filter((e) => e.module === module);
+  if (!inModule.length) throw new Error(`No board task in module ${module}. Set it with board.js add/update --module ${module}`);
+  const covered = inModule.filter((e) => SECURITY_TAGS.includes(e.security) && e.status === 'done');
+  for (const e of covered) e.reviews = { ...e.reviews, [role]: verdict };
+  writeBoard(root, board);
+  return { module, role, verdict, covered: covered.map((e) => e.id) };
+}
+
+// What stops a phase or milestone from closing: a blocker finding still open, or a module whose security-tagged tasks
+// were done after its last security-reviewer pass. Returns the problems as sentences; none means the phase can close.
+export function phaseCloseProblems(root) {
+  const problems = listFindings(root, { open: true }).filter((f) => f.severity === 'blocker')
+    .map((f) => `Open blocker finding ${f.id} in module ${f.module} (${f.file}:${f.line}): ${f.text}. Fix it, then findings.js close ${f.id} --commit <sha>.`);
+  const uncovered = new Map();
+  for (const e of readBoard(root).entries) {
+    if (!e.module || !SECURITY_TAGS.includes(e.security) || e.status !== 'done' || e.reviews?.['security-reviewer'] === 'pass') continue;
+    uncovered.set(e.module, [...(uncovered.get(e.module) ?? []), e.id]);
+  }
+  for (const [module, ids] of uncovered) {
+    problems.push(`Module ${module} has security tasks done (${ids.join(', ')}) after its last security-reviewer pass. Review the module's security-tagged changes since then, then run: board.js review --module ${module} --role security-reviewer --verdict pass`);
+  }
+  return problems;
 }
 
 export function rotationDue(root) {

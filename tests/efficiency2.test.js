@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseFrontmatter } from '../scripts/lib/frontmatter.js';
-import { validateConfig } from '../scripts/lib/config.js';
+import { validateConfig, loadConfig } from '../scripts/lib/config.js';
 import { buildPack } from '../scripts/lib/pack.js';
 import { makeProject } from './helpers.js';
 
@@ -50,21 +50,34 @@ test('both READMEs describe the pack, worktree, rotation and skip count helpers'
 const defaults = JSON.parse(read('defaults', 'config.json'));
 const agentFiles = fs.readdirSync(path.join(pluginRoot, 'agents')).filter((f) => f.endsWith('.md'));
 
-test('callBudget is 40 in the defaults and validated as a positive integer', () => {
-  assert.equal(defaults.callBudget, 40);
+test('turnBudget is 40 in the defaults and validated as a positive integer', () => {
+  assert.equal(defaults.turnBudget, 40);
+  assert.equal(defaults.callBudget, undefined);
   assert.doesNotThrow(() => validateConfig(defaults));
-  for (const bad of [0, -1, 1.5, '40']) assert.throws(() => validateConfig({ ...defaults, callBudget: bad }), /callBudget/);
+  for (const bad of [0, -1, 1.5, '40']) assert.throws(() => validateConfig({ ...defaults, turnBudget: bad }), /turnBudget/);
 });
 
-test('every agent file sets maxTurns to the call budget plus 5 calls to write the report', () => {
+test('callBudget in a project config is an alias used only when turnBudget is absent', () => {
+  const load = (cfg) => {
+    const root = makeProject();
+    fs.writeFileSync(path.join(root, 'team', 'config.json'), JSON.stringify(cfg));
+    return loadConfig({ pluginRoot, userConfigPath: path.join(root, 'none.json'), projectRoot: root });
+  };
+  assert.equal(load({ callBudget: 25 }).turnBudget, 25);
+  assert.equal(load({ callBudget: 25, turnBudget: 30 }).turnBudget, 30);
+  assert.equal(load({}).turnBudget, 40);
+  assert.throws(() => validateConfig({ ...defaults, callBudget: 0 }), /callBudget/);
+});
+
+test('every agent file sets maxTurns to the turn budget plus 5 turns to write the report', () => {
   assert.equal(agentFiles.length, 14);
   for (const f of agentFiles) {
     const { data } = parseFrontmatter(read('agents', f));
-    assert.equal(data.maxTurns, String(defaults.callBudget + 5), `${f} maxTurns`);
+    assert.equal(data.maxTurns, String(defaults.turnBudget + 5), `${f} maxTurns`);
   }
 });
 
-test('task-loop explains the 5-call margin between the budget and maxTurns', () => {
+test('task-loop explains the 5-turn margin between the budget and maxTurns', () => {
   assert.match(read('skills', 'task-loop', 'SKILL.md'), /`maxTurns` is the budget plus 5/);
 });
 
@@ -72,17 +85,17 @@ test('the pack header states the budget from the config', () => {
   const root = makeProject();
   fs.mkdirSync(path.join(root, 'team', 'work', 'tasks'), { recursive: true });
   fs.writeFileSync(path.join(root, 'team', 'work', 'tasks', 'T-001.md'), '# T-001: x\n');
-  const sentence = (n) => `Budget: ${n} tool calls. When you reach it, stop and report what is done, what is left and what you need.`;
+  const sentence = (n) => `Budget: ${n} model turns (parallel tool calls share a turn). When you reach it, stop and report what is done, what is left and what you need.`;
   const head = buildPack(root, { id: 'T-001', role: 'backend-developer' }).text.split('\n## ')[0];
   assert.ok(head.includes(sentence(40)), head);
   const cfgFile = path.join(root, 'team', 'config.json');
-  fs.writeFileSync(cfgFile, JSON.stringify({ ...JSON.parse(fs.readFileSync(cfgFile, 'utf8')), callBudget: 25 }));
+  fs.writeFileSync(cfgFile, JSON.stringify({ ...JSON.parse(fs.readFileSync(cfgFile, 'utf8')), turnBudget: 25 }));
   assert.ok(buildPack(root, { id: 'T-001', role: 'backend-developer' }).text.split('\n## ')[0].includes(sentence(25)));
 });
 
 test('task-loop says what the lead does when a role reports the budget hit', () => {
   const loop = read('skills', 'task-loop', 'SKILL.md');
-  assert.match(loop, /^## Call budget$/m);
+  assert.match(loop, /^## Turn budget$/m);
   assert.match(loop, /fresh pack/i);
   assert.match(loop, /same round, not a new round/i);
   assert.match(loop, /split the task/i);
@@ -157,4 +170,8 @@ test('phase 4 and the phase report ask for the task count and the estimated disp
   assert.match(report, /Phase 4/);
   assert.match(report, /task count/i);
   assert.match(report, /estimated dispatch count/i);
+});
+
+test('planner splits a task that needs more than one dispatch budget', () => {
+  assert.match(read('agents', 'planner.md'), /more than one dispatch budget[^\n]*split[^\n]*sub-tasks/i);
 });
