@@ -33,7 +33,7 @@ test('board CLI round reaches to-lead on the fourth round', () => {
 test('decisions CLI ask, open (blocking first), decide', () => {
   const root = makeProject();
   const ask = (title, blocking, thread) =>
-    run('decisions.js', root, 'ask', '--title', title, '--source', 's', '--status', 'st', '--impact', 'i', '--blocking', blocking, '--thread', thread);
+    run('decisions.js', root, 'ask', '--title', title, '--source', 's', '--status', 'st', '--impact', 'i', '--blocking', blocking, '--thread', thread, '--options', 'a|b', '--recommend', 'a');
   ask('Later', 'no', 'later');
   ask('Now', 'yes', 'now');
   assert.deepEqual(run('decisions.js', root, 'open').map((q) => q.title), ['Now', 'Later']);

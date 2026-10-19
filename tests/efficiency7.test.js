@@ -13,7 +13,7 @@ const cli = (script, root, ...args) => {
   const r = spawnSync(process.execPath, [path.join(pluginRoot, 'scripts', script), ...args, '--project', root], { encoding: 'utf8' });
   return { status: r.status, out: r.stdout ? JSON.parse(r.stdout) : null, err: r.stderr };
 };
-const ask = (root, title, ...extra) => cli('decisions.js', root, 'ask', '--title', title, '--source', 'src', '--status', 'st', '--impact', 'imp', '--blocking', 'no', '--thread', title.toLowerCase().replace(/\W+/g, '-'), ...extra);
+const ask = (root, title, ...extra) => cli('decisions.js', root, 'ask', '--title', title, '--source', 'src', '--status', 'st', '--impact', 'imp', '--blocking', 'no', '--thread', title.toLowerCase().replace(/\W+/g, '-'), '--options', 'x|y', '--recommend', 'x', ...extra);
 const addTask = (root, ...extra) => cli('board.js', root, 'add', '--title', 'API', '--owner', 'backend-developer', '--model', 'sonnet', ...extra);
 
 // Item 3: batched owner questions.

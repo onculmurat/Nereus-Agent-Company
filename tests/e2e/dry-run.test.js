@@ -19,7 +19,7 @@ test('setup to phase report on a sample project', async () => {
   assert.ok(fs.existsSync(path.join(dir, 'team', 'work', 'board.md')));
 
   assert.equal(json('board', 'add', '--title', 'Build the API', '--owner', 'backend-developer', '--model', 'sonnet').id, 'T-001');
-  const q = json('decisions', 'ask', '--title', 'Which database?', '--source', 'architect', '--status', 'no code', '--impact', 'schema', '--blocking', 'yes', '--thread', 'db-choice');
+  const q = json('decisions', 'ask', '--title', 'Which database?', '--source', 'architect', '--status', 'no code', '--impact', 'schema', '--blocking', 'yes', '--thread', 'db-choice', '--options', 'pg|sqlite', '--recommend', 'pg');
   assert.equal(q.id, 'Q-001');
   run('mailbox', 'send', '--from', 'architect', '--to', 'backend-developer', '--thread', 'db-choice', '--body', 'Waiting on the database choice.');
 

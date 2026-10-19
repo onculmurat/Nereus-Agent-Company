@@ -15,6 +15,8 @@ const DOCUMENTS = {
   articleDev: ['article_dev.md', 'article_dev.md'],
   setupRequirements: ['setup-requirements.md', path.join('docs', 'setup-requirements.md')],
 };
+export const GUARD_START = '<!-- nac:guard:start -->';
+export const GUARD_END = '<!-- nac:guard:end -->';
 const BLOCK_START = '<!-- nac:models -->';
 const BLOCK_END = '<!-- /nac:models -->';
 
@@ -52,6 +54,41 @@ function planSettings(projectRoot) {
   return { path: file, before, after, conflicts };
 }
 
+// The project CLAUDE.md block that still works when the plugin is not loaded and no hook runs.
+function guardBlock(pluginRoot) {
+  return [
+    GUARD_START,
+    '## NAC',
+    "This project is run by NAC (Nereus Agent Company). If this session's context does not contain the marker `NAC-LEAD-ACTIVE`, NAC is not loaded:",
+    'do not act as lead, do not dispatch or edit team/ files, and tell the owner NAC is not loaded. To restore it:',
+    `\`claude plugin marketplace add "${pluginRoot.split(path.sep).join('/')}"\` then \`claude plugin install nac@nereus-agent-company\`.`,
+    GUARD_END,
+  ].join('\n');
+}
+
+export function hasGuardBlock(projectRoot) {
+  const file = path.join(projectRoot, 'CLAUDE.md');
+  return fs.existsSync(file) && fs.readFileSync(file, 'utf8').includes(GUARD_START);
+}
+
+// Adds or replaces the guard block in the project CLAUDE.md; everything outside the markers stays as it is.
+export function planClaudeMd(projectRoot, pluginRoot) {
+  const file = path.join(path.resolve(projectRoot), 'CLAUDE.md');
+  const before = fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : null;
+  const block = guardBlock(pluginRoot);
+  const text = before ?? '';
+  const start = text.indexOf(GUARD_START);
+  const end = text.indexOf(GUARD_END);
+  let after;
+  if (start >= 0 && end > start) after = text.slice(0, start) + block + text.slice(end + GUARD_END.length);
+  else after = `${text}${text && !text.endsWith('\n') ? '\n' : ''}${text ? '\n' : ''}${block}\n`;
+  return { path: file, before, after };
+}
+
+export function applyClaudeMd(plan) {
+  if (plan.before !== plan.after) fs.writeFileSync(plan.path, plan.after);
+}
+
 export function planSetup(projectRoot, { pluginRoot, config }) {
   const root = path.resolve(projectRoot);
   const templates = path.join(pluginRoot, 'templates');
@@ -73,6 +110,7 @@ export function planSetup(projectRoot, { pluginRoot, config }) {
     projectRoot: root,
     files,
     settings: planSettings(root),
+    claudeMd: planClaudeMd(root, pluginRoot),
     // gitignoreLine: the line to write; gitignoreReplaces: the older whole-folder line it takes the place of.
     gitignoreLine: ignored && !old ? null : GITIGNORE_LINE,
     gitignoreReplaces: old,
@@ -93,6 +131,7 @@ export function applySetup(plan) {
     fs.mkdirSync(path.dirname(plan.settings.path), { recursive: true });
     fs.writeFileSync(plan.settings.path, `${JSON.stringify(plan.settings.after, null, 2)}\n`);
   }
+  applyClaudeMd(plan.claudeMd);
   if (plan.gitignoreLine) {
     const file = path.join(plan.projectRoot, '.gitignore');
     const current = fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : '';

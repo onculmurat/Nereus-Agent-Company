@@ -5,12 +5,13 @@ import os from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { runCli, UsageError } from './lib/cli.js';
 import { loadConfig } from './lib/config.js';
-import { planSetup, applySetup, planGlobalModelPointer, applyGlobalModelPointer } from './lib/setup.js';
+import { planSetup, applySetup, planGlobalModelPointer, applyGlobalModelPointer, planClaudeMd, applyClaudeMd } from './lib/setup.js';
 
 const pluginRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const usage = `Usage:
   node setup.js [--project <dir>] --dry-run
   node setup.js [--project <dir>] --apply
+  node setup.js [--project <dir>] --guard-block   writes only the NAC block into the project CLAUDE.md (projects set up earlier)
   node setup.js --global-model-pointer [--claude-md <file>]
   node setup.js --apply-global-model-pointer [--claude-md <file>]
 `;
@@ -21,6 +22,7 @@ function describe(plan) {
   const s = plan.settings;
   if (s.conflicts.length) lines.push(`CONFLICT  ${rel(s.path)}: ${s.conflicts.join(', ')} already set to a different value`);
   else if (JSON.stringify(s.before) !== JSON.stringify(s.after)) lines.push(`${s.before ? 'merge ' : 'create'}  ${rel(s.path)} (agent teams env, enable nac plugin)`);
+  if (plan.claudeMd.before !== plan.claudeMd.after) lines.push(`${plan.claudeMd.before === null ? 'create' : 'merge '}  CLAUDE.md (NAC guard block)`);
   if (plan.gitignoreReplaces) lines.push(`change  .gitignore:\n- ${plan.gitignoreReplaces}\n+ ${plan.gitignoreLine}`);
   else if (plan.gitignoreLine) lines.push(`append  .gitignore:\n+ ${plan.gitignoreLine}`);
   if (plan.nodeWarning) lines.push(`WARNING  ${plan.nodeWarning}`);
@@ -35,6 +37,7 @@ runCli(
     'global-model-pointer': { type: 'boolean' },
     'apply-global-model-pointer': { type: 'boolean' },
     'claude-md': { type: 'string' },
+    'guard-block': { type: 'boolean' },
   },
   ({ values }) => {
     const claudeMd = values['claude-md'] ?? path.join(os.homedir(), '.claude', 'CLAUDE.md');
@@ -45,6 +48,11 @@ runCli(
     if (values['apply-global-model-pointer']) {
       applyGlobalModelPointer(planGlobalModelPointer(claudeMd));
       return `Updated ${claudeMd}\n`;
+    }
+    if (values['guard-block']) {
+      const plan = planClaudeMd(path.resolve(values.project ?? process.cwd()), pluginRoot);
+      applyClaudeMd(plan);
+      return `Updated ${plan.path}\n`;
     }
     if (!values['dry-run'] && !values.apply) throw new UsageError('Pass --dry-run or --apply.');
     // Setup works on the folder it runs in, never on a parent NAC project, unless --project says otherwise.
