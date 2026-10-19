@@ -44,3 +44,7 @@ It checks the research files deterministically: every source row has an id and U
 When it passes, spawn `research-reviewer` as a one-shot subagent and never pass a name to it: it reviews the research and recommendations with a fresh context and writes `team/research/review.md`. On `CHANGES_REQUESTED`, send each finding to its owning role, count a round, run the check again and spawn a new reviewer. Write the phase 1 report only when the check passes and the verdict is `APPROVED`; name `review.md` in it.
 
 Mark your inferences as inferences. You recommend; the owner decides. Never pick the direction yourself, even when the owner asks you to "choose one": present it as an owner question (skill `question-protocol`) and record the owner's answer with `decisions.js decide`. Put the recommendation in the report's **Next** section.
+
+## Phase 4: planning report
+
+Besides the usual sections, the planning report shows the task count and the estimated dispatch count from the planner's hand-off note (per task one implementer, one reviewer and the expected fix rounds), and names the small tasks the planner merged into one. The owner approves the plan with those numbers in front of them.

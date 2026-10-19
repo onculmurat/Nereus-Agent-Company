@@ -47,7 +47,7 @@ Team mode: `architect` and `security-reviewer` as named teammates; output spec, 
 
 ## Phase 4: Planning
 
-Subagent mode. Spawn `planner` as a one-shot subagent and never pass a name (a named spawn becomes a teammate when agent teams is on). It cuts the approved spec into small, testable tasks, one brief each, and proposes the test command. Add each task with `board.js add` (owner role, model from the resolved rules). Output: task briefs, board entries, test command. Owner approval required; then write it to `testCommand` in `team/config.json`.
+Subagent mode. Spawn `planner` as a one-shot subagent and never pass a name (a named spawn becomes a teammate when agent teams is on). It cuts the approved spec into small, testable tasks (small same-kind tasks merged), one brief each, and proposes the test command. The report shows the task count and the estimated dispatch count. Add each task with `board.js add` (owner role, model from the resolved rules). Output: task briefs, board entries, test command. Owner approval required; then write it to `testCommand` in `team/config.json`.
 
 ## Phase 5: Build
 

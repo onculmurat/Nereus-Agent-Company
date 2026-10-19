@@ -133,3 +133,24 @@ test('question-protocol batches ready non-blocking questions into one AskUserQue
   assert.match(text, /exactly one question[^\n]*no sub-questions[^\n]*no preview/i);
   assert.match(text, /Batching/);
 });
+
+// Item 6: task batching at planning.
+test('planner merges small same-kind tasks and reports task and dispatch counts', () => {
+  const planner = read('agents', 'planner.md');
+  assert.match(planner, /small tasks of the same kind/i);
+  assert.match(planner, /same files area[^\n]*same change type[^\n]*under (about |~)?1 hour/i);
+  assert.match(planner, /one task with one brief/i);
+  assert.match(planner, /task count/i);
+  assert.match(planner, /estimated dispatch count/i);
+  assert.match(planner, /implementer[^\n]*reviewer[^\n]*expected (fix )?rounds/i);
+});
+
+test('phase 4 and the phase report ask for the task count and the estimated dispatch count', () => {
+  const phase4 = read('prompts', 'lead.md').split('## Phase 4')[1].split('\n## ')[0];
+  assert.match(phase4, /merge/i);
+  assert.match(phase4, /dispatch/i);
+  const report = read('skills', 'phase-report', 'SKILL.md');
+  assert.match(report, /Phase 4/);
+  assert.match(report, /task count/i);
+  assert.match(report, /estimated dispatch count/i);
+});

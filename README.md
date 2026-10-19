@@ -84,6 +84,7 @@ The same rules apply to every role; no role is skipped and no role's model is lo
 - **Cost report** (`cost.js [--since <iso>] [--by role|task]`): sums calls and tokens (input, cache creation, cache read, output) per role or task and model from the Claude Code transcripts of the project, with the 5 most expensive dispatches. The phase report includes the same table.
 - **Spec fold-in cap** (`foldInRounds`, default 2; `board.js foldin`): review findings are folded into the spec in at most 2 rounds per review cycle. After that the rest goes to the architect as one batched pass and the open decisions come to you as one list.
 - **Batched questions**: non-blocking or low-impact questions that are ready at the same time are asked in one `AskUserQuestion` call of up to 4, each still with source, status, impact, options and one recommendation. Blocking questions are asked at once. You still answer every question.
+- **Task batching** (planner): small tasks of the same kind (same files area, same change type, each under about 1 hour) are merged into one task with one brief. The planning report shows the task count and the estimated dispatch count.
 
 ## Roles and models
 

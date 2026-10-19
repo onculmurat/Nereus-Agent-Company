@@ -84,6 +84,7 @@ Aynı kurallar her role uygulanır; hiçbir rol atlanmaz ve hiçbir rolün model
 - **Maliyet raporu** (`cost.js [--since <iso>] [--by role|task]`): projenin Claude Code kayıtlarından çağrı ve token sayılarını (girdi, önbellek oluşturma, önbellek okuma, çıktı) rol ya da görev ve model bazında toplar; en pahalı 5 görevlendirmeyi de verir. Aşama raporu aynı tabloyu içerir.
 - **Spec birleştirme sınırı** (`foldInRounds`, varsayılan 2; `board.js foldin`): inceleme bulguları spec içine bir inceleme döngüsünde en fazla 2 turda işlenir. Sonrasında kalanlar mimara tek toplu geçiş olarak gider ve açık kararlar size tek liste halinde gelir.
 - **Toplu sorular**: aynı anda hazır, engelleyici olmayan ya da etkisi düşük sorular tek bir `AskUserQuestion` çağrısında en fazla 4 soru olarak sorulur; her biri yine kaynak, durum, etki, seçenekler ve tek bir öneri taşır. Engelleyici sorular hemen sorulur. Her soruyu yine siz yanıtlarsınız.
+- **Görev birleştirme** (planlayıcı): aynı türden küçük görevler (aynı dosya alanı, aynı değişiklik türü, her biri yaklaşık 1 saatten kısa) tek özetli tek görevde birleştirilir. Planlama raporu görev sayısını ve tahmini görevlendirme sayısını gösterir.
 
 ## Roller ve modeller
 
