@@ -107,6 +107,7 @@ function messagesOf(records, since, until) {
     if (until !== undefined && !(t <= until)) continue;
     const num = (v) => (Number.isFinite(v) ? v : 0);
     byId.set(msg.id ?? `anon-${anon++}`, {
+      t,
       model: msg.model ?? 'unknown',
       inputTokens: num(usage.input_tokens),
       cacheCreationTokens: num(usage.cache_creation_input_tokens),
@@ -129,8 +130,20 @@ function projectDirs(root, projectsDir) {
   return names.filter((n) => n === slug || n.startsWith(`${slug}-wt-`)).map((n) => path.join(projectsDir, n));
 }
 
+// Lead messages carry the task of the latest dispatch of their session that started at or before them (earlier: unassigned).
+function assignLead(leads, starts) {
+  for (const m of leads) {
+    const list = starts.get(m.session) ?? [];
+    let task = 'unassigned';
+    for (const d of list) if (d.t <= m.t) task = d.task;
+    m.task = task;
+  }
+}
+
 function collect(dirs, since, until, session) {
   const items = [];
+  const leads = [];
+  const starts = new Map();
   for (const dir of dirs) {
     let entries = [];
     try {
@@ -140,7 +153,7 @@ function collect(dirs, since, until, session) {
       if (e.isFile() && e.name.endsWith('.jsonl')) {
         const sid = e.name.slice(0, -'.jsonl'.length);
         if (session !== undefined && sid !== session) continue;
-        for (const m of messagesOf(readLines(path.join(dir, e.name)), since, until)) items.push({ ...m, role: 'lead', task: 'unassigned', agentId: null, session: sid, packed: false });
+        for (const m of messagesOf(readLines(path.join(dir, e.name)), since, until)) leads.push({ ...m, role: 'lead', task: 'unassigned', agentId: null, session: sid, packed: false });
       } else if (e.isDirectory()) {
         if (session !== undefined && e.name !== session) continue;
         const subDir = path.join(dir, e.name, 'subagents');
@@ -156,6 +169,8 @@ function collect(dirs, since, until, session) {
           const prompt = textOf(first?.message?.content);
           const task = taskFromPrompt(prompt);
           const packed = namesPack(prompt, task);
+          const began = Date.parse(records.find((r) => r?.timestamp)?.timestamp);
+          if (Number.isFinite(began)) starts.set(e.name, [...(starts.get(e.name) ?? []), { t: began, task }].sort((a, b) => a.t - b.t));
           const role = roleOf(meta.agentType);
           for (const m of messagesOf(records, since, until)) {
             items.push({ ...m, role, task, packed, session: e.name, agentId: `${e.name}/${base.slice('agent-'.length)}`, shortId: base.slice('agent-'.length), description: meta.description ?? '' });
@@ -164,7 +179,8 @@ function collect(dirs, since, until, session) {
       }
     }
   }
-  return items;
+  assignLead(leads, starts);
+  return [...leads, ...items];
 }
 
 // Relative price of one token, input = 1: cache creation 1.25, cache read 0.1, output 5. The figure ranks cost;

@@ -196,3 +196,50 @@ test('READMEs describe saved metrics in both languages', () => {
     for (const w of ['cost.js --save', '--baseline', 'team/metrics/', 'metrics.md', '--session']) assert.ok(t.includes(w), `${f} lacks ${w}`);
   }
 });
+
+// One session, lead messages around two dispatches: before the first (unassigned), then after T-001, after T-002.
+function leadFixture() {
+  const root = makeProject();
+  const projects = fs.mkdtempSync(path.join(os.tmpdir(), 'nac projects '));
+  const dir = path.join(projects, projectSlug(root));
+  const sub = path.join(dir, 's1', 'subagents');
+  fs.mkdirSync(sub, { recursive: true });
+  fs.writeFileSync(path.join(dir, 's1.jsonl'), `${[
+    assistant('l0', u(1, 0, 0, 0), '2026-10-01T10:00:00Z'),
+    assistant('l1', u(10, 0, 0, 0), '2026-10-01T11:30:00Z'),
+    assistant('l2', u(100, 0, 0, 0), '2026-10-01T12:30:00Z'),
+    assistant('l3', u(1000, 0, 0, 0), '2026-10-01T13:30:00Z'),
+  ].join('\n')}\n`);
+  const agent = (id, prompt, ts) => {
+    fs.writeFileSync(path.join(sub, `agent-${id}.jsonl`), `${[user(prompt, ts), assistant(`${id}0`, u(1, 0, 0, 0), ts)].join('\n')}\n`);
+    fs.writeFileSync(path.join(sub, `agent-${id}.meta.json`), JSON.stringify({ agentType: 'nac:backend-developer' }));
+  };
+  agent('aaa', 'Work on team/work/tasks/T-001.md', '2026-10-01T11:00:00Z');
+  agent('bbb', 'Work on team/work/tasks/T-002.md', '2026-10-01T12:00:00Z');
+  return { root, projects };
+}
+
+test('lead messages go to the task of the latest dispatch at or before them; earlier ones stay unassigned', () => {
+  const { root, projects } = leadFixture();
+  const lead = buildMetricRows(root, { projectsDir: projects }).filter((r) => r.role === 'lead');
+  const byTask = Object.fromEntries(lead.map((r) => [r.task, r.input]));
+  assert.deepEqual(byTask, { unassigned: 1, 'T-001': 10, 'T-002': 1100 });
+  const report = buildCostReport(root, { by: 'task', projectsDir: projects });
+  assert.equal(report.rows.find((r) => r.key === 'T-002').inputTokens, 1101);
+});
+
+test('a dispatch before --since still sets the task of later lead messages', () => {
+  const { root, projects } = leadFixture();
+  const lead = buildMetricRows(root, { projectsDir: projects, since: '2026-10-01T12:15:00Z' }).filter((r) => r.role === 'lead');
+  assert.deepEqual(lead.map((r) => [r.task, r.input]), [['T-002', 1100]]);
+});
+
+test('packed ignores a hand-off that belongs to another task', () => {
+  const { root, projects } = fixture();
+  const sub = path.join(projects, projectSlug(root), 's1', 'subagents');
+  fs.writeFileSync(path.join(sub, 'agent-ddd.jsonl'), `${[user('Work on team/work/tasks/T-005.md, context in team/work/handoffs/T-004.md', '2026-10-01T13:00:00Z'), assistant('d0', u(1, 0, 0, 1), '2026-10-01T13:00:01Z')].join('\n')}\n`);
+  fs.writeFileSync(path.join(sub, 'agent-ddd.meta.json'), JSON.stringify({ agentType: 'nac:backend-developer' }));
+  const row = buildMetricRows(root, { projectsDir: projects }).find((r) => r.task === 'T-005');
+  assert.equal(row.dispatches, 1);
+  assert.equal(row.packed, 0);
+});

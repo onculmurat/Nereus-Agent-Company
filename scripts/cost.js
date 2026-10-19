@@ -12,8 +12,11 @@ const usage = `Usage:
           sums input, cache creation, cache read and output tokens and counts calls per role (agent type) or task,
           per model, plus totals and the 5 most expensive dispatches. "Most expensive" is ranked by weighted:
           weighted = input + 1.25 x cache_creation + 0.1 x cache_read + 5 x output (relative to the input price,
-          not money); the raw token totals are kept next to it. A task is read from the pack path in the
-          dispatch prompt; other dispatches and the lead session are "unassigned".
+          not money); the raw token totals are kept next to it. A task is read from the dispatch prompt: the pack path,
+          else team/work/tasks/<id>.md, else a hand-off named after a task, else the first T-<n> id in the text;
+          otherwise "unassigned". Lead messages take the task of the latest subagent dispatch (by start time, same
+          session) at or before them; lead messages before the first dispatch stay "unassigned". packed counts
+          dispatches whose prompt names a pack or the hand-off of their own task.
   (accepts --project <dir>; --transcripts <dir> overrides ~/.claude/projects)
 `;
 
