@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { runCli, need, UsageError } from './lib/cli.js';
 import { readBoard, addEntry, updateEntry, recordReview, recordModuleReview, phaseCloseProblems, setPhase, incrementRound, verifyCommit, rotationDue, markRotated, countFoldIn } from './lib/board.js';
 import { loadConfig, validateConfig } from './lib/config.js';
+import { listFindings } from './lib/findings.js';
 
 const usage = `Usage:
   board.js show
@@ -86,7 +87,8 @@ const commands = {
     const problems = phaseCloseProblems(root);
     if (problems.length) throw new Error(`Phase ${n} cannot start yet:\n- ${problems.join('\n- ')}`);
     setPhase(root, Number(n));
-    return { phase: Number(n) };
+    // Every open finding is listed, whatever its severity or origin: the owner sees what is deferred at the phase end.
+    return { phase: Number(n), deferredFindings: listFindings(root, { open: true }).map(({ id, module, severity, task, text }) => ({ id, module, severity, task, text })) };
   },
 };
 
