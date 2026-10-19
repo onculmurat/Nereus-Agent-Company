@@ -114,3 +114,22 @@ test('phase 3 and the architect state the fold-in cap, the batched pass and the 
   assert.match(design, /board\.js" foldin/);
   assert.match(design, /--reset/);
 });
+
+// Item 5: batch owner questions.
+test('question-protocol batches ready non-blocking questions into one AskUserQuestion call of up to 4', () => {
+  const text = read('skills', 'question-protocol', 'SKILL.md');
+  const batching = text.split(/^## Batching\b/m)[1]?.split('\n## ')[0] ?? '';
+  assert.match(batching, /AskUserQuestion/);
+  assert.match(batching, /non-blocking or low-impact/i);
+  assert.match(batching, /up to 4 questions/i);
+  assert.match(batching, /Source[^\n]*Status[^\n]*Impact/);
+  assert.match(batching, /options/i);
+  assert.match(batching, /one recommendation/i);
+  assert.match(batching, /blocking[^\n]*(at once|immediately)/i);
+  assert.match(batching, /answers every question/i);
+  assert.match(batching, /nothing is decided for them/i);
+  assert.match(batching, /phase 0/i);
+  // the one-question-per-message rules stay
+  assert.match(text, /exactly one question[^\n]*no sub-questions[^\n]*no preview/i);
+  assert.match(text, /Batching/);
+});

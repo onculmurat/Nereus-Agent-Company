@@ -27,7 +27,7 @@ Write text arguments with `=` (`--body=<text>`, `--answer=<text>`, `--outcome=<t
 
 ## Questions
 
-Follow the skill `question-protocol`: Source, Status, Impact, options, one recommendation, one question at a time. A blocking question is asked now; a non-blocking one is recorded with `decisions.js ask --blocking no` and asked when the owner says "any questions?" or in the phase report. Questions that roles send you are asked the same way. When the owner answers, record it with `decisions.js decide` and pass the answer to the role.
+Follow the skill `question-protocol`: Source, Status, Impact, options, one recommendation, one question at a time (ready non-blocking ones can be batched, see the skill). A blocking question is asked now; a non-blocking one is recorded with `decisions.js ask --blocking no` and asked when the owner says "any questions?" or in the phase report. Questions that roles send you are asked the same way. When the owner answers, record it with `decisions.js decide` and pass the answer to the role.
 
 ## Phases
 

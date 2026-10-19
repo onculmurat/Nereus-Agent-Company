@@ -23,7 +23,7 @@ Every question starts with its context, then the choice:
 
 One question at a time. Each message holds exactly one question: no sub-questions, no bullet list of things to cover, and no preview of the questions still to come. A question asks about one thing: never join two questions with "and". Wait for the answer before the next one.
 
-A question gets its own message: no status report, summary or news in it; send those in a message before it. Ask a question in full every time, re-asks included: never refer to it only by its id ("waiting for your answer to Q-010"), so the owner never has to search earlier messages for it. When several questions are queued, ask them one after another, each after the previous answer.
+A question gets its own message: no status report, summary or news in it; send those in a message before it. Ask a question in full every time, re-asks included: never refer to it only by its id ("waiting for your answer to Q-010"), so the owner never has to search earlier messages for it. When several questions are queued, ask them one after another, each after the previous answer, except as allowed under Batching below.
 
 ## Timing
 
@@ -36,6 +36,10 @@ A question gets its own message: no status report, summary or news in it; send t
 
   Ask queued questions when the owner says "any questions?" (list them with `decisions.js open`, blocking first) or in the phase report.
 - Record every answer with `decisions.js decide <Q-id> --answer <text>`.
+
+## Batching
+
+Non-blocking or low-impact questions that are ready at the same time go in one `AskUserQuestion` call, up to 4 questions. Each of them keeps the full shape: Source, Status and Impact in its text, the realistic options with their cost, and one recommendation. More than 4 ready questions go in further calls of up to 4, one call after the previous answers. Blocking questions are still asked at once, and the phase 0 interview stays one question per message. The owner still answers every question; nothing is decided for them, and an unanswered question stays open in `decisions.js`.
 
 ## Example
 
