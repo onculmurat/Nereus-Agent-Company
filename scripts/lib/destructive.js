@@ -3,9 +3,15 @@
 // or a program the agent runs does inside. The rule: a recursive delete (rm -r, Remove-Item -Recurse, rmdir /s,
 // rd /s, del /s, rimraf, find -delete) is allowed only on paths inside the project root or the temp folder.
 // A target it cannot resolve (variable, command substitution, glob that can match "..") is blocked, not guessed.
+// Also covered: git clean -x/-X, deletes written as inline code (node -e, python -c, perl -e, ruby -e), PowerShell
+// -EncodedCommand (decoded first), and script files run by name (bash x.sh, node x.js, ./x.sh, pwsh x.ps1) that sit
+// inside the project or the temp folder. Limits: a script is read only when it exists, is under 64 KiB and is not
+// part of the plugin itself; a missing or larger script is allowed, so normal work is not blocked. Code is scanned
+// for delete calls with plain string targets; os.remove/os.unlink loops and targets built at run time are out of scope.
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const MAX_DEPTH = 4;
 const MAX_BRACE = 64;
@@ -21,6 +27,11 @@ const PS_VALUE_PARAMS = ['include', 'exclude', 'filter', 'credential', 'stream',
 const PS_RECURSE = /^-r(?:e(?:c(?:u(?:r(?:se?)?)?)?)?)?(?::(.*))?$/i;
 const SWITCHES = /^(?:\/[a-zA-Z?])+$/;
 const ENV_TMP = ['TMPDIR', 'TEMP', 'TMP'];
+const SCRIPT_MAX = 64 * 1024;
+const PLUGIN_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
+const SCRIPT_EXT = /\.(?:sh|bash|ps1|py|js|mjs|cjs)$/i;
+const CODE_DELETE_CALL = /\b(?:rmSync|rmdirSync|rmtree|remove_tree|rm_rf|rm_r|rm)\s*\(\s*/g;
+const CODE_SHELL_CALL = /\b(?:system|exec|execSync|execFile|execFileSync|spawn|spawnSync|popen|run|call|check_call|check_output|Popen)\s*\(\s*/g;
 
 // A PowerShell parameter may be shortened to any unambiguous prefix; one letter is too short to tell from rm -f.
 const isPrefixOf = (t, names, min = 1) => {
@@ -359,14 +370,21 @@ function analyzeCommand(command, style, ctx, depth) {
   }
 
   if (SHELLS.has(name)) {
+    if (name === 'powershell' || name === 'pwsh') {
+      const encoded = encodedText(args);
+      if (encoded) return encoded.problem ?? analyzeText(encoded.text, 'ps', { ...ctx }, depth + 1);
+    }
     const inner = shellString(name, args);
     if (inner !== null) return analyzeText(inner, name === 'powershell' || name === 'pwsh' ? 'ps' : name === 'cmd' ? 'cmd' : 'sh', { ...ctx }, depth + 1);
-    return null;
+    return scanScript(name, tokens, ctx, depth);
   }
   if (name === 'eval' && args[0]) return analyzeText(args.map((a) => a.text).join(' '), style, { ...ctx }, depth + 1);
 
   if (name === 'find' || name === 'gfind') return analyzeFind(args, ctx);
-  if (!DELETE.has(name)) return null;
+  if (name === 'git') return analyzeGit(args);
+  const code = inlineCode(name, args);
+  if (code !== null) return scanCode(code, ctx, depth + 1);
+  if (!DELETE.has(name)) return scanScript(name, tokens, ctx, depth);
 
   const { recursive, targets } = parseDelete(name, args);
   if (!recursive) return null;
@@ -377,6 +395,147 @@ function analyzeCommand(command, style, ctx, depth) {
     if (problem) return problem;
   }
   return null;
+}
+
+// git clean with -x/-X (ignored files too) and -f/-d, in any order of combined or split flags; -n/--dry-run is fine.
+function analyzeGit(args) {
+  const at = args.findIndex((a) => a.text === 'clean');
+  if (at < 0) return null;
+  const flags = args.slice(at + 1).map((a) => a.text);
+  const letters = flags.filter((f) => /^-[^-]/.test(f)).join('').replace(/-/g, '');
+  if (letters.includes('n') || flags.includes('--dry-run')) return null;
+  if (/[xX]/.test(letters) && (/[fd]/.test(letters) || flags.includes('--force'))) {
+    return 'git clean -x/-X also removes ignored files (build output, .env, local settings) and cannot be undone';
+  }
+  return null;
+}
+
+// PowerShell -EncodedCommand (any prefix of it, or -ec): { text } decoded from base64 UTF-16LE, or { problem }.
+function encodedText(args) {
+  const i = args.findIndex((a) => /^-[A-Za-z]+$/.test(a.text) && (a.text.slice(1).toLowerCase() === 'ec' || 'encodedcommand'.startsWith(a.text.slice(1).toLowerCase())));
+  if (i < 0) return null;
+  const b64 = args[i + 1]?.text ?? '';
+  const buf = /^[A-Za-z0-9+/]+={0,2}$/.test(b64) && b64.length % 4 === 0 ? Buffer.from(b64, 'base64') : null;
+  const text = buf && buf.length && buf.length % 2 === 0 ? buf.toString('utf16le') : null;
+  if (text === null || /[\u0000-\u0008\u000e-\u001f�]/.test(text)) return { problem: 'its -EncodedCommand text cannot be decoded, so it cannot be checked' };
+  return { text };
+}
+
+// The code string of node -e, python -c, perl -e or ruby -e, or null.
+function inlineCode(name, args) {
+  let flag;
+  if (/^node(?:js)?$/.test(name)) flag = /^(?:-e|-p|-pe|-ep|--eval|--print)$/;
+  else if (/^(?:python[\d.]*|py)$/.test(name)) flag = /^-[a-zA-Z]*c$/;
+  else if (name === 'perl') flag = /^-[a-zA-Z]*[eE]$/;
+  else if (name === 'ruby') flag = /^-[a-zA-Z]*e$/;
+  else return null;
+  const long = args.find((a) => /^--(?:eval|print)=/.test(a.text));
+  if (long) return long.text.slice(long.text.indexOf('=') + 1);
+  const i = args.findIndex((a) => flag.test(a.text));
+  return i < 0 ? null : (args[i + 1]?.text ?? null);
+}
+
+// A string literal starting at code[at] (optional r/u/b prefix): { value, end } or null.
+function literalAt(code, at) {
+  const m = /^[rRuUbB]{0,2}(["'`])/.exec(code.slice(at, at + 3));
+  if (!m) return null;
+  const q = m[1];
+  let value = '';
+  let i = at + m[0].length;
+  for (; i < code.length && code[i] !== q; i += 1) {
+    if (code[i] === '\\' && i + 1 < code.length) i += 1;
+    value += code[i];
+  }
+  return i >= code.length ? null : { value, end: i + 1 };
+}
+
+// The literal arguments of a call ('a', "b", ['c', 'd']) joined as one command line; null when there is none.
+function literalArgs(code, at) {
+  const words = [];
+  let i = at;
+  for (;;) {
+    const list = code[i] === '[';
+    if (list) i += 1;
+    for (;;) {
+      const lit = literalAt(code, i);
+      if (!lit) break;
+      words.push(lit.value);
+      i = lit.end;
+      const comma = /^\s*,\s*/.exec(code.slice(i));
+      if (!comma) break;
+      i += comma[0].length;
+    }
+    if (list && code[i] === ']') i += 1;
+    const more = /^\s*,\s*(?=\[)/.exec(code.slice(i));
+    if (!more) break;
+    i += more[0].length;
+  }
+  return words.length ? words.join(' ') : null;
+}
+
+// Delete calls with a plain string target, and shell command strings handed to system/exec/spawn calls.
+function scanCode(code, ctx, depth) {
+  for (const m of code.matchAll(CODE_DELETE_CALL)) {
+    const at = m.index + m[0].length;
+    const lit = /^[fF]/.test(code.slice(at, at + 2)) ? null : literalAt(code, at);
+    const after = lit ? code.slice(lit.end).trimStart()[0] : null;
+    if (!lit || (after !== ',' && after !== ')')) return `a delete call in the code (${m[0].replace(/\s*\(\s*$/, '')}) has a target that is not a plain string, so it cannot be checked`;
+    const problem = targetProblem(lit.value, ctx);
+    if (problem) return problem;
+  }
+  for (const m of code.matchAll(CODE_SHELL_CALL)) {
+    const line = literalArgs(code, m.index + m[0].length);
+    if (line === null || !mentionsDelete(line)) continue;
+    const r = analyzeText(line, 'sh', { ...ctx }, depth + 1) ?? (/remove-item/i.test(line) ? analyzeText(line, 'ps', { ...ctx }, depth + 1) : null);
+    if (r) return r;
+  }
+  return null;
+}
+
+// The script file a command runs ({ file, kind }), or null.
+function scriptOf(name, tokens) {
+  const args = tokens.slice(1);
+  const first = (skipValue = []) => {
+    for (let i = 0; i < args.length; i += 1) {
+      if (skipValue.includes(args[i].text)) { i += 1; continue; }
+      if (!args[i].text.startsWith('-')) return args[i].text;
+    }
+    return null;
+  };
+  if (['bash', 'sh', 'zsh', 'dash', 'ksh'].includes(name)) return { file: first(['-o', '+o']), kind: 'sh' };
+  if (name === 'powershell' || name === 'pwsh') {
+    const f = args.findIndex((a) => /^-f(?:i(?:l(?:e)?)?)?$/i.test(a.text));
+    return { file: f >= 0 ? args[f + 1]?.text : first(), kind: 'ps' };
+  }
+  if (/^node(?:js)?$/.test(name)) return { file: first(['-r', '--require', '--import']), kind: 'code' };
+  if (/^(?:python[\d.]*|py|perl|ruby)$/.test(name)) return { file: first(), kind: 'code' };
+  const word = tokens[0].text;
+  if (SCRIPT_EXT.test(word) && /[\\/]|^\./.test(word)) return { file: word, kind: /\.ps1$/i.test(word) ? 'ps' : /\.(?:sh|bash)$/i.test(word) ? 'sh' : 'code' };
+  return null;
+}
+
+// The text of a script that sits in the project or the temp folder (not the plugin), when it is small enough.
+function readScript(file, ctx) {
+  const { env } = ctx;
+  const r = resolveTarget(file, ctx);
+  if (r.problem || r.glob) return null;
+  const inScope = within(env.P, env.root, r.abs) || env.tmpDirs.some((t) => within(env.P, t, r.abs));
+  if (!inScope || within(env.P, env.canon(PLUGIN_ROOT), r.abs)) return null;
+  try {
+    const st = fs.statSync(r.abs);
+    return st.isFile() && st.size <= SCRIPT_MAX ? fs.readFileSync(r.abs, 'utf8') : null;
+  } catch {
+    return null;
+  }
+}
+
+function scanScript(name, tokens, ctx, depth) {
+  const script = scriptOf(name, tokens);
+  if (!script?.file) return null;
+  const text = readScript(script.file, ctx);
+  if (text === null) return null;
+  const reason = script.kind === 'code' ? scanCode(text, ctx, depth + 1) : analyzeText(text, script.kind, { ...ctx }, depth + 1);
+  return reason ? `${reason} (in the script ${script.file})` : null;
 }
 
 function analyzeFind(args, ctx) {
