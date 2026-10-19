@@ -228,3 +228,71 @@ test('cli prints the pack path and character count', () => {
   const noRole = spawnSync(process.execPath, [cli, 'T-018d', '--project', root], { encoding: 'utf8' });
   assert.equal(noRole.status, 1);
 });
+
+// Delta mode: fix rounds and re-reviews get the findings, the diff since the previous attempt and the acceptance criteria only.
+const DELTA_BRIEF = `${BRIEF}
+## Kabul kriterleri
+- Criterion alpha holds.
+- Criterion beta holds.
+
+## Notlar
+Background note that must not be repeated.
+`;
+
+function deltaRepo() {
+  const { root, base } = gitRepo();
+  fs.writeFileSync(path.join(root, 'team', 'work', 'tasks', 'T-018d.md'), DELTA_BRIEF);
+  const findings = path.join(root, 'findings.md');
+  fs.writeFileSync(findings, '1. Missing null check in a.txt\n2. Name is unclear\n');
+  return { root, base, findings };
+}
+
+test('delta pack holds the findings, the diff since the previous attempt and only the acceptance criteria', () => {
+  const { root, base, findings } = deltaRepo();
+  const { text } = buildPack(root, { id: 'T-018d', role: 'backend-developer', round: 2, findings, base });
+  assert.match(text, /^# Pack: T-018d for backend-developer \(round 2, delta\)/);
+  assert.match(text, /Budget: 40 tool calls/);
+  assert.ok(text.includes('## Findings\n\n1. Missing null check in a.txt'));
+  assert.ok(text.includes('## Acceptance criteria\n\n## Kabul kriterleri\n- Criterion alpha holds.\n- Criterion beta holds.'));
+  assert.match(text.split(`\n## Diff since ${base}\n`)[1], /\+two/);
+  for (const absent of ['## Task brief', '## Spec', 'Background note', 'Hedef', 'Do the thing', '## Decisions', '## Threat']) {
+    assert.ok(!text.includes(absent), `delta pack must not hold "${absent}"`);
+  }
+});
+
+test('delta pack is much smaller than the full pack', () => {
+  const { root, base, findings } = deltaRepo();
+  const full = buildPack(root, { id: 'T-018d', role: 'backend-developer', base }).text;
+  const delta = buildPack(root, { id: 'T-018d', role: 'backend-developer', round: 2, findings, base }).text;
+  assert.ok(delta.length < full.length / 2, `${delta.length} vs ${full.length}`);
+});
+
+test('delta pack can carry the gate output instead of findings, and says so when the brief has no acceptance criteria', () => {
+  const { root, base } = deltaRepo();
+  fs.writeFileSync(path.join(root, 'team', 'work', 'tasks', 'T-018d.md'), BRIEF);
+  const gate = path.join(root, 'gate.txt');
+  fs.writeFileSync(gate, 'not ok 1 - broken\n');
+  const { text, notFound } = buildPack(root, { id: 'T-018d', role: 'backend-developer', round: 3, gate, base });
+  assert.ok(text.includes('## Gate output (tail)'));
+  assert.ok(!text.includes('## Findings'));
+  assert.deepEqual(notFound, ['acceptance criteria']);
+  assert.match(text, /## Acceptance criteria\n\nNot found in the brief/);
+});
+
+test('delta mode needs a round, findings or a gate, and a base', () => {
+  const { root, base, findings } = deltaRepo();
+  assert.throws(() => buildPack(root, { id: 'T-018d', role: 'a', round: 0, findings, base }), /Invalid round/);
+  assert.throws(() => buildPack(root, { id: 'T-018d', role: 'a', round: 2, base }), /--findings or --gate/);
+  assert.throws(() => buildPack(root, { id: 'T-018d', role: 'a', round: 2, findings }), /--base/);
+  assert.throws(() => buildPack(root, { id: 'T-018d', role: 'a', round: 2, findings: path.join(root, 'none.md'), base }), /findings/);
+  assert.throws(() => buildPack(root, { id: 'T-018d', role: 'a', findings, base }), /--round/);
+});
+
+test('delta pack is written to <id>-<role>-r<round>.md and the cli accepts --round, --findings and --base', () => {
+  const { root, base, findings } = deltaRepo();
+  const r = spawnSync(process.execPath, [cli, 'T-018d', '--role', 'code-reviewer', '--round', '2', '--findings', findings, '--base', base, '--project', root], { encoding: 'utf8' });
+  assert.equal(r.status, 0, r.stderr);
+  const out = JSON.parse(r.stdout);
+  assert.equal(out.path, path.join(root, 'team', 'work', 'packs', 'T-018d-code-reviewer-r2.md'));
+  assert.match(fs.readFileSync(out.path, 'utf8'), /round 2, delta/);
+});

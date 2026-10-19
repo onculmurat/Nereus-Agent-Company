@@ -80,6 +80,7 @@ The same rules apply to every role; no role is skipped and no role's model is lo
 - **Lead rotation** (`board.js`): after 5 tasks marked done (or a milestone end) the lead writes a hand-off note and asks you to run `/clear`; the next session resumes from it.
 - **Skip count** (`gate.js`): the test gate reports how many tests were skipped, ignored or todo; each skip needs a written reason in the hand-off.
 - **Call budget** (`callBudget`, default 40): every dispatch may use 40 tool calls (`maxTurns` in the agent files, repeated in the pack header). A role that hits it reports what is done and what is left; the lead re-dispatches the rest with a fresh pack (same round) or splits the task.
+- **Delta packs** (`pack.js --round`): a fix round or re-review gets only the findings (or gate output), the diff since the previous attempt and the brief's acceptance criteria, for every role, not the full pack again.
 
 ## Roles and models
 

@@ -120,13 +120,57 @@ function gateTail(file) {
   return text.trimEnd().split('\n').slice(-GATE_TAIL_LINES).join('\n');
 }
 
-export function buildPack(root, { id, role, base, gate }) {
+// Acceptance criteria of a brief: the first section whose heading names them (English or Turkish).
+function acceptanceCriteria(brief) {
+  const lines = toLines(brief);
+  const hs = headings(lines);
+  const i = hs.findIndex((h) => /accept|criteria|kabul|kriter/i.test(h.title));
+  return i < 0 ? null : blockAt(lines, hs, i);
+}
+
+function readFindings(file) {
+  try {
+    return fs.readFileSync(file, 'utf8').trimEnd();
+  } catch (e) {
+    throw new Error(`Cannot read findings file ${file}: ${e.message}`);
+  }
+}
+
+// Delta pack for a fix round or a re-review: findings (or gate output), the diff since the previous attempt and the
+// acceptance criteria. The full brief, spec, contracts and decisions are not repeated: the role already saw them.
+function buildDelta(root, { id, role, base, gate, round, findings }, brief) {
+  if (!Number.isInteger(round) || round < 1) throw new Error(`Invalid round "${round}"`);
+  if (findings === undefined && gate === undefined) throw new Error('Delta mode needs --findings or --gate');
+  if (base === undefined) throw new Error('Delta mode needs --base (the commit of the previous attempt)');
+  const notFound = [];
+  const parts = [`# Pack: ${id} for ${role} (round ${round}, delta)\n\n${budgetLine(root)}`];
+  if (findings !== undefined) parts.push(`## Findings\n\n${readFindings(findings)}`);
+  if (gate !== undefined) {
+    const tail = gateTail(gate);
+    const fence = fenceFor(tail);
+    parts.push(`## Gate output (tail)\n\n${fence}\n${tail}\n${fence}`);
+  }
+  const accept = acceptanceCriteria(brief);
+  if (accept) parts.push(`## Acceptance criteria\n\n${accept}`);
+  else {
+    notFound.push('acceptance criteria');
+    parts.push('## Acceptance criteria\n\nNot found in the brief: read the task brief itself.');
+  }
+  const diff = gitDiff(root, base).trimEnd();
+  const fence = fenceFor(diff);
+  parts.push(`## Diff since ${base}\n\n${fence}diff\n${diff}\n${fence}`);
+  return { text: `${parts.join('\n\n')}\n`, notFound };
+}
+
+export function buildPack(root, { id, role, base, gate, round, findings }) {
   if (!ID_RE.test(id ?? '')) throw new Error(`Invalid task id "${id}"`);
   if (!ROLE_RE.test(role ?? '')) throw new Error(`Invalid role "${role}"`);
   const p = teamPaths(root);
   const briefFile = path.join(p.work, 'tasks', `${id}.md`);
   const brief = readIf(briefFile);
   if (brief === null) throw new Error(`No task brief at ${briefFile}`);
+  if (round !== undefined) return buildDelta(root, { id, role, base, gate, round, findings }, brief);
+  if (findings !== undefined) throw new Error('--findings needs --round');
 
   const refs = parseRefs(brief);
   const notFound = [];
@@ -177,7 +221,7 @@ export function writePack(root, opts) {
   const { text, notFound } = buildPack(root, opts);
   const dir = teamPaths(root).packs;
   fs.mkdirSync(dir, { recursive: true });
-  const file = path.join(dir, `${opts.id}-${opts.role}.md`);
+  const file = path.join(dir, `${opts.id}-${opts.role}${opts.round === undefined ? '' : `-r${opts.round}`}.md`);
   fs.writeFileSync(file, text);
   return { path: file, chars: text.length, notFound };
 }

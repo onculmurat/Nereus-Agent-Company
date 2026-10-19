@@ -84,3 +84,15 @@ test('task-loop says what the lead does when a role reports the budget hit', () 
   assert.match(loop, /split the task/i);
   assert.match(loop, /never[^\n]*raise[^\n]*budget[^\n]*silently/i);
 });
+
+// Item 2: fix rounds and re-reviews get only the delta.
+test('task-loop step 6 uses the delta pack for every role in a fix round or re-review', () => {
+  const step = read('skills', 'task-loop', 'SKILL.md').split(/^6\. /m)[1].split(/^7\. /m)[0];
+  assert.match(step, /--round <n>/);
+  assert.match(step, /--findings/);
+  assert.match(step, /--base/);
+  assert.match(step, /delta pack/i);
+  assert.match(step, /re-review/i);
+  for (const who of ['developers', 'reviewers', 'security-reviewer', 'architect']) assert.match(step, new RegExp(who));
+  assert.match(step, /never the full pack/i);
+});
