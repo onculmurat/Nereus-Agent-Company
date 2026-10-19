@@ -103,3 +103,13 @@ test('task-loop tells the lead to read commit hashes from git', () => {
   assert.match(loop, /git log -1 --format=%h/);
   assert.match(loop, /reachable from HEAD/);
 });
+
+test('both READMEs describe the destructive-command guard, code: no tasks and the weighted cost ranking', () => {
+  for (const file of ['README.md', 'README.tr.md']) {
+    const text = read(file);
+    assert.match(text, /`rm -r`, `Remove-Item -Recurse`, `rmdir \/s`, `rd \/s`, `del \/s`/, file);
+    assert.match(text, /`code: no`; `gate\.js --task <id>`/, file);
+    assert.match(text, /`weighted` = /, file);
+    assert.match(text, /`--help`/, file);
+  }
+});
