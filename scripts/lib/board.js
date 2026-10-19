@@ -34,6 +34,8 @@ function checkCodeOwner(owner, code) {
 }
 
 // reviews are stored as "role:verdict, role:verdict" and read as { role: verdict }.
+// security: yes marks a task for the module-level security review; contract (a changed security contract) also needs a pass before done.
+const SECURITY_TAGS = ['yes', 'contract'];
 const parseReviews = (s) => Object.fromEntries(s.split(',').map((p) => p.trim().split(':')).filter(([r, v]) => r && v));
 const formatReviews = (r) => Object.entries(r).map(([role, verdict]) => `${role}:${verdict}`).join(', ');
 
@@ -54,7 +56,7 @@ export function readBoard(root) {
     ...(Number(f.foldins) > 0 ? { foldins: Number(f.foldins) } : {}),
     ...(f.approach ? { approach: f.approach, roundsBase: Number(f.roundsbase ?? 0) } : {}),
     ...(f.code === 'no' ? { code: 'no' } : {}),
-    ...(f.security === 'yes' ? { security: 'yes' } : {}),
+    ...(SECURITY_TAGS.includes(f.security) ? { security: f.security } : {}),
     ...(f.reviews ? { reviews: parseReviews(f.reviews) } : {}),
   }));
   const rotLine = lines.find((l) => /^done-since-rotation:\s*\d+\s*$/.test(l));
@@ -71,7 +73,7 @@ export function writeBoard(root, board) {
     ...(e.foldins > 0 ? { foldins: e.foldins } : {}),
     ...(e.approach ? { approach: e.approach, roundsbase: e.roundsBase ?? 0 } : {}),
     ...(e.code === 'no' ? { code: 'no' } : {}),
-    ...(e.security === 'yes' ? { security: 'yes' } : {}),
+    ...(SECURITY_TAGS.includes(e.security) ? { security: e.security } : {}),
     ...(e.reviews && Object.keys(e.reviews).length ? { reviews: formatReviews(e.reviews) } : {}),
   }));
   const rotation = board.doneSinceRotation > 0 ? `\ndone-since-rotation: ${board.doneSinceRotation}` : '';
@@ -86,17 +88,17 @@ export function addEntry(root, { id, title, owner, model, code, security }) {
   const entryId = id ?? nextId('T', board.entries.map((e) => e.id));
   if (!ID_RE.test(entryId)) throw new Error(`Invalid board id "${entryId}"`);
   if (board.entries.some((e) => e.id === entryId)) throw new Error(`Board entry ${entryId} already exists`);
-  const entry = { id: entryId, title, owner, status: 'todo', rounds: 0, model, commits: [], handoff: '', ...(code === 'no' ? { code: 'no' } : {}), ...(security === 'yes' ? { security: 'yes' } : {}) };
+  const entry = { id: entryId, title, owner, status: 'todo', rounds: 0, model, commits: [], handoff: '', ...(code === 'no' ? { code: 'no' } : {}), ...(SECURITY_TAGS.includes(security) ? { security } : {}) };
   board.entries.push(entry);
   writeBoard(root, board);
   return entry;
 }
 
-// A task is not done while it has questions the owner has not been given yet, or while a security: yes task
+// A task is not done while it has questions the owner has not been given yet, or while a security: contract task
 // lacks a security-reviewer pass.
 function checkDone(root, entry) {
-  if (entry.security === 'yes' && entry.reviews?.['security-reviewer'] !== 'pass') {
-    throw new Error(`${entry.id} is tagged security: yes and has no security-reviewer pass${entry.reviews?.['security-reviewer'] ? ` (latest verdict: ${entry.reviews['security-reviewer']})` : ''}. Dispatch security-reviewer, then record it: board.js review ${entry.id} --role security-reviewer --verdict pass`);
+  if (entry.security === 'contract' && entry.reviews?.['security-reviewer'] !== 'pass') {
+    throw new Error(`${entry.id} is tagged security: contract and has no security-reviewer pass${entry.reviews?.['security-reviewer'] ? ` (latest verdict: ${entry.reviews['security-reviewer']})` : ''}. Dispatch security-reviewer, then record it: board.js review ${entry.id} --role security-reviewer --verdict pass`);
   }
   const deferred = deferredFor(root, entry.id);
   if (deferred.length) {
@@ -117,7 +119,7 @@ export function updateEntry(root, id, patch) {
   if (patch.status === 'done' && entry.status !== 'done') board.doneSinceRotation = (board.doneSinceRotation ?? 0) + 1;
   Object.assign(entry, patch);
   if (entry.code !== 'no') delete entry.code;
-  if (entry.security !== 'yes') delete entry.security;
+  if (!SECURITY_TAGS.includes(entry.security)) delete entry.security;
   writeBoard(root, board);
   return entry;
 }

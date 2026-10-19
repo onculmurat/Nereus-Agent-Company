@@ -8,10 +8,10 @@ import { loadConfig, validateConfig } from './lib/config.js';
 
 const usage = `Usage:
   board.js show
-  board.js add --title <text> --owner <role> --model <haiku|sonnet|opus> [--id <id>] [--code <yes|no>] [--security <yes|no>]
+  board.js add --title <text> --owner <role> --model <haiku|sonnet|opus> [--id <id>] [--code <yes|no>] [--security <yes|no|contract>]
                                          --code no: a task that produces no code (spike, research, docs only); gate.js --task checks its report file
-  board.js update <id> [--status <todo|in-progress|review|done|blocked>] [--owner <role>] [--model <m>] [--commit <sha>] [--handoff <path>] [--code <yes|no>] [--security <yes|no>]
-                                         --security yes: --status done is refused until a security-reviewer pass is recorded (review)
+  board.js update <id> [--status <todo|in-progress|review|done|blocked>] [--owner <role>] [--model <m>] [--commit <sha>] [--handoff <path>] [--code <yes|no>] [--security <yes|no|contract>]
+                                         --security yes: reviewed per module by security-reviewer; contract (task changes a security contract): done is refused until a pass is recorded (review)
                                          --commit checks that the sha exists and is reachable from HEAD; read it first: git log -1 --format=%h
   board.js review <id> --role <role> --verdict <pass|fail>
                                          records the reviewer's latest verdict on the task; prints the entry
@@ -25,8 +25,8 @@ const usage = `Usage:
   (all accept --project <dir>; default: nearest directory with team/config.json)
 `;
 
-const checkYesNo = (name, value) => {
-  if (value !== undefined && !['yes', 'no'].includes(value)) throw new UsageError(`--${name} must be yes or no`);
+const checkYesNo = (name, value, allowed = ['yes', 'no']) => {
+  if (value !== undefined && !allowed.includes(value)) throw new UsageError(`--${name} must be ${allowed.slice(0, -1).join(', ')} or ${allowed.at(-1)}`);
 };
 
 const commands = {
@@ -34,14 +34,14 @@ const commands = {
   add: ({ values: v, root }) => {
     need(v, 'title', 'owner', 'model');
     checkYesNo('code', v.code);
-    checkYesNo('security', v.security);
+    checkYesNo('security', v.security, ['yes', 'no', 'contract']);
     return addEntry(root, { id: v.id, title: v.title, owner: v.owner, model: v.model, code: v.code, security: v.security });
   },
   update: ({ values: v, positionals: [, id], root }) => {
     if (!id) throw new UsageError('Missing entry id');
     const patch = {};
     checkYesNo('code', v.code);
-    checkYesNo('security', v.security);
+    checkYesNo('security', v.security, ['yes', 'no', 'contract']);
     for (const k of ['status', 'owner', 'model', 'handoff', 'code', 'security']) if (v[k] !== undefined) patch[k] = v[k];
     if (v.commit !== undefined) {
       verifyCommit(root, v.commit);

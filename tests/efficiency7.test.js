@@ -144,12 +144,14 @@ test('board add/update --security stores the tag and the board file shows it', (
   assert.equal(entry(root).security, 'yes');
   assert.equal(board(root, 'update', 'T-001', '--security', 'no').out.security, undefined);
   assert.equal(board(root, 'update', 'T-001', '--security', 'maybe').status, 1);
+  assert.equal(board(root, 'update', 'T-001', '--security', 'contract').out.security, 'contract');
   assert.equal(addTask(root).out.security, undefined);
 });
 
-test('a security: yes task cannot be done without a security-reviewer pass', () => {
+test('a security: contract task cannot be done without a security-reviewer pass; security: yes can', () => {
   const root = makeProject();
-  addTask(root, '--security', 'yes');
+  addTask(root, '--security', 'contract');
+  assert.equal(entry(root).security, 'contract');
   const refused = board(root, 'update', 'T-001', '--status', 'done');
   assert.equal(refused.status, 1);
   assert.match(refused.err, /security-reviewer/);
@@ -157,8 +159,9 @@ test('a security: yes task cannot be done without a security-reviewer pass', () 
   assert.equal(board(root, 'review', 'T-001', '--role', 'security-reviewer', '--verdict', 'fail').status, 0);
   assert.equal(board(root, 'update', 'T-001', '--status', 'done').status, 1, 'a failed review is not a pass');
   assert.deepEqual(board(root, 'review', 'T-001', '--role', 'security-reviewer', '--verdict', 'pass').out.reviews, { 'security-reviewer': 'pass' });
-  assert.deepEqual(entry(root).reviews, { 'security-reviewer': 'pass' });
   assert.equal(board(root, 'update', 'T-001', '--status', 'done').status, 0);
+  addTask(root, '--security', 'yes');
+  assert.equal(board(root, 'update', 'T-002', '--status', 'done').status, 0, 'the module review covers a plain security: yes task');
 });
 
 test('an untagged task needs no review; review rejects an unknown verdict, role or task', () => {
@@ -170,7 +173,7 @@ test('an untagged task needs no review; review rejects an unknown verdict, role 
   assert.equal(board(root, 'review', 'T-001', '--verdict', 'pass').status, 1);
 });
 
-test('planner tags security tasks and the lead skill says tagged tasks need security-reviewer before done', () => {
+test('planner tags security tasks and the lead skill says contract tasks need security-reviewer before done', () => {
   assert.match(read('agents', 'planner.md'), /`security: yes`[^\n]*threat-model[^\n]*auth[^\n]*crypto[^\n]*secret[^\n]*`security\/`/i);
-  assert.match(read('skills', 'task-loop', 'SKILL.md'), /`security: yes`[^\n]*security-reviewer[^\n]*before[^\n]*done[^\n]*board\.js review/i);
+  assert.match(read('skills', 'task-loop', 'SKILL.md'), /`security: contract`[^\n]*security-reviewer[^\n]*before[^\n]*done[^\n]*board\.js review/i);
 });
