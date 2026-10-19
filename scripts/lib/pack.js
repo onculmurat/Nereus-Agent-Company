@@ -121,7 +121,7 @@ function gateTail(file) {
 }
 
 // Acceptance criteria of a brief: the first section whose heading names them (English or Turkish).
-function acceptanceCriteria(brief) {
+export function acceptanceCriteria(brief) {
   const lines = toLines(brief);
   const hs = headings(lines);
   const i = hs.findIndex((h) => /accept|criteria|kabul|kriter/i.test(h.title));

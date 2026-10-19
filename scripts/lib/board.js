@@ -27,6 +27,7 @@ export function readBoard(root) {
     commits: (f.commits ?? '').split(',').map((s) => s.trim()).filter(Boolean),
     handoff: f.handoff ?? '',
     ...(Number(f.foldins) > 0 ? { foldins: Number(f.foldins) } : {}),
+    ...(f.code === 'no' ? { code: 'no' } : {}),
   }));
   const rotLine = lines.find((l) => /^done-since-rotation:\s*\d+\s*$/.test(l));
   const board = { phase: phaseLine ? Number(phaseLine.split(':')[1]) : 0, entries };
@@ -40,17 +41,19 @@ export function writeBoard(root, board) {
   const blocks = board.entries.map((e) => formatEntry('##', e.id, e.title, {
     owner: e.owner, status: e.status, rounds: e.rounds, model: e.model, commits: e.commits.join(', '), handoff: e.handoff,
     ...(e.foldins > 0 ? { foldins: e.foldins } : {}),
+    ...(e.code === 'no' ? { code: 'no' } : {}),
   }));
   const rotation = board.doneSinceRotation > 0 ? `\ndone-since-rotation: ${board.doneSinceRotation}` : '';
   fs.writeFileSync(file, [`# Board\nphase: ${board.phase}${rotation}`, ...blocks].join('\n\n') + '\n');
 }
 
-export function addEntry(root, { id, title, owner, model }) {
+// code: 'no' marks a task that produces no code (spike, research, docs only); its gate checks the report file.
+export function addEntry(root, { id, title, owner, model, code }) {
   const board = readBoard(root);
   const entryId = id ?? nextId('T', board.entries.map((e) => e.id));
   if (!ID_RE.test(entryId)) throw new Error(`Invalid board id "${entryId}"`);
   if (board.entries.some((e) => e.id === entryId)) throw new Error(`Board entry ${entryId} already exists`);
-  const entry = { id: entryId, title, owner, status: 'todo', rounds: 0, model, commits: [], handoff: '' };
+  const entry = { id: entryId, title, owner, status: 'todo', rounds: 0, model, commits: [], handoff: '', ...(code === 'no' ? { code: 'no' } : {}) };
   board.entries.push(entry);
   writeBoard(root, board);
   return entry;
@@ -65,6 +68,7 @@ export function updateEntry(root, id, patch) {
   if (!entry) throw new Error(`No board entry ${id}`);
   if (patch.status === 'done' && entry.status !== 'done') board.doneSinceRotation = (board.doneSinceRotation ?? 0) + 1;
   Object.assign(entry, patch);
+  if (entry.code !== 'no') delete entry.code;
   writeBoard(root, board);
   return entry;
 }
