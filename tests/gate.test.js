@@ -5,7 +5,7 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { makeProject } from './helpers.js';
-import { runTestGate } from '../scripts/lib/gate.js';
+import { runTestGate, parseSkipped } from '../scripts/lib/gate.js';
 import { validateConfig, loadConfig } from '../scripts/lib/config.js';
 
 const pluginRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -78,4 +78,45 @@ test('no file under scripts/ matches a node --test default pattern', () => {
   const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) =>
     e.isDirectory() ? walk(path.join(dir, e.name)) : [e.name]);
   assert.deepEqual(walk(path.join(pluginRoot, 'scripts')).filter((f) => pattern.test(f)), []);
+});
+
+// Seen live: a test printed "skip" and passed. The gate counts what the runners themselves report as skipped.
+const SAMPLES = {
+  cargo: [
+    'running 3 tests', 'test result: ok. 1 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 0.00s',
+    'running 4 tests', 'test result: ok. 4 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.01s',
+    'Doc-tests x', 'test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s',
+  ].join('\n'),
+  node: ['ℹ tests 10', 'ℹ pass 7', 'ℹ fail 0', 'ℹ cancelled 0', 'ℹ skipped 2', 'ℹ todo 1', 'ℹ duration_ms 12.5'].join('\n'),
+  nodeTap: ['1..4', '# tests 4', '# pass 2', '# fail 0', '# cancelled 0', '# skipped 1', '# todo 1', '# duration_ms 3'].join('\n'),
+  pytest: ['collected 6 items', '================ 1 failed, 3 passed, 2 skipped in 0.12s ================'].join('\n'),
+  pytestQuiet: '3 passed, 4 skipped, 1 warning in 0.05s',
+  jest: ['Test Suites: 1 skipped, 2 passed, 3 total', 'Tests:       2 skipped, 5 passed, 1 todo, 8 total', 'Time: 1.2 s'].join('\n'),
+  vitest: [' Test Files  1 skipped | 2 passed (3)', '      Tests  3 skipped | 5 passed (8)', '   Duration  1.2s'].join('\n'),
+  clean: ['ℹ tests 10', 'ℹ pass 10', 'ℹ skipped 0', 'ℹ todo 0'].join('\n'),
+  none: 'all green',
+  ansi: '\u001b[32m3 passed\u001b[39m, \u001b[33m2 skipped\u001b[39m in 0.1s',
+};
+
+for (const [runner, expected] of [['cargo', 3], ['node', 3], ['nodeTap', 2], ['pytest', 2], ['pytestQuiet', 4], ['jest', 3], ['vitest', 3], ['clean', 0], ['none', 0], ['ansi', 2]]) {
+  test(`parseSkipped reads ${runner} output`, () => {
+    assert.equal(parseSkipped(SAMPLES[runner]), expected);
+  });
+}
+
+test('the gate result carries skipped, counted from the whole output and not only its tail', () => {
+  const body = `${SAMPLES.cargo.replace(/'/g, '')}\n${Array.from({ length: 200 }, (_, i) => `line ${i}`).join('\n')}`;
+  const root = project();
+  fs.writeFileSync(path.join(root, 'out.txt'), body);
+  const r = runTestGate(root, `${node} -e "process.stdout.write(require('fs').readFileSync('out.txt', 'utf8'))"`);
+  assert.equal(r.ok, true);
+  assert.equal(r.skipped, 3);
+  assert.doesNotMatch(r.output, /ignored/, 'the tail no longer shows the skip lines');
+  assert.equal(runTestGate(project(), `${node} -e "console.log('fine')"`).skipped, 0);
+  assert.equal(runTestGate(project(), 'definitely-not-a-command-xyz').skipped, 0);
+});
+
+test('cli prints skipped', () => {
+  const r = runCli(project(`${node} -e "console.log('1 passed, 2 skipped in 0.1s')"`));
+  assert.equal(JSON.parse(r.stdout).skipped, 2);
 });

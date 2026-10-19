@@ -195,3 +195,11 @@ test('task-loop rotates the lead session every 5 done tasks or at a milestone en
   assert.match(loop, /\/clear/);
   assert.match(loop, /devam/);
 });
+
+// Seen live: a test printed "skip" and passed. The gate counts runner-reported skips; the review rule catches the rest.
+test('task-loop makes the lead explain every skip before done and says the review rule catches print-and-pass skips', () => {
+  const loop = read('skills', 'task-loop', 'SKILL.md');
+  assert.match(loop, /`skipped`[^\n]*greater than 0|`skipped > 0`/);
+  assert.match(loop, /reason for each skip[^\n]*hand-off[^\n]*before[^\n]*done/i);
+  assert.match(loop, /hide[^\n]*stdout of passing tests/i);
+});

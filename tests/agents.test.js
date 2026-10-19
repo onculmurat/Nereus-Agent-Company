@@ -127,3 +127,14 @@ for (const role of ['backend-developer', 'frontend-developer', 'database-enginee
     assert.match(rules, /never `git add -A` or `git add \.`/);
   });
 }
+
+// Seen live: a test printed "skip" and passed, so nothing counted it as skipped.
+for (const role of ['code-reviewer', 'test-engineer']) {
+  test(`${role} treats a print-and-pass or early-return skip as a finding`, () => {
+    const { body } = parseFrontmatter(fs.readFileSync(path.join(agentsDir, `${role}.md`), 'utf8'));
+    const rules = body.split('## Working rules')[1].split('\n## ')[0];
+    assert.match(rules, /returns early or prints "skip" and passes is a finding/);
+    assert.match(rules, /explicit skip or ignore with a reason/);
+    assert.match(rules, /fails when a CI-required environment variable is set/);
+  });
+}

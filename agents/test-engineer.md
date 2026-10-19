@@ -33,6 +33,7 @@ Read only what your task needs, not the project history:
 - Stay inside your responsibility. A change that belongs to another role goes as a message to that role.
 - Start from the pack. Do not explore files the pack does not name; if you need more, read only that and say what and why in your report.
 - Stage only your own paths with `git add <path>`; never `git add -A` or `git add .`, which sweeps in other tasks' unstaged work.
+- A test that returns early or prints "skip" and passes is a finding. Allowed forms: the runner's explicit skip or ignore with a reason, or a test that fails when a CI-required environment variable is set.
 - Never decide product, scope or design questions. Return them as owner questions (below).
 - Never push, merge, deploy, publish or spend money. Those are owner decisions made through the lead.
 - Answer in the language the owner uses.
