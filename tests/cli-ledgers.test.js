@@ -3,18 +3,19 @@ import assert from 'node:assert/strict';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { makeProject } from './helpers.js';
+import { makeProject, makeGitProject } from './helpers.js';
 
 const scripts = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'scripts');
 const run = (script, root, ...args) =>
   JSON.parse(execFileSync(process.execPath, [path.join(scripts, script), ...args, '--project', root], { encoding: 'utf8' }));
 
 test('board CLI add, update with commit, phase', () => {
-  const root = makeProject();
+  const { root, commit } = makeGitProject();
+  const [c1, c2] = [commit('a.txt'), commit('b.txt')];
   assert.equal(run('board.js', root, 'add', '--title', 'API', '--owner', 'backend-developer', '--model', 'sonnet').id, 'T-001');
-  run('board.js', root, 'update', 'T-001', '--status', 'in-progress', '--commit', 'abc');
-  const e = run('board.js', root, 'update', 'T-001', '--commit', 'def');
-  assert.deepEqual(e.commits, ['abc', 'def']);
+  run('board.js', root, 'update', 'T-001', '--status', 'in-progress', '--commit', c1);
+  const e = run('board.js', root, 'update', 'T-001', '--commit', c2);
+  assert.deepEqual(e.commits, [c1, c2]);
   assert.equal(e.status, 'in-progress');
   assert.equal(run('board.js', root, 'phase', '3').phase, 3);
   assert.equal(run('board.js', root, 'show').phase, 3);
@@ -38,12 +39,13 @@ test('decisions CLI ask, open (blocking first), decide', () => {
 });
 
 test('board CLI reports rotate: true on the fifth done and rotated resets it', () => {
-  const root = makeProject();
+  const { root, commit } = makeGitProject();
+  const sha = commit('a.txt');
   for (let i = 1; i <= 5; i += 1) run('board.js', root, 'add', '--title', `T${i}`, '--owner', 'backend-developer', '--model', 'sonnet');
   const flags = [1, 2, 3, 4, 5].map((n) => run('board.js', root, 'update', `T-00${n}`, '--status', 'done').rotate);
   assert.deepEqual(flags, [false, false, false, false, true]);
   assert.deepEqual(run('board.js', root, 'rotated'), { rotated: true });
-  assert.equal(run('board.js', root, 'update', 'T-001', '--commit', 'x').rotate, undefined);
+  assert.equal(run('board.js', root, 'update', 'T-001', '--commit', sha).rotate, undefined);
   assert.equal(run('board.js', root, 'show').doneSinceRotation, undefined);
 });
 

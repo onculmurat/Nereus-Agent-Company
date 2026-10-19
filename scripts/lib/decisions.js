@@ -2,6 +2,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { teamPaths } from './paths.js';
+import { localDate } from './dates.js';
 import { parseEntries, formatEntry, toLines, nextId } from './sections.js';
 
 const OPEN = '## Open questions';
@@ -39,7 +40,7 @@ export function addQuestion(root, { title, source, status, impact, blocking, thr
   return q;
 }
 
-export function decide(root, questionId, { answer, link = '' }) {
+export function decide(root, questionId, { answer, link = '', now = new Date() }) {
   const all = readDecisions(root);
   const i = all.open.findIndex((x) => x.id === questionId);
   if (i < 0) throw new Error(`No open question ${questionId}`);
@@ -49,7 +50,7 @@ export function decide(root, questionId, { answer, link = '' }) {
     title: q.title,
     question: q.id,
     answer,
-    date: new Date().toISOString().slice(0, 10),
+    date: localDate(now),
     link,
     thread: q.thread ?? '',
   };
@@ -59,14 +60,14 @@ export function decide(root, questionId, { answer, link = '' }) {
 }
 
 // Records how a thread ended when no owner question was involved, so cleanup can archive it.
-export function recordOutcome(root, { thread, outcome, title = outcome, link = '' }) {
+export function recordOutcome(root, { thread, outcome, title = outcome, link = '', now = new Date() }) {
   const all = readDecisions(root);
   const d = {
     id: nextId('D', all.decided.map((x) => x.id)),
     title,
     question: '',
     answer: outcome,
-    date: new Date().toISOString().slice(0, 10),
+    date: localDate(now),
     link,
     thread,
   };

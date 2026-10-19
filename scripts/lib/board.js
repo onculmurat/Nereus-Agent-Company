@@ -1,9 +1,11 @@
 // team/work/board.md: the authoritative task board. Only the lead writes it (through scripts/board.js).
 import fs from 'node:fs';
 import path from 'node:path';
+import { localStamp } from './dates.js';
 import { teamPaths } from './paths.js';
 import { parseEntries, formatEntry, toLines, nextId } from './sections.js';
 import { nextAction } from './escalation.js';
+import { execFileSync } from 'node:child_process';
 
 export const STATUSES = ['todo', 'in-progress', 'review', 'done', 'blocked'];
 const ID_RE = /^[A-Za-z0-9-]{1,64}$/;
@@ -108,7 +110,7 @@ export function countFoldIn(root, id, { foldInRounds, reset = false }) {
 
 // Counts one more unresolved round on an entry and applies the escalation ladder.
 // Only the lead calls this, so no agent has to remember the count.
-export function incrementRound(root, id, config) {
+export function incrementRound(root, id, config, { now = new Date() } = {}) {
   const board = readBoard(root);
   const entry = board.entries.find((e) => e.id === id);
   if (!entry) throw new Error(`No board entry ${id}`);
@@ -126,10 +128,29 @@ export function incrementRound(root, id, config) {
       `- owner: ${entry.owner}`,
       `- action: ${next.action}`,
       `- model: ${next.model}`,
-      `- date: ${new Date().toISOString()}`,
+      `- date: ${localStamp(now)}`,
       '',
     ].join('\n');
     fs.writeFileSync(path.join(dir, `${entry.id}-r${entry.rounds}.md`), text);
   }
   return { entry, next };
+}
+
+// A commit recorded on the board must exist and be part of the history of HEAD, so a hash written from memory
+// (or from another branch) is caught. Read the hash from git first: git log -1 --format=%h
+export function verifyCommit(root, sha) {
+  if (!/^[0-9a-f]{7,40}$/i.test(sha ?? '')) throw new Error(`"${sha}" is not a commit sha (7-40 hex characters). Read it from git: git log -1 --format=%h`);
+  const git = (...args) => execFileSync('git', args, { cwd: root, stdio: ['ignore', 'pipe', 'pipe'], encoding: 'utf8' });
+  try {
+    git('rev-parse', '--verify', '--quiet', `${sha}^{commit}`);
+  } catch (e) {
+    const msg = String(e.stderr || '').trim();
+    if (/not a git repository/i.test(msg)) throw new Error(`Cannot verify commit ${sha}: ${root} is not a git repository.`);
+    throw new Error(`Commit ${sha} does not exist in this repository (not a commit here). Read it from git: git log -1 --format=%h`);
+  }
+  try {
+    git('merge-base', '--is-ancestor', sha, 'HEAD');
+  } catch {
+    throw new Error(`Commit ${sha} is not reachable from HEAD. Read the current hash from git: git log -1 --format=%h`);
+  }
 }

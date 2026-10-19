@@ -3,13 +3,14 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { runCli, need, UsageError } from './lib/cli.js';
-import { readBoard, addEntry, updateEntry, setPhase, incrementRound, rotationDue, markRotated, countFoldIn } from './lib/board.js';
+import { readBoard, addEntry, updateEntry, setPhase, incrementRound, verifyCommit, rotationDue, markRotated, countFoldIn } from './lib/board.js';
 import { loadConfig, validateConfig } from './lib/config.js';
 
 const usage = `Usage:
   board.js show
   board.js add --title <text> --owner <role> --model <haiku|sonnet|opus> [--id <id>]
   board.js update <id> [--status <todo|in-progress|review|done|blocked>] [--owner <role>] [--model <m>] [--commit <sha>] [--handoff <path>]
+                                         --commit checks that the sha exists and is reachable from HEAD; read it first: git log -1 --format=%h
   board.js round <id>                    count one unresolved round; prints {entry, next} (next.action: retry|raise-model|to-lead|to-owner)
   board.js foldin <id> [--reset]         before each spec fold-in round: prints action fold-in (rounds up to foldInRounds) or batch; --reset starts a new review cycle
   board.js phase <n>
@@ -28,6 +29,7 @@ const commands = {
     const patch = {};
     for (const k of ['status', 'owner', 'model', 'handoff']) if (v[k] !== undefined) patch[k] = v[k];
     if (v.commit !== undefined) {
+      verifyCommit(root, v.commit);
       const entry = readBoard(root).entries.find((e) => e.id === id);
       patch.commits = [...(entry?.commits ?? []), v.commit];
     }
