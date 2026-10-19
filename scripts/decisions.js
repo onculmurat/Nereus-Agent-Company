@@ -1,13 +1,16 @@
 #!/usr/bin/env node
-// Decision log CLI (lead only): show | open | ask | decide | record.
+// Decision log CLI (lead only): show | open | ask | flush | decide | record.
 import { runCli, need, UsageError } from './lib/cli.js';
-import { readDecisions, addQuestion, decide, recordOutcome, threadFromText } from './lib/decisions.js';
+import { readDecisions, addQuestion, flushQuestions, decide, recordOutcome, threadFromText } from './lib/decisions.js';
 import { isValidThread } from './lib/mailbox.js';
 
 const usage = `Usage:
   decisions.js show
   decisions.js open                      open questions, blocking first
   decisions.js ask --title <t> --source <s> --status <s> --impact <i> --blocking <yes|no> --thread <id>
+                                         [--defer] [--task <id>] [--options "a|b"] [--recommend <option>]
+                                         --defer: not blocking, asked later in a batch; board.js refuses done for the --task until flushed
+  decisions.js flush [--task <id>]       prints deferred questions as JSON groups of at most 4 (one AskUserQuestion call each), marks them open
   decisions.js decide <Q-id> --answer <text> [--link <path or url>]
   decisions.js record --outcome <text> [--thread <id>] [--title <t>] [--link <path or url>]
                                          an outcome without a question; the thread defaults to one made from the title
@@ -17,7 +20,7 @@ const usage = `Usage:
 runCli(usage, {
   title: { type: 'string' }, source: { type: 'string' }, status: { type: 'string' }, impact: { type: 'string' },
   blocking: { type: 'string' }, thread: { type: 'string' }, answer: { type: 'string' }, link: { type: 'string' },
-  outcome: { type: 'string' },
+  outcome: { type: 'string' }, defer: { type: 'boolean' }, task: { type: 'string' }, options: { type: 'string' }, recommend: { type: 'string' },
 }, ({ values: v, positionals: [cmd, id], root }) => {
   switch (cmd) {
     case 'show':
@@ -28,6 +31,8 @@ runCli(usage, {
       need(v, 'title', 'source', 'status', 'impact', 'blocking', 'thread');
       if (!['yes', 'no'].includes(v.blocking)) throw new UsageError('--blocking must be yes or no');
       return addQuestion(root, v);
+    case 'flush':
+      return flushQuestions(root, { task: v.task });
     case 'decide':
       if (!id) throw new UsageError('Missing question id');
       need(v, 'answer');

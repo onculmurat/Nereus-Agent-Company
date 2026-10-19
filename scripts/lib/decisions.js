@@ -31,13 +31,46 @@ function writeDecisions(root, { open, decided }) {
   fs.writeFileSync(file, parts.join('\n\n') + '\n');
 }
 
-export function addQuestion(root, { title, source, status, impact, blocking, thread }) {
+// defer: the question waits (state deferred) until flushQuestions hands it to the owner; task and options are optional.
+export function addQuestion(root, { title, source, status, impact, blocking, thread, defer, task, options, recommend }) {
   const all = readDecisions(root);
   const id = nextId('Q', [...all.open.map((x) => x.id), ...all.decided.map((x) => x.question)]);
-  const q = { id, title, source, status, impact, blocking, thread };
+  const q = { id, title, source, status, impact, blocking, thread, ...(defer ? { state: 'deferred' } : {}), ...(task ? { task } : {}), ...(options ? { options } : {}), ...(recommend ? { recommend } : {}) };
   all.open.push(q);
   writeDecisions(root, all);
   return q;
+}
+
+export const deferredFor = (root, task) => readDecisions(root).open.filter((q) => q.state === 'deferred' && q.task === task);
+
+const GROUP = 4;
+const askText = (q) => `Source: ${q.source}
+Status: ${q.status}
+Impact: ${q.impact}
+
+${q.title}`;
+function askShape(q) {
+  const labels = (q.options ?? '').split('|').map((s) => s.trim()).filter(Boolean);
+  const rec = labels.find((l) => l === q.recommend);
+  const ordered = rec ? [rec, ...labels.filter((l) => l !== rec)] : labels;
+  return {
+    id: q.id,
+    question: askText(q),
+    header: q.title.slice(0, 12),
+    options: ordered.map((label) => ({ label: label === rec ? `${label} (Recommended)` : label, description: '' })),
+    multiSelect: false,
+  };
+}
+
+// Marks deferred questions open (all, or one task's) and returns them in groups of at most 4, one AskUserQuestion call each.
+export function flushQuestions(root, { task } = {}) {
+  const all = readDecisions(root);
+  const flushed = all.open.filter((q) => q.state === 'deferred' && (task === undefined || q.task === task));
+  for (const q of flushed) delete q.state;
+  if (flushed.length) writeDecisions(root, all);
+  const groups = [];
+  for (let i = 0; i < flushed.length; i += GROUP) groups.push({ questions: flushed.slice(i, i + GROUP).map(askShape) });
+  return groups;
 }
 
 export function decide(root, questionId, { answer, link = '', now = new Date() }) {

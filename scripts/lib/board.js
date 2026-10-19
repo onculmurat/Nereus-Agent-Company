@@ -6,7 +6,7 @@ import { teamPaths } from './paths.js';
 import { parseEntries, formatEntry, toLines, nextId } from './sections.js';
 import { nextAction } from './escalation.js';
 import { execFileSync } from 'node:child_process';
-import { readDecisions } from './decisions.js';
+import { readDecisions, deferredFor } from './decisions.js';
 
 export const STATUSES = ['todo', 'in-progress', 'review', 'done', 'blocked'];
 const ID_RE = /^[A-Za-z0-9-]{1,64}$/;
@@ -84,6 +84,14 @@ export function addEntry(root, { id, title, owner, model, code }) {
   return entry;
 }
 
+// A task is not done while it has questions the owner has not been given yet.
+function checkDone(root, entry) {
+  const deferred = deferredFor(root, entry.id);
+  if (deferred.length) {
+    throw new Error(`${entry.id} has ${deferred.length} deferred question(s) (${deferred.map((q) => q.id).join(', ')}). Ask them first: run decisions.js flush --task ${entry.id} and put the groups to the owner (one AskUserQuestion call per group).`);
+  }
+}
+
 export function updateEntry(root, id, patch) {
   if (patch.status !== undefined && !STATUSES.includes(patch.status)) {
     throw new Error(`Invalid status "${patch.status}" (allowed: ${STATUSES.join(', ')})`);
@@ -93,6 +101,7 @@ export function updateEntry(root, id, patch) {
   if (!entry) throw new Error(`No board entry ${id}`);
   checkOwner(board, patch.owner);
   checkCodeOwner(patch.owner ?? entry.owner, patch.code ?? entry.code);
+  if (patch.status === 'done') checkDone(root, entry);
   if (patch.status === 'done' && entry.status !== 'done') board.doneSinceRotation = (board.doneSinceRotation ?? 0) + 1;
   Object.assign(entry, patch);
   if (entry.code !== 'no') delete entry.code;
