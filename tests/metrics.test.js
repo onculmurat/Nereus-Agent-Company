@@ -71,7 +71,7 @@ test('metric rows: one per role, task, model and session with calls, tokens, dis
   const rev = find('code-reviewer', 's1');
   assert.equal(rev.packed, 1, 'a hand-off path with backslashes counts as packed');
   assert.equal(rev.overBudget, 0);
-  assert.equal(rev.task, 'unassigned');
+  assert.equal(rev.task, 'T-001', 'a hand-off named after a task gives the task');
   const be2 = find('backend-developer', 's2');
   assert.equal(be2.packed, 0);
   assert.equal(be2.dispatches, 1);

@@ -27,17 +27,40 @@ function knownRoles() {
   }
 }
 
-// The task id from the first pack path in a dispatch prompt: team/work/packs/<id>-<role>[-r<n>].md.
-// A dispatch prompt names a pack or a hand-off (either slash form) when it points the role at prepared context.
-export const namesPack = (text) => /team[\\/]+work[\\/]+(packs|handoffs)[\\/]/.test(text ?? '');
+// A dispatch is "packed" when its prompt names prepared context: a file under team/work/packs/, or the hand-off of
+// the task it works on (team/work/handoffs/<task id>.md). A hand-off of another task does not count.
+export function namesPack(text, task) {
+  const t = text ?? '';
+  if (/team[\\/]+work[\\/]+packs[\\/]/.test(t)) return true;
+  if (!task || task === 'unassigned') return false;
+  const escaped = task.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp(`team[\\\\/]+work[\\\\/]+handoffs[\\\\/]+${escaped}\\.md`, 'i').test(t);
+}
 
+const PACK_RE = /team[\\/]+work[\\/]+packs[\\/]+([^\s"'`<>|*?\\/]+?)\.md/;
+const TASK_FILE_RE = /team[\\/]+work[\\/]+tasks[\\/]+([^\s"'`<>|*?\\/]+?)\.md/;
+const HANDOFF_RE = /team[\\/]+work[\\/]+handoffs[\\/]+([^\s"'`<>|*?\\/]+?)\.md/;
+const TASK_ID = /^[A-Za-z]+-\d+[A-Za-z]*$/;
+
+// The task a dispatch prompt works on, in order: the pack path (team/work/packs/<id>-<role>[-r<n>].md), a task file
+// (team/work/tasks/<id>.md), a hand-off named after a task (team/work/handoffs/<id>.md), the first task id in the text
+// (T-<digits><letter?>, normalised to a lowercase suffix), else "unassigned".
 export function taskFromPrompt(text) {
-  const m = /team[\\/]+work[\\/]+packs[\\/]+([^\s"'`<>|*?\\/]+?)\.md/.exec(text ?? '');
-  if (!m) return 'unassigned';
-  const name = m[1].replace(/-r\d+$/, '');
-  const role = knownRoles().filter((r) => name.endsWith(`-${r}`)).sort((a, b) => b.length - a.length)[0];
-  if (role) return name.slice(0, -(role.length + 1)) || 'unassigned';
-  return /^([A-Za-z]+-\d+[A-Za-z]*)/.exec(name)?.[1] ?? 'unassigned';
+  const t = text ?? '';
+  const pack = PACK_RE.exec(t);
+  if (pack) {
+    const name = pack[1].replace(/-r\d+$/, '');
+    const role = knownRoles().filter((r) => name.endsWith(`-${r}`)).sort((a, b) => b.length - a.length)[0];
+    if (role) return name.slice(0, -(role.length + 1)) || 'unassigned';
+    const id = /^([A-Za-z]+-\d+[A-Za-z]*)/.exec(name)?.[1];
+    if (id) return id;
+  }
+  const task = TASK_FILE_RE.exec(t)?.[1];
+  if (task) return task;
+  const handoff = HANDOFF_RE.exec(t)?.[1];
+  if (handoff && TASK_ID.test(handoff)) return handoff;
+  const loose = /\bT-(\d+)([a-z]?)\b/i.exec(t);
+  return loose ? `T-${loose[1]}${loose[2].toLowerCase()}` : 'unassigned';
 }
 
 function readLines(file) {
@@ -132,7 +155,7 @@ function collect(dirs, since, until, session) {
           const first = records.find((r) => r?.type === 'user');
           const prompt = textOf(first?.message?.content);
           const task = taskFromPrompt(prompt);
-          const packed = namesPack(prompt);
+          const packed = namesPack(prompt, task);
           const role = roleOf(meta.agentType);
           for (const m of messagesOf(records, since, until)) {
             items.push({ ...m, role, task, packed, session: e.name, agentId: `${e.name}/${base.slice('agent-'.length)}`, shortId: base.slice('agent-'.length), description: meta.description ?? '' });
