@@ -22,4 +22,6 @@ It prints `{ entry, next }`. Act on `next.action`:
 
 Thresholds come from `escalation` in the resolved rules (defaults: 2 model rounds, 2 authority rounds, 1 lead round). Every action other than `retry` is recorded in `team/work/escalations/`.
 
+When `next.action` is `to-lead` or `to-owner`, also record a lesson: `node "<scripts>/lessons.js" add --trigger "<the escalation>" --what "<what went wrong>" --rule "<the rule that would have prevented it>" --task <id>`. A lesson is a proposal; the owner decides at the phase report which become NAC rules.
+
 A role may report itself stuck, or a reviewer may find it stuck; both count as a round.

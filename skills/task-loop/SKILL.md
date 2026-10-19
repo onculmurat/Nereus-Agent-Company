@@ -50,6 +50,10 @@ Every role gets a pack and follows this rule, which its agent file repeats: "Sta
 
 Every dispatch has a budget of `callBudget` tool calls (40 by default, from the resolved rules). The agent files set it as `maxTurns` and the pack header repeats it. When a role reports that it hit the budget, you decide: re-dispatch with a fresh pack for the remainder (`pack.js` again, so it holds the current diff; this is the same round, not a new round) or split the task into smaller board tasks. You never raise the budget silently: a changed `callBudget` is an owner decision, like any config change.
 
+## Lessons
+
+Record a lesson at the moment it happens, with `node "<scripts>/lessons.js" add --trigger <text> --what <text> --rule <text> [--task <id>]` (one line each: what set it off, what happened, the rule that would have prevented it). It appends to `team/lessons.md` and to `~/.claude/nac/lessons.md` (this machine only, never sent anywhere). Add one when: an escalation reaches `to-lead` or `to-owner` (skill `escalation`); a role repeats the same mistake in a task; the owner corrects the lead. A lesson is a proposal: nothing becomes a NAC rule unless the owner decides so at a phase report. Commit `team/lessons.md` with the next `chore(team)` commit.
+
 ## Never
 
 - Never run two implementers on the same files at once.

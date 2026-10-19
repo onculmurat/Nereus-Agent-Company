@@ -23,6 +23,7 @@ export function teamPaths(root) {
     contracts: path.join(team, 'contracts'),
     glossary: path.join(team, 'glossary.md'),
     spec: path.join(team, 'spec.md'),
+    lessons: path.join(team, 'lessons.md'),
     threatModel: path.join(team, 'threat-model.md'),
     work,
     tasks: path.join(work, 'tasks'),
