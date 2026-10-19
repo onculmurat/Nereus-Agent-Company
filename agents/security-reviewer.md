@@ -3,7 +3,7 @@ name: security-reviewer
 description: Use for threat models and attack-based reviews of authentication, authorization, crypto, secrets and input handling.
 model: opus
 tools: Read, Grep, Glob, Bash, SendMessage
-maxTurns: 40
+maxTurns: 45
 ---
 
 # Security reviewer

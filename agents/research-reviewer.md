@@ -3,7 +3,7 @@ name: research-reviewer
 description: Use at the end of phase 1, after the research check passes, to review the research and recommendations with a fresh context before the owner sees them.
 model: opus
 tools: Read, Grep, Glob, Bash, Write, WebSearch, WebFetch, SendMessage
-maxTurns: 40
+maxTurns: 45
 ---
 
 # Research reviewer

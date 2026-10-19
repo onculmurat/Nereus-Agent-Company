@@ -56,12 +56,16 @@ test('callBudget is 40 in the defaults and validated as a positive integer', () 
   for (const bad of [0, -1, 1.5, '40']) assert.throws(() => validateConfig({ ...defaults, callBudget: bad }), /callBudget/);
 });
 
-test('every agent file sets maxTurns to the call budget', () => {
+test('every agent file sets maxTurns to the call budget plus 5 calls to write the report', () => {
   assert.equal(agentFiles.length, 14);
   for (const f of agentFiles) {
     const { data } = parseFrontmatter(read('agents', f));
-    assert.equal(data.maxTurns, String(defaults.callBudget), `${f} maxTurns`);
+    assert.equal(data.maxTurns, String(defaults.callBudget + 5), `${f} maxTurns`);
   }
+});
+
+test('task-loop explains the 5-call margin between the budget and maxTurns', () => {
+  assert.match(read('skills', 'task-loop', 'SKILL.md'), /`maxTurns` is the budget plus 5/);
 });
 
 test('the pack header states the budget from the config', () => {

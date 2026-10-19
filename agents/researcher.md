@@ -3,7 +3,7 @@ name: researcher
 description: Use when the project needs sourced research on competitors, technology options, known attacks or licenses before design starts.
 model: opus
 tools: Read, Grep, Glob, Bash, Edit, Write, WebSearch, WebFetch, SendMessage
-maxTurns: 40
+maxTurns: 45
 ---
 
 # Researcher
