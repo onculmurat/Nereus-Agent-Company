@@ -6,6 +6,7 @@ import path from 'node:path';
 import { runHook, pluginRoot } from '../scripts/lib/hookio.js';
 import { loadConfig, validateConfig } from '../scripts/lib/config.js';
 import { buildResumeSummary } from '../scripts/lib/summary.js';
+import { hasGuardBlock } from '../scripts/lib/setup.js';
 
 const contextOutput = (additionalContext) => ({ output: { hookSpecificOutput: { hookEventName: 'SessionStart', additionalContext } } });
 
@@ -30,8 +31,10 @@ runHook(async (payload, root) => {
   }
   const lead = fs.readFileSync(path.join(pluginRoot, 'prompts', 'lead.md'), 'utf8');
   const rules = { rules: config.rules, models: shippedModels(config.models), escalation: config.escalation, maxActiveRoles: config.maxActiveRoles };
+  const guardHint = hasGuardBlock(root) ? '' : '\nRun once: setup.js --guard-block (CLAUDE.md has no NAC guard).';
   const additionalContext = [
     lead.trim(),
+    `NAC-LEAD-ACTIVE${guardHint}`,
     `## Resolved rules\n\nPlugin scripts: ${path.join(pluginRoot, 'scripts')}\n\n\`\`\`json\n${JSON.stringify(rules, null, 1)}\n\`\`\``,
     `## Resume (session ${payload.source ?? 'startup'})\n\n${buildResumeSummary(root)}`,
   ].join('\n\n');
