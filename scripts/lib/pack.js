@@ -8,6 +8,7 @@ import { teamPaths } from './paths.js';
 import { loadConfig } from './config.js';
 import { toLines } from './sections.js';
 import { readBoard } from './board.js';
+import { parseRefs } from './refs.js';
 
 const ID_RE = /^[A-Za-z0-9-]{1,64}$/;
 const ROLE_RE = /^[a-z][a-z0-9-]{0,63}$/;
@@ -23,33 +24,8 @@ const budgetLine = (root) => {
 const hardeningNote = (root, id) => (readBoard(root).entries.find((e) => e.id === id)?.hardening === 'yes'
   ? '\nHardening task: the review scope is its changed lines and their direct impact sites only; do not re-scan the module. A blocker is fixed inside this task (it counts against the round cap); every other finding is recorded with `findings.js add --origin hardening` and waits for the phase end.'
   : '');
-const uniq = (list) => [...new Set(list)];
 
-// References in a brief header such as:
-//   Spec: **5.4** (note), **2.3 adim 2**, **3**; mcp-tools 1.3; threat-model T5, N1.
-//   Kararlar: D-086, D-087
-export function parseRefs(text) {
-  const lines = toLines(text);
-  const specSections = [];
-  const contracts = [];
-  const threats = [];
-  for (const line of lines) {
-    if (/\bspec\b|contract/i.test(line)) {
-      for (const m of line.matchAll(/\*\*(\d+(?:\.\d+)*)\b[^*]*\*\*/g)) specSections.push(m[1]);
-      for (const m of line.matchAll(/(?<![\w-])([a-z]+(?:-[a-z]+)+)\s+(\d+(?:\.\d+)*)\b/g)) {
-        if (m[1] !== 'threat-model') contracts.push(`${m[1]} ${m[2]}`);
-      }
-    }
-    const t = /threat-model\s+([^;\n]*)/i.exec(line);
-    if (t) for (const m of t[1].matchAll(/\b([A-Z]\d{1,3})\b/g)) threats.push(m[1]);
-  }
-  return {
-    specSections: uniq(specSections),
-    contracts: uniq(contracts).map((c) => { const [name, section] = c.split(' '); return { name, section }; }),
-    threats: uniq(threats),
-    decisions: uniq([...text.matchAll(/\bD-\d{3}\b/g)].map((m) => m[0])),
-  };
-}
+export { parseRefs };
 
 // Heading lines outside code fences: [{ index, level, title }].
 function headings(lines) {

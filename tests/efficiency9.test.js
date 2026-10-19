@@ -189,3 +189,45 @@ test('A3 the question-protocol skill requires the finding class on new-task ques
   assert.match(t, /--finding-class/);
   assert.match(t, /theoretical/);
 });
+
+// ---- A4: security tag from threat-model references ----
+
+const briefFor = (root, id, text) => {
+  fs.mkdirSync(teamPaths(root).tasks, { recursive: true });
+  fs.writeFileSync(path.join(teamPaths(root).tasks, `${id}.md`), text);
+};
+const addTask = (root, id, ...extra) => board(root, 'add', '--title', 't', '--owner', 'backend-developer', '--model', 'sonnet', '--id', id, ...extra);
+
+test('A4 starting a task whose brief cites threat-model IDs tags it security: yes', () => {
+  const root = makeProject();
+  addTask(root, 'T-021');
+  briefFor(root, 'T-021', '# T-021\n\nSpec: **5.4**; threat-model T12, M2, M6.\n');
+  const r = board(root, 'update', 'T-021', '--status', 'in-progress');
+  assert.equal(r.status, 0, r.err);
+  assert.equal(r.out.security, 'yes');
+  assert.match(r.out.securityNote, /T12, M2, M6/);
+  assert.equal(readBoard(root).entries[0].security, 'yes');
+});
+
+test('A4 add tags at once when the brief already exists', () => {
+  const root = makeProject();
+  briefFor(root, 'T-022', 'Spec: **1**; threat-model T5.\n');
+  assert.equal(addTask(root, 'T-022').out.security, 'yes');
+});
+
+test('A4 a brief without threat-model IDs is left alone; an explicit tag is kept', () => {
+  const root = makeProject();
+  addTask(root, 'T-001');
+  briefFor(root, 'T-001', '# T-001\n\nNo threats here, mentions T12 in prose only.\n');
+  assert.equal(board(root, 'update', 'T-001', '--status', 'in-progress').out.security, undefined);
+  addTask(root, 'T-002', '--security', 'contract');
+  briefFor(root, 'T-002', 'threat-model T5\n');
+  assert.equal(board(root, 'update', 'T-002', '--status', 'in-progress').out.security, 'contract');
+});
+
+test('A4 --security no in the same call is respected', () => {
+  const root = makeProject();
+  addTask(root, 'T-003');
+  briefFor(root, 'T-003', 'threat-model T5\n');
+  assert.equal(board(root, 'update', 'T-003', '--status', 'in-progress', '--security', 'no').out.security, undefined);
+});

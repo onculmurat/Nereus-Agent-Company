@@ -8,6 +8,7 @@ import { nextAction } from './escalation.js';
 import { execFileSync } from 'node:child_process';
 import { readDecisions, deferredFor } from './decisions.js';
 import { listFindings } from './findings.js';
+import { parseRefs } from './refs.js';
 
 export const STATUSES = ['todo', 'in-progress', 'review', 'done', 'blocked'];
 const ID_RE = /^[A-Za-z0-9-]{1,64}$/;
@@ -110,9 +111,26 @@ export function addEntry(root, { id, title, owner, model, code, security, module
   if (board.entries.some((e) => e.id === entryId)) throw new Error(`Board entry ${entryId} already exists`);
   const hard = hardening === 'yes' ? planHardening(root, board, { module, decision }) : {};
   const entry = { id: entryId, title, owner, status: 'todo', rounds: 0, model, commits: [], handoff: '', ...(code === 'no' ? { code: 'no' } : {}), ...(SECURITY_TAGS.includes(security) ? { security } : {}), ...(module ? { module: checkModuleName(module) } : {}), ...hard };
+  const note = autoTagSecurity(root, entry, { explicit: security });
   board.entries.push(entry);
   writeBoard(root, board);
-  return entry;
+  return note ? { ...entry, securityNote: note } : entry;
+}
+
+// A brief that cites threat-model IDs belongs to a security review: the task is tagged security: yes unless it has a tag.
+// Returns a note for the lead when it tagged the entry.
+function autoTagSecurity(root, entry, { explicit } = {}) {
+  if (entry.security || explicit !== undefined) return undefined;
+  let brief;
+  try {
+    brief = fs.readFileSync(path.join(teamPaths(root).tasks, `${entry.id}.md`), 'utf8');
+  } catch {
+    return undefined;
+  }
+  const { threats } = parseRefs(brief);
+  if (!threats.length) return undefined;
+  entry.security = 'yes';
+  return `Tagged security: yes because the brief cites threat-model ${threats.join(', ')}. Use board.js update ${entry.id} --security contract if it changes a security contract.`;
 }
 
 // A task is not done while it has questions the owner has not been given yet, or while a security: contract task
@@ -140,11 +158,12 @@ export function updateEntry(root, id, patch) {
   if (patch.status === 'done' && entry.status !== 'done') board.doneSinceRotation = (board.doneSinceRotation ?? 0) + 1;
   if (patch.module !== undefined && patch.module !== '') checkModuleName(patch.module);
   Object.assign(entry, patch);
+  const note = patch.status === 'in-progress' ? autoTagSecurity(root, entry, { explicit: patch.security }) : undefined;
   if (!entry.module) delete entry.module;
   if (entry.code !== 'no') delete entry.code;
   if (!SECURITY_TAGS.includes(entry.security)) delete entry.security;
   writeBoard(root, board);
-  return entry;
+  return note ? { ...entry, securityNote: note } : entry;
 }
 
 const MODULE_RE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;

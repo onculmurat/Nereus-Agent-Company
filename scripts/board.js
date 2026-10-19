@@ -14,6 +14,7 @@ const usage = `Usage:
                                          unless --decision names a decision recorded in decisions.md
                                          --code no: a task that produces no code (spike, research, docs only); gate.js --task checks its report file
   board.js update <id> [--status <todo|in-progress|review|done|blocked>] [--owner <role>] [--model <m>] [--commit <sha>] [--handoff <path>] [--code <yes|no>] [--security <yes|no|contract>] [--module <m>]
+                                         a brief that cites threat-model IDs ("threat-model T12, M2") tags the task security: yes when it is added or started (--security no or an existing tag wins)
                                          --security yes: reviewed per module by security-reviewer; contract (task changes a security contract): done is refused until a pass is recorded (review)
                                          --commit checks that the sha exists and is reachable from HEAD; read it first: git log -1 --format=%h
   board.js review <id> --role <role> --verdict <pass|fail>
