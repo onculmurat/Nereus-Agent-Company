@@ -50,6 +50,7 @@ export function validateConfig(cfg) {
     'escalation.leadRounds': cfg.escalation?.leadRounds,
     maxActiveRoles: cfg.maxActiveRoles,
     callBudget: cfg.callBudget,
+    packMaxChars: cfg.packMaxChars,
     foldInRounds: cfg.foldInRounds,
   };
   for (const [key, v] of Object.entries(positive)) {

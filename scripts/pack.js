@@ -4,18 +4,26 @@ import { runCli, need, UsageError } from './lib/cli.js';
 import { writePack } from './lib/pack.js';
 
 const usage = `Usage:
-  pack.js <task-id> --role <role> [--base <sha>] [--gate <file>]
+  pack.js <task-id> --role <role> [--base <sha>] [--gate <file>] [--paths <p1,p2>] [--allow-large]
   pack.js <task-id> --role <role> --round <n> --base <sha> (--findings <file> | --gate <file>)
                                          brief + the spec, contract, threat and decision text it names;
                                          --base adds git diff <sha>, --gate adds the tail of a gate output file
                                          delta (fix rounds, re-reviews): the findings or gate output, the diff since
                                          the previous attempt (<sha>) and the acceptance criteria only
+                                         the diff never holds team/; --paths limits it to those paths (comma separated).
+                                         A pack over packMaxChars (default 60000) is written but exits 3 with a warning
+                                         on stderr: narrow it with --paths or a later --base; --allow-large accepts it.
   (accepts --project <dir>; default: nearest directory with team/config.json)
 `;
 
-runCli(usage, { role: { type: 'string' }, base: { type: 'string' }, gate: { type: 'string' }, round: { type: 'string' }, findings: { type: 'string' } }, ({ values: v, positionals: [id], root }) => {
+runCli(usage, { role: { type: 'string' }, base: { type: 'string' }, gate: { type: 'string' }, round: { type: 'string' }, findings: { type: 'string' }, paths: { type: 'string' }, 'allow-large': { type: 'boolean' } }, ({ values: v, positionals: [id], root }) => {
   if (!id) throw new UsageError('Missing task id');
   need(v, 'role');
-  const { path: file, chars, notFound } = writePack(root, { id, role: v.role, base: v.base, gate: v.gate, round: v.round === undefined ? undefined : Number(v.round), findings: v.findings });
+  const { path: file, chars, notFound, limit, tooLarge } = writePack(root, { id, role: v.role, base: v.base, gate: v.gate, round: v.round === undefined ? undefined : Number(v.round), findings: v.findings, paths: v.paths });
+  if (tooLarge && !v['allow-large']) {
+    process.stderr.write(`WARNING: pack is ${chars} characters, over the limit of ${limit} (packMaxChars). Do not dispatch it as is: narrow the diff with --paths <code paths> or a later --base, then build it again. --allow-large accepts it deliberately.
+`);
+    process.exitCode = 3;
+  }
   return { path: file, chars, notFound };
 });

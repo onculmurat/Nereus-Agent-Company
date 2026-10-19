@@ -13,6 +13,7 @@
   "escalation": { "modelRounds": 2, "authorityRounds": 2, "leadRounds": 1 },
   "maxActiveRoles": 5,
   "callBudget": 40,
+  "packMaxChars": 60000,
   "foldInRounds": 2,
   "cleanup": { "closedThreadMaxAgeDays": 30, "mode": "archive" },
   "documents": { "memory": true, "plan": true, "articleDev": true, "setupRequirements": true },
