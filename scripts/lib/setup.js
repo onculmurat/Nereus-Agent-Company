@@ -36,7 +36,7 @@ function readJsonOrNull(file) {
   }
 }
 
-function planSettings(projectRoot) {
+function planSettings(projectRoot, compaction = {}) {
   const file = path.join(projectRoot, '.claude', 'settings.json');
   const before = readJsonOrNull(file);
   const after = structuredClone(before ?? {});
@@ -51,7 +51,35 @@ function planSettings(projectRoot) {
   want(after.env, TEAMS_ENV, '1', `env.${TEAMS_ENV}`);
   after.enabledPlugins ??= {};
   want(after.enabledPlugins, PLUGIN_KEY, true, `enabledPlugins.${PLUGIN_KEY}`);
+  // Conditional compaction: an existing value of the owner is kept, never a conflict.
+  if (after.autoCompactWindow === undefined) after.autoCompactWindow = compaction.autoCompactWindow ?? 200000;
+  if (after.idleCompaction === undefined) after.idleCompaction = false;
   return { path: file, before, after, conflicts };
+}
+
+// Only the two compaction keys, for projects set up earlier (the owner runs it; the auto-mode classifier blocks the lead).
+export function planCompaction(projectRoot, { config } = {}) {
+  const plan = planSettings(path.resolve(projectRoot), config?.compaction);
+  const before = plan.before ?? {};
+  const after = structuredClone(before);
+  after.autoCompactWindow ??= plan.after.autoCompactWindow;
+  after.idleCompaction ??= plan.after.idleCompaction;
+  return { path: plan.path, before: plan.before, after };
+}
+
+export function hasCompactionSettings(projectRoot) {
+  try {
+    return readJsonOrNull(path.join(projectRoot, '.claude', 'settings.json'))?.autoCompactWindow !== undefined;
+  } catch {
+    return true;
+  }
+}
+
+export function applyCompaction(plan) {
+  if (JSON.stringify(plan.before) === JSON.stringify(plan.after)) return;
+  fs.mkdirSync(path.dirname(plan.path), { recursive: true });
+  fs.writeFileSync(plan.path, `${JSON.stringify(plan.after, null, 2)}
+`);
 }
 
 // The project CLAUDE.md block that still works when the plugin is not loaded and no hook runs.
@@ -109,7 +137,7 @@ export function planSetup(projectRoot, { pluginRoot, config }) {
   return {
     projectRoot: root,
     files,
-    settings: planSettings(root),
+    settings: planSettings(root, config.compaction),
     claudeMd: planClaudeMd(root, pluginRoot),
     // gitignoreLine: the line to write; gitignoreReplaces: the older whole-folder line it takes the place of.
     gitignoreLine: ignored && !old ? null : GITIGNORE_LINE,

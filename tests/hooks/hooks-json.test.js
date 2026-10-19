@@ -17,8 +17,8 @@ test('registers the research guard on every tool call', () => {
   assert.match(entry.hooks[0].command, /hooks\/research-guard\.js"$/);
 });
 
-test('registers the six events with quoted plugin-root commands', () => {
-  assert.deepEqual(Object.keys(hooksJson.hooks).sort(), ['PostToolUse', 'PreToolUse', 'SessionStart', 'Stop', 'TaskCompleted', 'TeammateIdle']);
+test('registers the seven events with quoted plugin-root commands', () => {
+  assert.deepEqual(Object.keys(hooksJson.hooks).sort(), ['PostToolUse', 'PreCompact', 'PreToolUse', 'SessionStart', 'Stop', 'TaskCompleted', 'TeammateIdle']);
   assert.equal(hooksJson.hooks.SessionStart[0].matcher, 'startup|resume|clear|compact');
   assert.equal(hooksJson.hooks.PostToolUse[0].matcher, 'SendMessage');
   for (const event of Object.keys(hooksJson.hooks)) {
