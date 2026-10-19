@@ -5,13 +5,16 @@ import os from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { runCli, UsageError } from './lib/cli.js';
 import { loadConfig } from './lib/config.js';
-import { planSetup, applySetup, planGlobalModelPointer, applyGlobalModelPointer, planClaudeMd, applyClaudeMd } from './lib/setup.js';
+import { planSetup, applySetup, planGlobalModelPointer, applyGlobalModelPointer, planClaudeMd, applyClaudeMd, GUARD_START, GUARD_END } from './lib/setup.js';
 
 const pluginRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const usage = `Usage:
   node setup.js [--project <dir>] --dry-run
   node setup.js [--project <dir>] --apply
   node setup.js [--project <dir>] --guard-block   writes only the NAC block into the project CLAUDE.md (projects set up earlier)
+  node setup.js [--project <dir>] --guard-block --dry-run   prints the block that would be written; writes nothing
+                                         The owner runs --guard-block, typed in the prompt as "! node <path>/scripts/setup.js --guard-block":
+                                         the auto-mode classifier blocks the lead from writing CLAUDE.md ("Self-Modification").
   node setup.js --global-model-pointer [--claude-md <file>]
   node setup.js --apply-global-model-pointer [--claude-md <file>]
 `;
@@ -51,6 +54,11 @@ runCli(
     }
     if (values['guard-block']) {
       const plan = planClaudeMd(path.resolve(values.project ?? process.cwd()), pluginRoot);
+      if (values['dry-run']) {
+        if (plan.before === plan.after) return `${plan.path} is already up to date; nothing would change.\n`;
+        const block = plan.after.slice(plan.after.indexOf(GUARD_START), plan.after.indexOf(GUARD_END) + GUARD_END.length);
+        return `${plan.before === null ? 'would create' : 'would update'} ${plan.path} with this block (nothing written):\n${block}\n`;
+      }
       applyClaudeMd(plan);
       return `Updated ${plan.path}\n`;
     }

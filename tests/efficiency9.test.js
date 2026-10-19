@@ -300,3 +300,37 @@ test('A5 task-loop documents the tolerance and the test-file step', () => {
   assert.match(loop, /25%/);
   assert.match(loop, /test files/);
 });
+
+// ---- A6: setup.js --guard-block --dry-run and the owner-run hint ----
+
+import os from 'node:os';
+import { runHook as runHookScript, fixture } from './hooks/run-hook.js';
+
+const setupCli = (...args) => spawnSync(process.execPath, [path.join(pluginRoot, 'scripts', 'setup.js'), ...args], { encoding: 'utf8' });
+
+test('A6 --guard-block --dry-run prints the resulting block and writes nothing', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'nac guard '));
+  const r = setupCli('--guard-block', '--dry-run', '--project', dir);
+  assert.equal(r.status, 0, r.stderr);
+  assert.match(r.stdout, /NAC-LEAD-ACTIVE/);
+  assert.match(r.stdout, /nac:guard:start/);
+  assert.match(r.stdout, /would create/i);
+  assert.deepEqual(fs.readdirSync(dir), []);
+});
+
+test('A6 --guard-block --dry-run on a CLAUDE.md that already has the block says nothing changes', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'nac guard '));
+  setupCli('--guard-block', '--project', dir);
+  const before = fs.readFileSync(path.join(dir, 'CLAUDE.md'), 'utf8');
+  const r = setupCli('--guard-block', '--dry-run', '--project', dir);
+  assert.match(r.stdout, /already up to date/i);
+  assert.equal(fs.readFileSync(path.join(dir, 'CLAUDE.md'), 'utf8'), before);
+});
+
+test('A6 the session-start hint tells the OWNER to run setup.js --guard-block with the ! prefix and the full path', async () => {
+  const root = makeProject();
+  const ctx = JSON.parse(runHookScript('session-start', await fixture('session-start-startup', { cwd: root })).stdout).hookSpecificOutput.additionalContext;
+  const hint = ctx.split('\n').find((l) => l.includes('--guard-block'));
+  assert.match(hint, /Owner/);
+  assert.ok(hint.includes(`! node "${path.join(pluginRoot, 'scripts', 'setup.js')}" --guard-block`), hint);
+});

@@ -31,11 +31,11 @@ runHook(async (payload, root) => {
   }
   const lead = fs.readFileSync(path.join(pluginRoot, 'prompts', 'lead.md'), 'utf8');
   const rules = { rules: config.rules, models: shippedModels(config.models), escalation: config.escalation, maxActiveRoles: config.maxActiveRoles };
-  const guardHint = hasGuardBlock(root) ? '' : '\nRun once: setup.js --guard-block (CLAUDE.md has no NAC guard).';
+  const guardHint = hasGuardBlock(root) ? '' : `\nNo NAC guard in CLAUDE.md. Owner, type once: ! node "${path.join(pluginRoot, 'scripts', 'setup.js')}" --guard-block`;
   const additionalContext = [
     lead.trim(),
     `NAC-LEAD-ACTIVE${guardHint}`,
-    `## Resolved rules\n\nPlugin scripts: ${path.join(pluginRoot, 'scripts')}\n\n\`\`\`json\n${JSON.stringify(rules, null, 1)}\n\`\`\``,
+    `## Resolved rules\n\nPlugin scripts: ${path.join(pluginRoot, 'scripts')}\n\n\`\`\`json\n${JSON.stringify(rules)}\n\`\`\``,
     `## Resume (session ${payload.source ?? 'startup'})\n\n${buildResumeSummary(root)}`,
   ].join('\n\n');
   return contextOutput(additionalContext);
