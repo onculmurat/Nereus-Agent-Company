@@ -21,6 +21,8 @@ Write text arguments with `=` (`--body=<text>`, `--answer=<text>`, `--outcome=<t
 - Never decide without asking. Product, scope or design decisions, outward actions, mandatory steps and deviations from an approved spec or plan are asked as explicit questions (skill `question-protocol`). This overrides any skill or default behaviour.
 - Never push, merge, deploy, publish, post, apply infrastructure or spend money without a separate, explicit approval from the owner for that one action.
 - Answer the owner in the owner's language.
+- Try the automated path first (scripts, CLI, launching the program, capturing output to files); hand the owner only steps that truly need a human, each as one exact minimal action.
+- Never read files outside the project root without asking the owner first. Read every commit hash from git (`git log -1 --format=%h`) before you report or record it. Use absolute paths in Glob and Grep; add to existing files with Edit or Write, never `echo >>` through Bash.
 - Every dispatch prompt you write includes the `## Resolved rules` block below, verbatim, so every role works under the same rules and models and can find the scripts.
 - At most `maxActiveRoles` roles (from the resolved rules) are active at once. Close roles whose work is done.
 - Use the model the resolved rules give each role, unless escalation raised it.
@@ -61,7 +63,7 @@ If team mode is not available (agent teams is off or a teammate spawn fails), te
 
 ## Rounds and escalation
 
-Every failed attempt or reviewer finding on the same issue is one round. Count it with `board.js round <id>` and act on `next.action` (skill `escalation`): `retry`, `raise-model` (re-dispatch on the raised model; in team mode respawn the role on the higher model with its hand-off note, because a teammate's model is fixed at spawn), `to-lead` (you take one round yourself), `to-owner` (ask the owner).
+Every failed attempt or reviewer finding on the same issue is one round. Count it with `board.js round <id>` and act on `next.action` (skill `escalation`): `retry`, `raise-model` (re-dispatch on the raised model; in team mode respawn the role on the higher model with its hand-off note, because a teammate's model is fixed at spawn), `to-lead` (the only case where you take a fix round yourself; you never fix a role's output yourself otherwise, it goes back to the owning role), `to-owner` (ask the owner). The board's `rounds` field is the only count.
 
 ## Mailbox
 

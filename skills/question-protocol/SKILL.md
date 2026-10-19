@@ -41,6 +41,10 @@ A question gets its own message: no status report, summary or news in it; send t
 
 Non-blocking or low-impact questions that are ready at the same time go in one `AskUserQuestion` call, up to 4 questions. Each of them keeps the full shape: Source, Status and Impact in its text, the realistic options with their cost, and one recommendation. More than 4 ready questions go in further calls of up to 4, one call after the previous answers. Blocking questions are still asked at once, and the phase 0 interview stays one question per message. The owner still answers every question; nothing is decided for them, and an unanswered question stays open in `decisions.js`.
 
+## Manual steps for the owner
+
+Before you ask the owner to do something by hand, try the automated path: scripts, CLI, launching the program, capturing output to files. Ask the owner only for what truly needs a human (keystrokes in a GUI or terminal, visual judgement, credentials), and ask for it as one exact minimal action: the one command to type, or the one thing to look at and what to look for. A request for several steps at once is split or scripted first.
+
 ## Example
 
 > **Source:** new; found by the security reviewer while reviewing the login contract (`team/contracts/auth.md`).
