@@ -9,7 +9,9 @@ const usage = `Usage:
   decisions.js show
   decisions.js open                      open questions, blocking first
   decisions.js ask --title <t> --source <s> --status <s> --impact <i> --blocking <yes|no> --thread <id>
-                                         --options "a|b" --recommend <option> [--defer] [--task <id>]
+                                         --options "a|b" --recommend <option> [--defer] [--task <id>] [--finding-class <observed|known|theoretical>]
+                                         --finding-class: required in spirit when the question proposes a new task; a theoretical-only proposal
+                                         cannot recommend "now" (recommend the phase end)
                                          --defer: not blocking, asked later in a batch; board.js refuses done for the --task until flushed
   decisions.js flush [--task <id>]       prints deferred questions as JSON groups of at most 4 (one AskUserQuestion call each), marks them open
   decisions.js decide <Q-id> --answer <text> [--link <path or url>]
@@ -42,6 +44,16 @@ function checkChoices({ options, recommend }) {
   if (!list.includes(recommend)) throw new UsageError('--recommend must be exactly one of the options');
 }
 
+// A question that proposes a new task states the class of the finding behind it. Proportionality: a proposal that rests
+// on a theoretical finding only is not urgent, so it cannot recommend doing it "now".
+function checkFindingClass({ 'finding-class': cls, recommend }) {
+  if (cls === undefined) return;
+  if (!['observed', 'known', 'theoretical'].includes(cls)) throw new UsageError('--finding-class must be observed, known or theoretical');
+  if (cls === 'theoretical' && /\bnow\b/i.test(recommend ?? '')) {
+    throw new UsageError('A proposal that rests on a theoretical finding only cannot recommend "now": recommend the phase end (findings.js add, deal with it in the hardening batch) or offer the owner "not at all". Only an observed or known finding justifies a task now.');
+  }
+}
+
 // One decision to record: it needs an outcome; the thread defaults to one made from the title.
 function normalize(item, i) {
   if (typeof item?.outcome !== 'string' || !item.outcome.trim()) throw new UsageError(`Decision ${i + 1} has no outcome`);
@@ -53,7 +65,7 @@ function normalize(item, i) {
 runCli(usage, {
   title: { type: 'string' }, source: { type: 'string' }, status: { type: 'string' }, impact: { type: 'string' },
   blocking: { type: 'string' }, thread: { type: 'string' }, answer: { type: 'string' }, link: { type: 'string' },
-  outcome: { type: 'string' }, file: { type: 'string' }, supersedes: { type: 'string' }, date: { type: 'string' }, defer: { type: 'boolean' }, task: { type: 'string' }, options: { type: 'string' }, recommend: { type: 'string' },
+  outcome: { type: 'string' }, file: { type: 'string' }, supersedes: { type: 'string' }, date: { type: 'string' }, defer: { type: 'boolean' }, task: { type: 'string' }, options: { type: 'string' }, recommend: { type: 'string' }, 'finding-class': { type: 'string' },
 }, ({ values: v, positionals: [cmd, id], root }) => {
   switch (cmd) {
     case 'show':
@@ -64,6 +76,7 @@ runCli(usage, {
       need(v, 'title', 'source', 'status', 'impact', 'blocking', 'thread');
       if (!['yes', 'no'].includes(v.blocking)) throw new UsageError('--blocking must be yes or no');
       checkChoices(v);
+      checkFindingClass(v);
       return addQuestion(root, v);
     case 'flush':
       return flushQuestions(root, { task: v.task });

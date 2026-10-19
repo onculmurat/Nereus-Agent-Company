@@ -152,3 +152,40 @@ test('A1 guidance lives in skills and agents: invariant brief, blocker rule, rev
   assert.match(read('agents', 'planner.md'), /violated invariant/);
   assert.match(read('agents', 'code-reviewer.md'), /changed lines and their direct impact sites only/);
 });
+
+// ---- A3: proportionality on new-task proposals ----
+
+const ask = (root, ...extra) => cli('decisions.js', root, 'ask', '--title', 'Add a hardening task?', '--source', 's', '--status', 'st', '--impact', 'i', '--blocking', 'no', '--thread', 'th', '--options', 'now|phase end', ...extra);
+
+test('A3 a theoretical-only proposal with a "now" recommendation is refused', () => {
+  const root = makeProject();
+  const r = ask(root, '--recommend', 'now', '--finding-class', 'theoretical');
+  assert.equal(r.status, 1);
+  assert.match(r.err, /theoretical/);
+  assert.match(r.err, /phase end/);
+  assert.equal(cli('decisions.js', root, 'open').out.length, 0);
+});
+
+test('A3 a theoretical proposal recommending the phase end is accepted and stores the class', () => {
+  const root = makeProject();
+  const r = ask(root, '--recommend', 'phase end', '--finding-class', 'theoretical');
+  assert.equal(r.status, 0, r.err);
+  assert.equal(r.out['finding-class'], 'theoretical');
+});
+
+test('A3 observed and known proposals may recommend now', () => {
+  const root = makeProject();
+  assert.equal(ask(root, '--recommend', 'now', '--finding-class', 'observed').status, 0);
+  assert.equal(ask(root, '--recommend', 'now', '--finding-class', 'known').status, 0);
+});
+
+test('A3 --finding-class must be observed, known or theoretical', () => {
+  const root = makeProject();
+  assert.equal(ask(root, '--recommend', 'now', '--finding-class', 'maybe').status, 1);
+});
+
+test('A3 the question-protocol skill requires the finding class on new-task questions', () => {
+  const t = read('skills', 'question-protocol', 'SKILL.md');
+  assert.match(t, /--finding-class/);
+  assert.match(t, /theoretical/);
+});

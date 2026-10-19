@@ -32,10 +32,10 @@ function writeDecisions(root, { open, decided }) {
 }
 
 // defer: the question waits (state deferred) until flushQuestions hands it to the owner; task and options are optional.
-export function addQuestion(root, { title, source, status, impact, blocking, thread, defer, task, options, recommend }) {
+export function addQuestion(root, { title, source, status, impact, blocking, thread, defer, task, options, recommend, 'finding-class': findingClass }) {
   const all = readDecisions(root);
   const id = nextId('Q', [...all.open.map((x) => x.id), ...all.decided.map((x) => x.question)]);
-  const q = { id, title, source, status, impact, blocking, thread, ...(defer ? { state: 'deferred' } : {}), ...(task ? { task } : {}), ...(options ? { options } : {}), ...(recommend ? { recommend } : {}) };
+  const q = { id, title, source, status, impact, blocking, thread, ...(defer ? { state: 'deferred' } : {}), ...(task ? { task } : {}), ...(options ? { options } : {}), ...(recommend ? { recommend } : {}), ...(findingClass ? { 'finding-class': findingClass } : {}) };
   all.open.push(q);
   writeDecisions(root, all);
   return q;
