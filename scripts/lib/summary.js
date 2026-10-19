@@ -5,6 +5,7 @@ import { readBoard } from './board.js';
 import { readDecisions } from './decisions.js';
 import { listInbox } from './mailbox.js';
 import { teamPaths } from './paths.js';
+import { buildCostReport } from './cost.js';
 
 function gitStatusOf(root) {
   try {
@@ -55,7 +56,19 @@ export function buildResumeSummary(root, { gitStatus } = {}) {
   return `${parts.join('\n\n')}\n`;
 }
 
-export function buildPhaseReport(root) {
+// Calls and tokens per role and per task, plus the most expensive dispatches. Cost is context for the report,
+// so unreadable transcripts must not break it.
+function costOf(root, projectsDir, since) {
+  try {
+    const byRole = buildCostReport(root, { by: 'role', projectsDir, since });
+    const byTask = buildCostReport(root, { by: 'task', projectsDir, since });
+    return { byRole: byRole.rows, byTask: byTask.rows, totals: byRole.totals, topDispatches: byRole.topDispatches };
+  } catch {
+    return { byRole: [], byTask: [], totals: { calls: 0, totalTokens: 0 }, topDispatches: [] };
+  }
+}
+
+export function buildPhaseReport(root, { projectsDir, since } = {}) {
   const board = readBoard(root);
   const { open, decided } = readDecisions(root);
   return {
@@ -64,5 +77,6 @@ export function buildPhaseReport(root) {
     notDone: board.entries.filter((e) => e.status !== 'done'),
     decided,
     open,
+    cost: costOf(root, projectsDir, since),
   };
 }

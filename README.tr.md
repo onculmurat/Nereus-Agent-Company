@@ -81,6 +81,7 @@ Aynı kurallar her role uygulanır; hiçbir rol atlanmaz ve hiçbir rolün model
 - **Atlanan test sayısı** (`gate.js`): test kapısı kaç testin atlandığını, yok sayıldığını ya da todo olduğunu bildirir; her atlama için devir notunda yazılı bir gerekçe gerekir.
 - **Çağrı bütçesi** (`callBudget`, varsayılan 40): her görevlendirme 40 araç çağrısı kullanabilir (ajan dosyalarında `maxTurns`, paket başlığında yinelenir). Bütçeye ulaşan rol neyin bittiğini ve neyin kaldığını bildirir; lider kalanı yeni bir paketle (aynı tur) yeniden görevlendirir ya da görevi böler.
 - **Fark paketleri** (`pack.js --round`): düzeltme turu ya da yeniden inceleme her rol için tam paketi değil, yalnız bulguları (ya da kapı çıktısını), önceki denemeden beri değişen farkı ve görev özetinin kabul ölçütlerini alır.
+- **Maliyet raporu** (`cost.js [--since <iso>] [--by role|task]`): projenin Claude Code kayıtlarından çağrı ve token sayılarını (girdi, önbellek oluşturma, önbellek okuma, çıktı) rol ya da görev ve model bazında toplar; en pahalı 5 görevlendirmeyi de verir. Aşama raporu aynı tabloyu içerir.
 
 ## Roller ve modeller
 
