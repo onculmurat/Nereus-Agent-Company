@@ -37,7 +37,7 @@ test('teamPaths maps the team layout', () => {
   assert.equal(p.decisions, path.join(r, 'team', 'decisions.md'));
   assert.equal(p.mailbox, path.join(r, 'team', 'work', 'mailbox'));
   assert.equal(p.config, path.join(r, 'team', 'config.json'));
-  for (const k of ['team', 'config', 'brief', 'decisions', 'contracts', 'glossary', 'work', 'board', 'handoffs', 'escalations', 'mailbox', 'archive']) {
+  for (const k of ['team', 'config', 'brief', 'decisions', 'contracts', 'glossary', 'spec', 'threatModel', 'work', 'tasks', 'packs', 'board', 'handoffs', 'escalations', 'mailbox', 'archive']) {
     assert.ok(path.isAbsolute(p[k]), k);
   }
 });

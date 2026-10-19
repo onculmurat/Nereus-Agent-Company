@@ -1,5 +1,5 @@
 ---
-description: Ask the owner the queued NAC questions, blocking first, one at a time
+description: Ask the owner the queued NAC questions, blocking first
 ---
 
 1. List the open questions, blocking first:
@@ -9,7 +9,7 @@ description: Ask the owner the queued NAC questions, blocking first, one at a ti
    ```
 
 2. If there are none, say so in one line.
-3. Otherwise ask them one at a time, each in full in its own message, in the shape of the skill `question-protocol` (Source, Status, Impact, options, one recommendation). Wait for each answer.
+3. Otherwise ask them as the skill `question-protocol` says: every question in full, never by its id, in its full shape (Source, Status, Impact, options, one recommendation). Blocking questions are asked at once. Ready non-blocking questions are batched, up to 4 per `AskUserQuestion` call, then the next call after the answers. Wait for the answers.
 4. Record each answer:
 
    ```

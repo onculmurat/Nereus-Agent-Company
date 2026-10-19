@@ -49,6 +49,8 @@ export function validateConfig(cfg) {
     'escalation.authorityRounds': cfg.escalation?.authorityRounds,
     'escalation.leadRounds': cfg.escalation?.leadRounds,
     maxActiveRoles: cfg.maxActiveRoles,
+    callBudget: cfg.callBudget,
+    foldInRounds: cfg.foldInRounds,
   };
   for (const [key, v] of Object.entries(positive)) {
     if (!Number.isInteger(v) || v < 1) throw new Error(`${key} must be a positive integer; got ${JSON.stringify(v)}`);

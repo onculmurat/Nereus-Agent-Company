@@ -1,5 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
@@ -56,4 +57,15 @@ test('phase report splits done and not done', () => {
   assert.deepEqual(r.notDone.map((e) => e.id), ['T-002']);
   assert.deepEqual(r.decided.map((d) => d.id), ['D-001']);
   assert.deepEqual(r.open.map((o) => o.id), ['Q-002']);
+});
+
+test('the resume summary points at the latest lead hand-off, not task hand-offs', () => {
+  const root = makeProject();
+  const dir = path.join(root, 'team', 'work', 'handoffs');
+  fs.mkdirSync(dir, { recursive: true });
+  for (const f of ['lead-2026-10-19-0900.md', 'lead-2026-10-19-1430.md', 'T-001.md', 'lead-notes.txt']) fs.writeFileSync(path.join(dir, f), 'x');
+  const s = buildResumeSummary(root, { gitStatus: '' });
+  assert.match(s, /Lead hand-off: team\/work\/handoffs\/lead-2026-10-19-1430\.md/);
+  assert.doesNotMatch(s, /0900/);
+  assert.doesNotMatch(buildResumeSummary(makeProject(), { gitStatus: '' }), /Lead hand-off/);
 });

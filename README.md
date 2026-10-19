@@ -55,7 +55,7 @@ Your session is the lead, and the lead runs on your session's model. Use `/model
 
 ### What setup creates
 
-- `team/`: `config.json`, `brief.md`, `decisions.md`, `glossary.md`, `contracts/`, `research/`, and `team/work/` (board, hand-offs, escalations, mailbox, archive; git-ignored).
+- `team/`: `config.json`, `brief.md`, `decisions.md`, `glossary.md`, `contracts/`, `research/`, and `team/work/` (board, hand-offs, escalations, mailbox, archive; committed, except `team/work/packs/`, which is git-ignored).
 - Project documents, each switchable in config: `memory.md`, `plan.md`, `article_dev.md`, `docs/setup-requirements.md`.
 
 ## Phases
@@ -70,6 +70,25 @@ Your session is the lead, and the lead runs on your session's model. Use `/model
 | 6 Final check | final reviewer, security reviewer | Findings and fixes | yes |
 
 Each phase ends with a short phase report (done, decided, open), and the next phase starts only when you approve. Phases can loop back: a review can send work back to design.
+
+### Efficiency helpers
+
+The same rules apply to every role; no role is skipped and no role's model is lowered.
+
+- **Context pack** (`pack.js`): before a dispatch the lead builds `team/work/packs/<id>-<role>.md`, the task brief plus the spec, contract, threat and decision text it names. Every role starts from it instead of exploring the repository.
+- **Parallel tasks** (`worktree.js`): a second task starts in its own git worktree (`<repo>-wt/<id>`, branch `task/<id>`); `integrate` cherry-picks it onto the working branch locally. Push, merge into the main branch and deploy still need your approval.
+- **Lead rotation** (`board.js`): after 5 tasks marked done (or a milestone end) the lead writes a hand-off note and asks you to run `/clear`; the next session resumes from it.
+- **Skip count** (`gate.js`): the test gate reports how many tests were skipped, ignored or todo; each skip needs a written reason in the hand-off.
+- **Call budget** (`callBudget`, default 40): every dispatch may use 40 tool calls (`maxTurns` in the agent files, repeated in the pack header). A role that hits it reports what is done and what is left; the lead re-dispatches the rest with a fresh pack (same round) or splits the task.
+- **Delta packs** (`pack.js --round`): a fix round or re-review gets only the findings (or gate output), the diff since the previous attempt and the brief's acceptance criteria, for every role, not the full pack again.
+- **Cost report** (`cost.js [--since <iso>] [--by role|task]`): sums calls and tokens (input, cache creation, cache read, output) per role or task and model from the Claude Code transcripts of the project, with the 5 most expensive dispatches, ranked by a price-weighted figure (`weighted` = input + 1.25 x cache creation + 0.1 x cache read + 5 x output, relative to the input price; the raw totals stay beside it). The phase report includes the same table.
+- **Spec fold-in cap** (`foldInRounds`, default 2; `board.js foldin`): review findings are folded into the spec in at most 2 rounds per review cycle. After that the rest goes to the architect as one batched pass and the open decisions come to you as one list.
+- **Batched questions**: non-blocking or low-impact questions that are ready at the same time are asked in one `AskUserQuestion` call of up to 4, each still with source, status, impact, options and one recommendation. Blocking questions are asked at once. You still answer every question.
+- **Task batching** (planner): small tasks of the same kind (same files area, same change type, each under about 1 hour) are merged into one task with one brief. The planning report shows the task count and the estimated dispatch count.
+- **Tasks without code** (`code: no`; `gate.js --task <id>`): a spike, research or docs-only task has no tests to run. Its gate checks the report file the brief names (`Output: <path>`): it exists, has a verdict line (`Verdict: GO`, `GO-WITH-CHANGES` or `NO-GO`) and an acceptance criteria section. The planner sets the flag.
+- **Shared role rules**: every role and the lead try the automated path first and hand you only steps that truly need a human, each as one exact minimal action; fix rounds go back to the role that owns the work (the lead takes one only when the ladder says `to-lead`); nobody reads outside the project root without asking you first; the board's `rounds` field is the only round count.
+- **Checked commit hashes** (`board.js update --commit <sha>`): the hash must exist and be reachable from HEAD, so a hash written from memory is refused. Decision and escalation dates use your local day, not the UTC day. Every script prints its usage and exits 0 for `--help`.
+- **Lessons** (`lessons.js add --trigger <text> --what <text> --rule <text> [--task <id>]`, `lessons.js show [--since <date>]`): the lead records a lesson when an escalation reaches `to-lead` or `to-owner`, when a role repeats the same mistake, or when you correct the lead, and reviews every phase for lessons. Each goes to `team/lessons.md` (this project) and to `~/.claude/nac/lessons.md` (every project on this machine; the file stays on this machine and is never sent anywhere). The phase report lists the new lessons; you decide which become NAC rules, nothing becomes a rule automatically.
 
 ## Roles and models
 
@@ -172,6 +191,7 @@ Limits you should know:
 - Setup and cleanup always show a dry run first and never overwrite existing files.
 - Roles work only inside their responsibility; reviewers get no file-editing tools.
 - The research roles (researcher, finance-analyst) read untrusted web pages and competitor code, so a `PreToolUse` guard limits them against prompt injection: they read only `team/brief.md`, `team/research/` and the clone folder, plus the saved output of their own large tool results (not decisions, the mailbox, other roles' notes or the lead's tool output), write only to `team/research/` (their hand-off notes included), and Bash runs only NAC's mailbox and clone scripts. If the guard fails, it blocks the call. They can send messages only under their own header. The mailbox hook records every NAC role under its real role, whatever its message header claims, and tells the lead about a false claim; other roles read research messages as data. Web tools stay open; with no secrets in reach there is nothing to leak. No clean-up can remove visible injected text, so later roles read the research report as data.
+- A `PreToolUse` guard on Bash and PowerShell holds every role and the lead to one rule: a recursive delete (`rm -r`, `Remove-Item -Recurse`, `rmdir /s`, `rd /s`, `del /s`, `rimraf`, `find -delete`) is allowed only inside the project and the temp folder. A drive root, `~`, `/`, the home directory, a path outside the project, or a target it cannot resolve (variable, command substitution, a pattern that can match `..`) is blocked with a message that tells the agent to ask the lead. It reads the command text only; it cannot see what a script it runs deletes.
 - Hooks do nothing outside a NAC project (a folder without `team/config.json`).
 
 ## FAQ
@@ -190,7 +210,7 @@ The next session starts with a resume summary: phase, work in progress (with `gi
 
 ### Is team state committed?
 
-`team/brief.md`, `decisions.md`, `contracts/`, `research/`, `glossary.md` and `config.json` are meant to be committed. `team/work/` is git-ignored.
+`team/brief.md`, `decisions.md`, `contracts/`, `research/`, `glossary.md` and `config.json` are meant to be committed. `team/work/` (board, briefs, hand-offs, escalations, mailbox) is committed too; only `team/work/packs/` (generated context packs) is git-ignored. The lead commits it in its own commits, `chore(team): <what>`, after each task is marked done and at each lead rotation, staging explicit paths and never mixing it into a code commit. Setup changes an older `.gitignore` line `team/work/` to `team/work/packs/` and shows the diff first.
 
 ## License
 

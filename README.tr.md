@@ -55,7 +55,7 @@ Oturumunuz liderdir ve lider oturumunuzun modeliyle çalışır. Lider için `/m
 
 ### Kurulumun oluşturdukları
 
-- `team/`: `config.json`, `brief.md`, `decisions.md`, `glossary.md`, `contracts/`, `research/` ve `team/work/` (pano, devir notları, eskalasyonlar, posta kutusu, arşiv; git dışında).
+- `team/`: `config.json`, `brief.md`, `decisions.md`, `glossary.md`, `contracts/`, `research/` ve `team/work/` (pano, devir notları, eskalasyonlar, posta kutusu, arşiv; commit'lenir, yalnız git dışında tutulan `team/work/packs/` hariç).
 - Proje belgeleri, her biri ayardan kapatılabilir: `memory.md`, `plan.md`, `article_dev.md`, `docs/setup-requirements.md`.
 
 ## Aşamalar
@@ -70,6 +70,25 @@ Oturumunuz liderdir ve lider oturumunuzun modeliyle çalışır. Lider için `/m
 | 6 Son kontrol | son incelemeci, güvenlik incelemecisi | Bulgular ve düzeltmeler | evet |
 
 Her aşama kısa bir aşama raporuyla (biten, karar verilen, açık kalan) biter; sonraki aşama ancak siz onaylayınca başlar. Aşamalar geri dönebilir: bir inceleme işi tasarıma geri gönderebilir.
+
+### Verimlilik yardımcıları
+
+Aynı kurallar her role uygulanır; hiçbir rol atlanmaz ve hiçbir rolün modeli düşürülmez.
+
+- **Bağlam paketi** (`pack.js`): her görevlendirmeden önce lider `team/work/packs/<id>-<role>.md` dosyasını hazırlar: görev özeti ile onun adını verdiği spec, sözleşme, tehdit ve karar metni. Her rol depoyu gezmek yerine bu dosyadan başlar.
+- **Paralel görevler** (`worktree.js`): ikinci bir görev kendi git worktree'sinde (`<repo>-wt/<id>`, dal `task/<id>`) başlar; `integrate` onu çalışma dalına yerelde cherry-pick ile alır. Push, ana dala birleştirme ve yayına alma yine sizin onayınızı ister.
+- **Lider rotasyonu** (`board.js`): 5 görev bittikten sonra (ya da bir kilometre taşı sonunda) lider bir devir notu yazar ve sizden `/clear` çalıştırmanızı ister; sonraki oturum buradan devam eder.
+- **Atlanan test sayısı** (`gate.js`): test kapısı kaç testin atlandığını, yok sayıldığını ya da todo olduğunu bildirir; her atlama için devir notunda yazılı bir gerekçe gerekir.
+- **Çağrı bütçesi** (`callBudget`, varsayılan 40): her görevlendirme 40 araç çağrısı kullanabilir (ajan dosyalarında `maxTurns`, paket başlığında yinelenir). Bütçeye ulaşan rol neyin bittiğini ve neyin kaldığını bildirir; lider kalanı yeni bir paketle (aynı tur) yeniden görevlendirir ya da görevi böler.
+- **Fark paketleri** (`pack.js --round`): düzeltme turu ya da yeniden inceleme her rol için tam paketi değil, yalnız bulguları (ya da kapı çıktısını), önceki denemeden beri değişen farkı ve görev özetinin kabul ölçütlerini alır.
+- **Maliyet raporu** (`cost.js [--since <iso>] [--by role|task]`): projenin Claude Code kayıtlarından çağrı ve token sayılarını (girdi, önbellek oluşturma, önbellek okuma, çıktı) rol ya da görev ve model bazında toplar; en pahalı 5 görevlendirmeyi de verir; sıralama fiyat ağırlıklı bir değerle yapılır (`weighted` = girdi + 1,25 x önbellek oluşturma + 0,1 x önbellek okuma + 5 x çıktı, girdi fiyatına göre; ham toplamlar yanında kalır). Aşama raporu aynı tabloyu içerir.
+- **Spec birleştirme sınırı** (`foldInRounds`, varsayılan 2; `board.js foldin`): inceleme bulguları spec içine bir inceleme döngüsünde en fazla 2 turda işlenir. Sonrasında kalanlar mimara tek toplu geçiş olarak gider ve açık kararlar size tek liste halinde gelir.
+- **Toplu sorular**: aynı anda hazır, engelleyici olmayan ya da etkisi düşük sorular tek bir `AskUserQuestion` çağrısında en fazla 4 soru olarak sorulur; her biri yine kaynak, durum, etki, seçenekler ve tek bir öneri taşır. Engelleyici sorular hemen sorulur. Her soruyu yine siz yanıtlarsınız.
+- **Görev birleştirme** (planlayıcı): aynı türden küçük görevler (aynı dosya alanı, aynı değişiklik türü, her biri yaklaşık 1 saatten kısa) tek özetli tek görevde birleştirilir. Planlama raporu görev sayısını ve tahmini görevlendirme sayısını gösterir.
+- **Kodsuz görevler** (`code: no`; `gate.js --task <id>`): spike, araştırma ya da yalnız doküman görevinde çalıştırılacak test yoktur. Kapı, görev özetinin adını verdiği rapor dosyasına (`Output: <yol>`) bakar: dosya var mı, karar satırı (`Verdict: GO`, `GO-WITH-CHANGES` ya da `NO-GO`) ve kabul ölçütleri bölümü var mı. Bayrağı planlayıcı koyar.
+- **Ortak rol kuralları**: her rol ve lider önce otomatik yolu dener, size yalnız gerçekten insan gerektiren adımları, her birini tek ve tam bir en küçük eylem olarak verir; düzeltme turları işin sahibi role geri gider (lider yalnız merdiven `to-lead` dediğinde tur alır); kimse size sormadan proje kökünün dışını okumaz; panonun `rounds` alanı tek tur sayacıdır.
+- **Doğrulanan commit özetleri** (`board.js update --commit <sha>`): özet var olmalı ve HEAD'den erişilebilir olmalıdır; hafızadan yazılan özet reddedilir. Karar ve yükseltme tarihleri UTC değil yerel günü kullanır. Her betik `--help` ile kullanımını yazar ve 0 ile çıkar.
+- **Dersler** (`lessons.js add --trigger <metin> --what <metin> --rule <metin> [--task <id>]`, `lessons.js show [--since <tarih>]`): lider bir eskalasyon `to-lead` ya da `to-owner`'a ulaştığında, bir rol aynı hatayı tekrarladığında ya da siz lideri düzelttiğinizde bir ders kaydeder ve her aşamayı ders açısından gözden geçirir. Her ders `team/lessons.md` dosyasına (bu proje) ve `~/.claude/nac/lessons.md` dosyasına (bu makinedeki tüm projeler; dosya bu makinede kalır, hiçbir yere gönderilmez) yazılır. Aşama raporu yeni dersleri listeler; hangilerinin NAC kuralı olacağına siz karar verirsiniz, hiçbir şey kendiliğinden kural olmaz.
 
 ## Roller ve modeller
 
@@ -172,6 +191,7 @@ Bilmeniz gereken sınırlar:
 - Kurulum ve temizlik her zaman önce deneme çıktısı gösterir ve var olan dosyaların üzerine yazmaz.
 - Roller yalnız kendi sorumluluk alanında çalışır; incelemecilere dosya düzenleme aracı verilmez.
 - Araştırma rolleri (researcher, finance-analyst) güvenilmeyen web sayfaları ve rakip kodu okur; prompt injection'a karşı bir `PreToolUse` kancası onları sınırlar: yalnız `team/brief.md`, `team/research/` ve klon klasörünü, bir de kendi büyük araç çıktılarının kaydedildiği dosyayı okur (kararları, posta kutusunu, diğer rollerin notlarını ve liderin araç çıktılarını okuyamaz), yalnız `team/research/` altına yazar (devir notları dahil), Bash'te yalnız NAC'ın mailbox ve clone betiklerini çalıştırır. Kanca hata verirse çağrıyı engeller. Mesajı yalnız kendi başlıklarıyla gönderebilirler. Posta kutusu kancası her NAC rolünü, mesaj başlığı ne derse desin gerçek rolüyle kaydeder ve sahte bir gönderen iddiasını lidere bildirir; diğer roller araştırma mesajlarını veri olarak okur. Web araçları açıktır; okunacak gizli veri olmadığı için sızdıracak bir şey de kalmaz. Görünür enjekte metni hiçbir temizleme silemez; bu yüzden araştırma raporu sonraki rollerde veri olarak okunur.
+- Bash ve PowerShell üzerindeki bir `PreToolUse` bekçisi her rolü ve lideri tek kurala bağlar: özyinelemeli silme (`rm -r`, `Remove-Item -Recurse`, `rmdir /s`, `rd /s`, `del /s`, `rimraf`, `find -delete`) yalnız proje içinde ve geçici klasörde serbesttir. Sürücü kökü, `~`, `/`, ev dizini, proje dışındaki bir yol ya da çözemediği bir hedef (değişken, komut yerine koyma, `..` ile eşleşebilen bir desen) ajana lidere sormasını söyleyen bir iletiyle engellenir. Yalnız komut metnini okur; çalıştırdığı bir betiğin ne sildiğini göremez.
 - Hook'lar bir NAC projesi dışında (`team/config.json` olmayan klasörde) hiçbir şey yapmaz.
 
 ## SSS
@@ -190,7 +210,7 @@ Sonraki oturum bir devam özetiyle başlar: aşama, süren iş (`git status` ile
 
 ### Ekip durumu commit'lenir mi?
 
-`team/brief.md`, `decisions.md`, `contracts/`, `research/`, `glossary.md` ve `config.json` commit'lenmek içindir. `team/work/` git dışındadır.
+`team/brief.md`, `decisions.md`, `contracts/`, `research/`, `glossary.md` ve `config.json` commit'lenmek içindir. `team/work/` (pano, görev özetleri, devir notları, eskalasyonlar, posta kutusu) de commit'lenir; yalnız `team/work/packs/` (üretilen bağlam paketleri) git dışındadır. Lider bunu kendi commit'lerinde, `chore(team): <ne>`, her görev bittiğinde ve her lider rotasyonunda, açık yolları ekleyerek commit'ler; kod commit'lerine karıştırmaz. Kurulum eski `.gitignore` satırını `team/work/` yerine `team/work/packs/` yapar ve önce farkı gösterir.
 
 ## Lisans
 

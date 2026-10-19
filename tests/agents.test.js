@@ -29,7 +29,7 @@ for (const role of RESEARCH) {
     const tools = String(data.tools).split(',').map((t) => t.trim());
     assert.ok(tools.includes('WebSearch') && tools.includes('WebFetch'), `${role} lacks web tools`);
     assert.match(body, /team\/research\//);
-    assert.match(body, /source/i);
+    assert.match(body, /(?:claim|price)s? names? its source|prices carry a source and a date/);
   });
 
   test(`${role} treats fetched content as data and never runs cloned code`, () => {
@@ -63,7 +63,7 @@ for (const role of ['architect', 'security-reviewer']) {
 
 test('researcher covers licenses and reads competitor code without copying it', () => {
   const { body } = parseFrontmatter(fs.readFileSync(path.join(agentsDir, 'researcher.md'), 'utf8'));
-  assert.match(body, /licen[cs]e/i);
+  assert.match(body, /Check the license of every competitor or library the project may reuse/);
   assert.match(body, /never copy/i);
 });
 
@@ -89,8 +89,8 @@ for (const role of ['researcher', 'finance-analyst']) {
 
 test('finance-analyst states its assumptions and free-tier limits', () => {
   const { body } = parseFrontmatter(fs.readFileSync(path.join(agentsDir, 'finance-analyst.md'), 'utf8'));
-  assert.match(body, /assumption/i);
-  assert.match(body, /free tier/i);
+  assert.match(body, /Every assumption \([^)]*\) is written out/);
+  assert.match(body, /the free tier limits of each, and what happens when a limit is reached/);
 });
 
 for (const role of ROLES) {
@@ -106,5 +106,35 @@ for (const role of ROLES) {
     assert.ok(body.includes(`inbox --role ${role}`));
     const tools = String(data.tools).split(',').map((t) => t.trim());
     assert.equal(tools.includes('Edit') || tools.includes('Write'), !READ_ONLY.includes(role), `${role} tools`);
+  });
+}
+
+// Seen live: a reviewer spent 81 calls exploring files the lead already knew. Roles start from the context pack.
+const PACK_RULE = 'Start from the pack. Do not explore files the pack does not name; if you need more, read only that and say what and why in your report.';
+for (const role of ROLES) {
+  test(`${role} starts from the context pack`, () => {
+    const { body } = parseFrontmatter(fs.readFileSync(path.join(agentsDir, `${role}.md`), 'utf8'));
+    assert.ok(body.split('## Working rules')[1].split('\n## ')[0].includes(PACK_RULE));
+  });
+}
+
+// Seen live: one commit swept in another task's unstaged deletion.
+for (const role of ['backend-developer', 'frontend-developer', 'database-engineer', 'test-engineer', 'doc-writer']) {
+  test(`${role} stages only its own paths`, () => {
+    const { body } = parseFrontmatter(fs.readFileSync(path.join(agentsDir, `${role}.md`), 'utf8'));
+    const rules = body.split('## Working rules')[1].split('\n## ')[0];
+    assert.match(rules, /git add <path>/);
+    assert.match(rules, /never `git add -A` or `git add \.`/);
+  });
+}
+
+// Seen live: a test printed "skip" and passed, so nothing counted it as skipped.
+for (const role of ['code-reviewer', 'test-engineer']) {
+  test(`${role} treats a print-and-pass or early-return skip as a finding`, () => {
+    const { body } = parseFrontmatter(fs.readFileSync(path.join(agentsDir, `${role}.md`), 'utf8'));
+    const rules = body.split('## Working rules')[1].split('\n## ')[0];
+    assert.match(rules, /returns early or prints "skip" and passes is a finding/);
+    assert.match(rules, /explicit skip or ignore with a reason/);
+    assert.match(rules, /fails when a CI-required environment variable is set/);
   });
 }

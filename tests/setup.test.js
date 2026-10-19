@@ -3,13 +3,14 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { planSetup, applySetup, planGlobalModelPointer } from '../scripts/lib/setup.js';
 import { loadConfig } from '../scripts/lib/config.js';
 
 const pluginRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const config = loadConfig({ pluginRoot, userConfigPath: null, projectRoot: null });
+const cli = path.join(pluginRoot, 'scripts', 'setup.js');
 const fresh = () => fs.mkdtempSync(path.join(os.tmpdir(), 'nac setup '));
 const plan = (dir, cfg = config) => planSetup(dir, { pluginRoot, config: cfg });
 const rel = (dir, files) => files.map((f) => path.relative(dir, f.path).split(path.sep).join('/')).sort();
@@ -24,7 +25,8 @@ test('dry run lists every file as create and writes nothing', () => {
     'team/research/.gitkeep', 'team/work/archive/.gitkeep', 'team/work/board.md', 'team/work/escalations/.gitkeep',
     'team/work/handoffs/.gitkeep', 'team/work/mailbox/.gitkeep',
   ]);
-  assert.equal(p.gitignoreLine, 'team/work/');
+  assert.equal(p.gitignoreLine, 'team/work/packs/');
+  assert.equal(p.gitignoreReplaces, null);
   assert.equal(p.settings.before, null);
   assert.equal(p.settings.after.env.CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS, '1');
   assert.equal(p.settings.after.enabledPlugins['nac@nereus-agent-company'], true);
@@ -35,7 +37,8 @@ test('apply creates files; a second run changes nothing', () => {
   const dir = fresh();
   applySetup(plan(dir));
   assert.ok(fs.existsSync(path.join(dir, 'team', 'config.json')));
-  assert.match(fs.readFileSync(path.join(dir, '.gitignore'), 'utf8'), /^team\/work\/$/m);
+  assert.match(fs.readFileSync(path.join(dir, '.gitignore'), 'utf8'), /^team\/work\/packs\/$/m);
+  assert.doesNotMatch(fs.readFileSync(path.join(dir, '.gitignore'), 'utf8'), /^team\/work\/$/m);
   const settingsFile = path.join(dir, '.claude', 'settings.json');
   const before = fs.readdirSync(dir, { recursive: true }).map((f) => [f, fs.statSync(path.join(dir, f)).mtimeMs]);
   const again = plan(dir);
@@ -125,4 +128,41 @@ test('CLI dry run writes nothing; apply writes', () => {
   assert.deepEqual(fs.readdirSync(dir), []);
   execFileSync(process.execPath, [cli, '--project', dir, '--apply'], { encoding: 'utf8' });
   assert.ok(fs.existsSync(path.join(dir, 'team', 'work', 'board.md')));
+});
+
+
+test('an existing team/work/ line is replaced by team/work/packs/ once, other lines kept', () => {
+  const dir = fresh();
+  const file = path.join(dir, '.gitignore');
+  fs.writeFileSync(file, 'node_modules/\nteam/work/\ndist/\n');
+  const p = plan(dir);
+  assert.equal(p.gitignoreReplaces, 'team/work/');
+  assert.equal(p.gitignoreLine, 'team/work/packs/');
+  applySetup(p);
+  assert.equal(fs.readFileSync(file, 'utf8'), 'node_modules/\nteam/work/packs/\ndist/\n');
+  const again = plan(dir);
+  assert.equal(again.gitignoreLine, null);
+  assert.equal(again.gitignoreReplaces, null);
+  applySetup(again);
+  assert.equal(fs.readFileSync(file, 'utf8'), 'node_modules/\nteam/work/packs/\ndist/\n');
+});
+
+test('the dry run shows the .gitignore change as a diff', () => {
+  const dir = fresh();
+  fs.writeFileSync(path.join(dir, '.gitignore'), 'team/work/\n');
+  const r = spawnSync(process.execPath, [cli, '--project', dir, '--dry-run'], { encoding: 'utf8' });
+  assert.match(r.stdout, /^- team\/work\/$/m);
+  assert.match(r.stdout, /^\+ team\/work\/packs\/$/m);
+});
+
+test('team/work/ files other than packs are not ignored by the written .gitignore', () => {
+  const dir = fresh();
+  applySetup(plan(dir));
+  const git = (...a) => execFileSync('git', a, { cwd: dir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+  git('init', '-q');
+  fs.mkdirSync(path.join(dir, 'team', 'work', 'packs'), { recursive: true });
+  fs.writeFileSync(path.join(dir, 'team', 'work', 'packs', 'T-001-x.md'), 'x');
+  assert.equal(git('check-ignore', 'team/work/packs/T-001-x.md').trim(), 'team/work/packs/T-001-x.md');
+  assert.throws(() => git('check-ignore', '-q', 'team/work/board.md'));
+  assert.throws(() => git('check-ignore', '-q', 'team/work/mailbox/a.md'));
 });

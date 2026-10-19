@@ -5,7 +5,10 @@ import path from 'node:path';
 
 export const PLUGIN_KEY = 'nac@nereus-agent-company';
 const TEAMS_ENV = 'CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS';
-const GITIGNORE_LINE = 'team/work/';
+// Only the generated context packs are ignored; the rest of team/work/ (board, briefs, hand-offs, mailbox) is committed.
+const GITIGNORE_LINE = 'team/work/packs/';
+// An older setup ignored the whole folder; that line is replaced.
+const OLD_GITIGNORE_LINES = new Set(['team/work/', 'team/work', '/team/work/', '/team/work']);
 const DOCUMENTS = {
   memory: ['memory.md', 'memory.md'],
   plan: ['plan.md', 'plan.md'],
@@ -62,13 +65,17 @@ export function planSetup(projectRoot, { pluginRoot, config }) {
   for (const f of files) f.action = fs.existsSync(f.path) ? 'skip-exists' : 'create';
 
   const gitignore = path.join(root, '.gitignore');
-  const ignored = fs.existsSync(gitignore) && fs.readFileSync(gitignore, 'utf8').split(/\r?\n/).some((l) => l.trim() === GITIGNORE_LINE);
+  const lines = fs.existsSync(gitignore) ? fs.readFileSync(gitignore, 'utf8').split(/\r?\n/).map((l) => l.trim()) : [];
+  const ignored = lines.includes(GITIGNORE_LINE);
+  const old = lines.find((l) => OLD_GITIGNORE_LINES.has(l)) ?? null;
   const major = Number(process.versions.node.split('.')[0]);
   return {
     projectRoot: root,
     files,
     settings: planSettings(root),
-    gitignoreLine: ignored ? null : GITIGNORE_LINE,
+    // gitignoreLine: the line to write; gitignoreReplaces: the older whole-folder line it takes the place of.
+    gitignoreLine: ignored && !old ? null : GITIGNORE_LINE,
+    gitignoreReplaces: old,
     nodeWarning: major < 20 ? `Node.js ${process.versions.node} found; NAC needs Node.js 20 or newer.` : null,
   };
 }
@@ -89,6 +96,16 @@ export function applySetup(plan) {
   if (plan.gitignoreLine) {
     const file = path.join(plan.projectRoot, '.gitignore');
     const current = fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : '';
+    if (plan.gitignoreReplaces) {
+      // Replace the old line in place (or drop it when the new line is already there); keep every other line and the line endings.
+      const had = current.split(/\r?\n/).some((l) => l.trim() === plan.gitignoreLine);
+      const next = current.split('\n').flatMap((l) => {
+        if (!OLD_GITIGNORE_LINES.has(l.trim())) return [l];
+        return had ? [] : [l.replace(l.trim(), plan.gitignoreLine)];
+      });
+      fs.writeFileSync(file, next.join('\n'));
+      return;
+    }
     const sep = current && !current.endsWith('\n') ? '\n' : '';
     fs.writeFileSync(file, `${current}${sep}${plan.gitignoreLine}\n`);
   }

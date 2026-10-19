@@ -4,8 +4,9 @@ import { runCli } from './lib/cli.js';
 import { buildResumeSummary, buildPhaseReport } from './lib/summary.js';
 
 const usage = `Usage:
-  summary.js [--phase-report] [--project <dir>]
+  summary.js [--phase-report [--since <iso date>]] [--project <dir>]
+                                         --since limits the cost table to the phase
 `;
 
-runCli(usage, { 'phase-report': { type: 'boolean' } }, ({ values, root }) =>
-  values['phase-report'] ? buildPhaseReport(root) : buildResumeSummary(root));
+runCli(usage, { 'phase-report': { type: 'boolean' }, since: { type: 'string' } }, ({ values, root }) =>
+  values['phase-report'] ? buildPhaseReport(root, { since: values.since }) : buildResumeSummary(root));

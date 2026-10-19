@@ -6,7 +6,14 @@ import dns from 'node:dns/promises';
 import { execFileSync } from 'node:child_process';
 import { cloneTarget, cloneArgs, cloneEnv, isPrivateAddress, researchTmpRoot, tmpRootProblem } from './lib/research.js';
 
+const usage = `Usage:
+  clone.js <https repository URL>
+`;
 const args = process.argv.slice(2);
+if (args.includes('--help')) {
+  process.stdout.write(usage);
+  process.exit(0);
+}
 try {
   if (args.length !== 1) throw new Error('Usage: node clone.js <https repository URL>');
   const root = researchTmpRoot();

@@ -19,6 +19,9 @@ import { teamPaths } from '../scripts/lib/paths.js';
 const config = loadConfig({ pluginRoot, userConfigPath: null, projectRoot: null });
 const cli = (name, args, opts = {}) => execFileSync(process.execPath, [path.join(pluginRoot, 'scripts', `${name}.js`), ...args], { encoding: 'utf8', ...opts });
 const read = (...p) => fs.readFileSync(path.join(pluginRoot, ...p), 'utf8');
+// A phase's text: its lead prompt section plus its procedure in skill `phases`.
+const phaseText = (n) => [read('prompts', 'lead.md'), read('skills', 'phases', 'SKILL.md')]
+  .map((t) => t.split(new RegExp(`^## Phase ${n}\\b`, 'm'))[1]?.split('\n## ')[0] ?? '').join('\n');
 const q = (root, thread = 't') => addQuestion(root, { title: 'Which DB?', source: 's', status: 'd', impact: 'i', blocking: 'no', thread });
 
 // O-I1
@@ -96,13 +99,13 @@ test('O-I6 TaskCompleted block sends the teammate to the lead, not to the board'
   assert.equal(r.status, 2);
   assert.doesNotMatch(r.stderr, /board\.js/);
   assert.match(r.stderr, /only the lead/i);
-  assert.match(read('prompts', 'lead.md'), /<board-id>: <title>/);
+  assert.match(read('skills', 'phases', 'SKILL.md'), /<board-id>: <title>/);
 });
 
 // Live test A1: the lead asked one "question" with three sub-questions and a preview of the next ones.
 test('A1 one question per message is spelled out in phase 0 and the question protocol', () => {
   const rule = /exactly one question[^\n]*no sub-questions[^\n]*no preview/i;
-  const phase0 = read('prompts', 'lead.md').split('## Phase 0')[1].split('\n## ')[0];
+  const phase0 = phaseText(0);
   assert.match(phase0, rule);
   assert.match(read('skills', 'question-protocol', 'SKILL.md'), rule);
 });
@@ -123,7 +126,7 @@ test('record accepts --title and derives the thread from it when --thread is mis
 // Live test A1, second run: "Who will use it and what sets it apart?" is still two questions.
 test('A1 a question asks about one thing and phase 0 topics are single', () => {
   const rule = /never join two questions with "and"/i;
-  const phase0 = read('prompts', 'lead.md').split('## Phase 0')[1].split('\n## ')[0];
+  const phase0 = phaseText(0);
   assert.match(phase0, rule);
   assert.match(read('skills', 'question-protocol', 'SKILL.md'), rule);
   assert.doesNotMatch(phase0, /who has the problem and why now/);
@@ -148,7 +151,8 @@ test('C3 after a restart the lead reports the state, unread messages included, b
 
 // Live test L6: no session offered native task tools, so TaskCompleted never fired.
 test('L6 task titles are asked for only when task tools exist, and the limit is documented', () => {
-  const lead = read('prompts', 'lead.md');
+  const lead = read('prompts', 'lead.md') + read('skills', 'phases', 'SKILL.md');
+  assert.match(lead, /<board-id>: <title>/);
   for (const line of lead.split('\n').filter((l) => l.includes('<board-id>: <title>'))) {
     assert.match(line, /if you have native team task tools/i, line.slice(0, 80));
   }
@@ -281,4 +285,16 @@ test('O-M16 at the top model tier the ladder retries instead of a no-op raise', 
   assert.equal(next.action, 'retry');
   assert.ok(!fs.existsSync(path.join(teamPaths(root).escalations, `${e.id}-r2.md`)));
   assert.equal(readBoard(root).entries[0].model, 'opus');
+});
+
+test('session-start context stays under 9,400 characters (600 headroom) on a busy project that also has a lead hand-off', async () => {
+  const root = makeProject();
+  for (let i = 0; i < 80; i++) addEntry(root, { title: `A fairly long task title number ${i}`, owner: 'backend-developer', model: 'sonnet' });
+  const dir = path.join(root, 'team', 'work', 'handoffs');
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(path.join(dir, 'lead-2026-10-19-1430.md'), 'x');
+  const r = runHook('session-start', await fixture('session-start-startup', { cwd: root }));
+  const ctx = JSON.parse(r.stdout).hookSpecificOutput.additionalContext;
+  assert.match(ctx, /Lead hand-off/);
+  assert.ok(ctx.length < 9400, `context is ${ctx.length} characters (keep 600 characters of headroom under 10000)`);
 });
