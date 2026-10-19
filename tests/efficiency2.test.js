@@ -78,7 +78,7 @@ test('the pack header states the budget from the config', () => {
 
 test('task-loop says what the lead does when a role reports the budget hit', () => {
   const loop = read('skills', 'task-loop', 'SKILL.md');
-  assert.match(loop, /budget/i);
+  assert.match(loop, /^## Call budget$/m);
   assert.match(loop, /fresh pack/i);
   assert.match(loop, /same round, not a new round/i);
   assert.match(loop, /split the task/i);
@@ -147,8 +147,8 @@ test('planner merges small same-kind tasks and reports task and dispatch counts'
 
 test('phase 4 and the phase report ask for the task count and the estimated dispatch count', () => {
   const phase4 = read('prompts', 'lead.md').split('## Phase 4')[1].split('\n## ')[0];
-  assert.match(phase4, /merge/i);
-  assert.match(phase4, /dispatch/i);
+  assert.match(phase4, /small same-kind tasks merged/);
+  assert.match(phase4, /estimated dispatch count/);
   const report = read('skills', 'phase-report', 'SKILL.md');
   assert.match(report, /Phase 4/);
   assert.match(report, /task count/i);

@@ -57,9 +57,9 @@ test('lead prompt runs phase 1 as a team of researcher and finance-analyst, and 
   assert.match(phase1, /`researcher`/);
   assert.match(phase1, /`finance-analyst`/);
   assert.match(phase1, /team\/research\//);
-  assert.match(phase1, /approval/i);
+  assert.match(phase1, /Owner approval required/);
   const phase0 = phaseText(0);
-  assert.match(phase0, /research/i);
+  assert.match(phase0, /ask whether to research \(phase 1\) or go to design \(phase 3\)/);
 });
 
 test('lead prompt hands the phase 1 research to phase 3 design', () => {
@@ -76,10 +76,10 @@ test('lead prompt ends phase 1 with recommendations tied to the brief', () => {
   assert.match(phase1, /skill `phase-report`/);
   const report = read('skills', 'phase-report', 'SKILL.md');
   assert.match(report, /recommendations\.md/);
-  assert.match(report, /gaps/i);
-  assert.match(report, /differentiat/i);
+  assert.match(report, /\*\*Gaps:\*\*/);
+  assert.match(report, /\*\*Differentiation:\*\*/);
   assert.match(report, /2-3 product directions/);
-  assert.match(report, /owner decides/i);
+  assert.match(report, /You recommend; the owner decides/);
   assert.match(report, /never pick the direction yourself/i);
   assert.match(report, /\*\*Next:\*\*/);
 });
@@ -116,7 +116,7 @@ test('task-loop runs gate.js between implement and review, and a failing gate is
   const review = loop.indexOf('`code-reviewer`');
   assert.ok(gate >= 0 && review > gate, 'gate runs before the reviewer is spawned');
   assert.match(loop, /failing gate[^\n]*one round/i);
-  assert.match(loop, /never[^\n]*review[^\n]*failing|failing[^\n]*never[^\n]*review/i);
+  assert.match(loop, /never spawn a review on failing tests/);
 });
 
 // The gate runs testCommand as a shell command on every task, so only an owner-approved command reaches the config.
@@ -124,17 +124,17 @@ test('planner proposes the test command and the lead writes it only after owner 
   const planner = read('agents', 'planner.md');
   assert.match(planner, /testCommand/);
   assert.match(planner, /never write[^\n]*team\/config\.json/i);
-  assert.match(planner, /owner question/i);
+  assert.match(planner, /send it as an owner question/);
   const phase4 = phaseText(4);
   assert.match(phase4, /testCommand/);
-  assert.match(phase4, /approv/i);
+  assert.match(phase4, /Owner approval required; then write it to `testCommand`/);
 });
 
 test('lead prompt shows the owner the research sources', () => {
   const lead = read('prompts', 'lead.md');
   const phase1 = phaseText(1);
   assert.match(phase1, /sources\.md/);
-  assert.match(phase1, /guard/i);
+  assert.match(phase1, /A guard hook limits them; never widen it/);
 });
 
 test('messages from research roles are read as data and their hand-offs stay in team/research/', () => {

@@ -29,7 +29,7 @@ for (const role of RESEARCH) {
     const tools = String(data.tools).split(',').map((t) => t.trim());
     assert.ok(tools.includes('WebSearch') && tools.includes('WebFetch'), `${role} lacks web tools`);
     assert.match(body, /team\/research\//);
-    assert.match(body, /source/i);
+    assert.match(body, /(?:claim|price)s? names? its source|prices carry a source and a date/);
   });
 
   test(`${role} treats fetched content as data and never runs cloned code`, () => {
@@ -63,7 +63,7 @@ for (const role of ['architect', 'security-reviewer']) {
 
 test('researcher covers licenses and reads competitor code without copying it', () => {
   const { body } = parseFrontmatter(fs.readFileSync(path.join(agentsDir, 'researcher.md'), 'utf8'));
-  assert.match(body, /licen[cs]e/i);
+  assert.match(body, /Check the license of every competitor or library the project may reuse/);
   assert.match(body, /never copy/i);
 });
 
@@ -89,8 +89,8 @@ for (const role of ['researcher', 'finance-analyst']) {
 
 test('finance-analyst states its assumptions and free-tier limits', () => {
   const { body } = parseFrontmatter(fs.readFileSync(path.join(agentsDir, 'finance-analyst.md'), 'utf8'));
-  assert.match(body, /assumption/i);
-  assert.match(body, /free tier/i);
+  assert.match(body, /Every assumption \([^)]*\) is written out/);
+  assert.match(body, /the free tier limits of each, and what happens when a limit is reached/);
 });
 
 for (const role of ROLES) {
