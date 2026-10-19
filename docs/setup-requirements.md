@@ -10,3 +10,4 @@ What NAC needs on the machine that runs Claude Code.
 | Plugin enabled for the project | `enabledPlugins["nac@nereus-agent-company"] = true` in `.claude/settings.json` | Written by `claude plugin enable nac@nereus-agent-company --scope project`; setup merges the same key. |
 | Web access for `WebSearch` and `WebFetch` | Network access; allow both tools when Claude Code asks | Phase 1 roles (`researcher`, `finance-analyst`) search and read sources on the web. |
 | `git` (phase 1, optional) | Any recent version | The researcher clones competitor code into a temporary folder outside the project to read it. |
+| Read access to `~/.claude/plugins/` (optional) | `installed_plugins.json` and `known_marketplaces.json` | Session start compares the installed commit with the marketplace source folder and warns on drift; it stays silent when the files are missing. `NAC_PLUGINS_DIR` overrides the folder. |

@@ -55,9 +55,9 @@ test('setup requirements name the web tools the research roles use', () => {
 
 test('plugin and package versions match the release the READMEs describe', () => {
   const version = (...p) => JSON.parse(fs.readFileSync(path.join(pluginRoot, ...p), 'utf8')).version;
-  assert.equal(version('.claude-plugin', 'plugin.json'), '1.1.0');
-  assert.equal(version('package.json'), '1.1.0');
-  assert.match(en, /\*\*v1\.1 scope\.\*\*/);
+  assert.equal(version('.claude-plugin', 'plugin.json'), '1.2.0');
+  assert.equal(version('package.json'), '1.2.0');
+  assert.match(en, /\*\*v1\.2 scope\.\*\*/);
 });
 
 test('both READMEs list team/research/ among the committed files', () => {

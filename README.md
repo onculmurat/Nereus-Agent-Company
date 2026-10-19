@@ -14,7 +14,7 @@ Building a product alone means playing every role: architect, developer, reviewe
 
 NAC has no graphical interface. It runs inside the Claude Code terminal.
 
-**v1.1 scope.** This release ships the core roles (team lead, researcher, finance analyst, architect, planner, backend developer, frontend developer, database engineer, test engineer, code reviewer, final reviewer, security reviewer, doc writer, assistant) and phases 0, 1, 3, 4, 5 and 6. Planned next: v2 adds product manager, UX and UI designers, DevOps engineer and phases 2 and 7; v3 adds marketing and the remaining business roles and phases 8 and 9.
+**v1.2 scope.** This release ships the core roles (team lead, researcher, finance analyst, architect, planner, backend developer, frontend developer, database engineer, test engineer, code reviewer, final reviewer, security reviewer, doc writer, assistant) and phases 0, 1, 3, 4, 5 and 6. Planned next: v2 adds product manager, UX and UI designers, DevOps engineer and phases 2 and 7; v3 adds marketing and the remaining business roles and phases 8 and 9.
 
 ## Install
 
@@ -92,6 +92,13 @@ The same rules apply to every role; no role is skipped and no role's model is lo
 - **Shared role rules**: every role and the lead try the automated path first and hand you only steps that truly need a human, each as one exact minimal action; fix rounds go back to the role that owns the work (on `to-lead` the lead decides, re-plans or escalates; the fix still goes to the owning role); nobody reads outside the project root without asking you first; the board's `rounds` field is the only round count.
 - **Checked commit hashes** (`board.js update --commit <sha>`): the hash must exist and be reachable from HEAD, so a hash written from memory is refused. Decision and escalation dates use your local day, not the UTC day. Every script prints its usage and exits 0 for `--help`.
 - **Lessons** (`lessons.js add --trigger <text> --what <text> --rule <text> [--task <id>]`, `lessons.js show [--since <date>]`): the lead records a lesson when an escalation reaches `to-lead` or `to-owner`, when a role repeats the same mistake, or when you correct the lead, and reviews every phase for lessons. Each goes to `team/lessons.md` (this project) and to `~/.claude/nac/lessons.md` (every project on this machine; the file stays on this machine and is never sent anywhere). The phase report lists the new lessons; you decide which become NAC rules, nothing becomes a rule automatically.
+- **Hardening loop** (`board.js add --module <m> --hardening yes [--decision D-xxx]`): at most one hardening task per module per phase; a second needs a recorded decision. A hardening task is reviewed on its changed lines and their direct impact sites only: a blocker is fixed in the same task, every other finding is recorded with `findings.js add --origin hardening` and waits for the phase end. The brief names the violated invariant and requires a test for every route to it.
+- **Findings threshold** (`findingsBatch`): only open `hardening` and `blocker` findings count; `minor` ones, bulk imports (`findings.js add --migrated`) and findings from a hardening task's review do not. `board.js phase` still lists every deferred finding.
+- **Proportional new-task proposals** (`decisions.js ask --finding-class observed|known|theoretical`): a proposal that rests on a theoretical finding only cannot recommend doing the task now.
+- **Security tag from the brief**: a brief that cites threat-model IDs tags the task `security: yes` when it is added or started.
+- **Pack size tolerance** (`pack.js`): a pack up to 25% over `packMaxChars` is accepted with a note; above that the diff of changed test files is left out and named (`testsLeftOut`); only a pack still over 125% stops.
+- **Plain-chat questions** (`Stop` hook): a lead message that ends with a question and has no recommendation is sent back once to go through `decisions.js ask`. The hook does nothing outside the lead session and never blocks on an error.
+- **Plugin source drift**: session start warns, in one line, when the plugin cache (`installed_plugins.json` commit) and the marketplace source folder are at different commits.
 
 ## Roles and models
 
