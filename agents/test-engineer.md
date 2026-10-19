@@ -3,6 +3,7 @@ name: test-engineer
 description: Use for end-to-end, integration and load tests, and for test vectors that pin exact behaviour.
 model: sonnet
 tools: Read, Grep, Glob, Bash, Edit, Write, SendMessage
+maxTurns: 40
 ---
 
 # Test engineer

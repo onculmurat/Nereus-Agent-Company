@@ -79,6 +79,7 @@ Aynı kurallar her role uygulanır; hiçbir rol atlanmaz ve hiçbir rolün model
 - **Paralel görevler** (`worktree.js`): ikinci bir görev kendi git worktree'sinde (`<repo>-wt/<id>`, dal `task/<id>`) başlar; `integrate` onu çalışma dalına yerelde cherry-pick ile alır. Push, ana dala birleştirme ve yayına alma yine sizin onayınızı ister.
 - **Lider rotasyonu** (`board.js`): 5 görev bittikten sonra (ya da bir kilometre taşı sonunda) lider bir devir notu yazar ve sizden `/clear` çalıştırmanızı ister; sonraki oturum buradan devam eder.
 - **Atlanan test sayısı** (`gate.js`): test kapısı kaç testin atlandığını, yok sayıldığını ya da todo olduğunu bildirir; her atlama için devir notunda yazılı bir gerekçe gerekir.
+- **Çağrı bütçesi** (`callBudget`, varsayılan 40): her görevlendirme 40 araç çağrısı kullanabilir (ajan dosyalarında `maxTurns`, paket başlığında yinelenir). Bütçeye ulaşan rol neyin bittiğini ve neyin kaldığını bildirir; lider kalanı yeni bir paketle (aynı tur) yeniden görevlendirir ya da görevi böler.
 
 ## Roller ve modeller
 

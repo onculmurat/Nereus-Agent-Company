@@ -79,6 +79,7 @@ The same rules apply to every role; no role is skipped and no role's model is lo
 - **Parallel tasks** (`worktree.js`): a second task starts in its own git worktree (`<repo>-wt/<id>`, branch `task/<id>`); `integrate` cherry-picks it onto the working branch locally. Push, merge into the main branch and deploy still need your approval.
 - **Lead rotation** (`board.js`): after 5 tasks marked done (or a milestone end) the lead writes a hand-off note and asks you to run `/clear`; the next session resumes from it.
 - **Skip count** (`gate.js`): the test gate reports how many tests were skipped, ignored or todo; each skip needs a written reason in the hand-off.
+- **Call budget** (`callBudget`, default 40): every dispatch may use 40 tool calls (`maxTurns` in the agent files, repeated in the pack header). A role that hits it reports what is done and what is left; the lead re-dispatches the rest with a fresh pack (same round) or splits the task.
 
 ## Roles and models
 

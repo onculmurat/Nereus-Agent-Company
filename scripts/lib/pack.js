@@ -3,13 +3,21 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 import { teamPaths } from './paths.js';
+import { loadConfig } from './config.js';
 import { toLines } from './sections.js';
 
 const ID_RE = /^[A-Za-z0-9-]{1,64}$/;
 const ROLE_RE = /^[a-z][a-z0-9-]{0,63}$/;
 const BASE_RE = /^[A-Za-z0-9][A-Za-z0-9._/~^@{}-]{0,127}$/;
 const GATE_TAIL_LINES = 60;
+const pluginRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
+
+const budgetLine = (root) => {
+  const n = loadConfig({ pluginRoot, projectRoot: root }).callBudget;
+  return `Budget: ${n} tool calls. When you reach it, stop and report what is done, what is left and what you need.`;
+};
 const uniq = (list) => [...new Set(list)];
 
 // References in a brief header such as:
@@ -122,7 +130,7 @@ export function buildPack(root, { id, role, base, gate }) {
 
   const refs = parseRefs(brief);
   const notFound = [];
-  const parts = [`# Pack: ${id} for ${role}`, `## Task brief\n\n${brief.trimEnd()}`];
+  const parts = [`# Pack: ${id} for ${role}\n\n${budgetLine(root)}`, `## Task brief\n\n${brief.trimEnd()}`];
 
   const spec = readIf(p.spec);
   for (const n of refs.specSections) {

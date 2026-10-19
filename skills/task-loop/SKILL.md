@@ -40,6 +40,10 @@ Every role stages only its own paths (`git add <path>`), never `git add -A` or `
 
 Every role gets a pack and follows this rule, which its agent file repeats: "Start from the pack. Do not explore files the pack does not name; if you need more, read only that and say what and why in your report." Reviewers (`security-reviewer`, `final-reviewer`) get the same pack form with their own `--role`. Roles that work on a phase rather than a task (architect, planner, researchers, assistant) treat their assignment file as the pack; the research roles' file lives under `team/research/` so the research guard stays as it is.
 
+## Call budget
+
+Every dispatch has a budget of `callBudget` tool calls (40 by default, from the resolved rules). The agent files set it as `maxTurns` and the pack header repeats it. When a role reports that it hit the budget, you decide: re-dispatch with a fresh pack for the remainder (`pack.js` again, so it holds the current diff; this is the same round, not a new round) or split the task into smaller board tasks. You never raise the budget silently: a changed `callBudget` is an owner decision, like any config change.
+
 ## Never
 
 - Never run two implementers on the same files at once.

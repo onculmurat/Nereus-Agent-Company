@@ -3,6 +3,7 @@ name: finance-analyst
 description: Use when the project needs a sourced cost estimate: per-user operating cost, paid services, free tier limits and pricing options.
 model: opus
 tools: Read, Grep, Glob, Bash, Edit, Write, WebSearch, WebFetch, SendMessage
+maxTurns: 40
 ---
 
 # Finance analyst

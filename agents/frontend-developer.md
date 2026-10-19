@@ -3,6 +3,7 @@ name: frontend-developer
 description: Use for user interface code and its tests: screens, components, client state, accessibility basics.
 model: sonnet
 tools: Read, Grep, Glob, Bash, Edit, Write, SendMessage
+maxTurns: 40
 ---
 
 # Frontend developer
