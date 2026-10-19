@@ -8,11 +8,14 @@ import { loadConfig } from './config.js';
 import { nextId } from './sections.js';
 
 export const SEVERITIES = ['blocker', 'hardening', 'minor'];
+// Findings that count toward the hardening threshold: open, not minor, not migrated in bulk, not from a hardening task.
+export const counts = (f) => f.status === 'open' && f.severity !== 'minor' && !f.migrated && f.origin !== 'hardening';
+export const ORIGINS = ['hardening'];
 export const CLASSES = ['observed', 'known', 'theoretical'];
 const MODULE_RE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
 const ID_RE = /^F-\d{3,}$/;
 const SHA_RE = /^[0-9a-f]{7,40}$/i;
-const COLUMNS = ['id', 'status', 'severity', 'class', 'task', 'location', 'symbol', 'text', 'commit'];
+const COLUMNS = ['id', 'status', 'severity', 'class', 'task', 'location', 'symbol', 'text', 'commit', 'origin', 'migrated'];
 const MAX_SITES = 40;
 
 const findingsDir = (root) => path.join(teamPaths(root).team, 'findings');
@@ -29,7 +32,7 @@ function parseRow(line, module) {
   const cells = line.replace(/^\|/, '').replace(/\|\s*$/, '').split(/(?<!\\)\|/).map(uncell);
   const f = Object.fromEntries(COLUMNS.map((c, i) => [c, cells[i] ?? '']));
   const at = f.location.lastIndexOf(':');
-  return { id: f.id, module, status: f.status, severity: f.severity, class: f.class, task: f.task, file: f.location.slice(0, at), line: Number(f.location.slice(at + 1)), symbol: f.symbol, text: f.text, commit: f.commit };
+  return { id: f.id, module, status: f.status, severity: f.severity, class: f.class, task: f.task, file: f.location.slice(0, at), line: Number(f.location.slice(at + 1)), symbol: f.symbol, text: f.text, commit: f.commit, origin: f.origin, migrated: f.migrated === 'yes' };
 }
 
 function readModule(root, module) {
@@ -41,7 +44,7 @@ function readModule(root, module) {
 function writeModule(root, module, rows) {
   fs.mkdirSync(findingsDir(root), { recursive: true });
   const head = [`# Findings: ${module}`, '', `| ${COLUMNS.join(' | ')} |`, `|${COLUMNS.map(() => '---').join('|')}|`];
-  const body = rows.map((f) => `| ${[f.id, f.status, f.severity, f.class, f.task, `${f.file}:${f.line}`, f.symbol, f.text, f.commit].map(cell).join(' | ')} |`);
+  const body = rows.map((f) => `| ${[f.id, f.status, f.severity, f.class, f.task, `${f.file}:${f.line}`, f.symbol, f.text, f.commit, f.origin, f.migrated ? 'yes' : ''].map(cell).join(' | ')} |`);
   fs.writeFileSync(fileOf(root, module), `${[...head, ...body].join('\n')}\n`);
 }
 
@@ -64,19 +67,22 @@ function inside(root, file) {
   return rel !== '' && !rel.startsWith('..') && !path.isAbsolute(rel) ? abs : null;
 }
 
-export function addFinding(root, { module, file, line, symbol = '', severity, class: cls, task, text, pluginRoot }) {
+export function addFinding(root, { module, file, line, symbol = '', severity, class: cls, task, text, origin = '', migrated = false, pluginRoot }) {
   checkModule(module);
   if (!SEVERITIES.includes(severity)) throw new Error(`--severity must be one of ${SEVERITIES.join(', ')}; got "${severity}"`);
   if (!CLASSES.includes(cls)) throw new Error(`--class must be one of ${CLASSES.join(', ')}; got "${cls}"`);
+  if (origin && !ORIGINS.includes(origin)) throw new Error(`--origin must be ${ORIGINS.join(' or ')}; got "${origin}"`);
   if (!/^\d+$/.test(String(line)) || Number(line) < 1) throw new Error(`--line must be a positive number; got "${line}"`);
   if (!inside(root, file)) throw new Error(`--file "${file}" must be a path inside the project`);
   if (!String(text ?? '').trim()) throw new Error('--text must not be empty');
   const all = listFindings(root);
-  const f = { id: nextId('F', all.map((x) => x.id)), module, status: 'open', severity, class: cls, task, file: file.replace(/\\/g, '/'), line: Number(line), symbol, text: String(text).replace(/\r?\n/g, ' ').trim(), commit: '' };
+  const f = { id: nextId('F', all.map((x) => x.id)), module, status: 'open', severity, class: cls, task, file: file.replace(/\\/g, '/'), line: Number(line), symbol, text: String(text).replace(/\r?\n/g, ' ').trim(), commit: '', origin, migrated: Boolean(migrated) };
   writeModule(root, module, [...readModule(root, module), f]);
-  const open = all.filter((x) => x.module === module && x.status === 'open').length + 1;
+  const inModule = [...all.filter((x) => x.module === module), f];
+  const open = inModule.filter((x) => x.status === 'open').length;
+  const counted = inModule.filter(counts).length;
   const batch = loadConfig({ pluginRoot, projectRoot: root }).findingsBatch;
-  return { ...f, open, hardeningDue: open >= batch, findingsBatch: batch };
+  return { ...f, open, counted, hardeningDue: counted >= batch, findingsBatch: batch };
 }
 
 export function closeFinding(root, id, { commit }) {
@@ -94,7 +100,7 @@ export function closeFinding(root, id, { commit }) {
 
 // ---- Hardening pack: the open findings of one module with the lines around them and what else uses the symbol. ----
 
-const TEST_RE = /(^|\/)(tests?|__tests__|spec)\/|\.(test|spec)\.|_test\./;
+export const TEST_RE = /(^|\/)(tests?|__tests__|spec)\/|\.(test|spec)\.|_test\./;
 const FN_RES = [/\bfunction\s*\*?\s+([A-Za-z_$][\w$]*)/, /\bfn\s+([A-Za-z_]\w*)/, /\bdef\s+([A-Za-z_]\w*)/, /\bfunc\s+(?:\([^)]*\)\s*)?([A-Za-z_]\w*)/, /\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*(?:async\s*)?(?:function\b|\([^)]*\)\s*=>|[A-Za-z_$][\w$]*\s*=>)/];
 
 // The function that holds the line, found by a plain look upwards; '' when nothing looks like one.

@@ -14,7 +14,7 @@ Bir ürünü tek başına geliştirmek her rolü üstlenmek demektir: mimar, gel
 
 NAC'ın görsel bir arayüzü yoktur. Claude Code terminalinin içinde çalışır.
 
-**v1.1 kapsamı.** Bu sürüm çekirdek rolleri (ekip lideri, araştırmacı, finans analisti, mimar, planlayıcı, backend geliştirici, frontend geliştirici, veritabanı mühendisi, test mühendisi, kod incelemecisi, son incelemeci, güvenlik incelemecisi, doküman yazarı, asistan) ve 0, 1, 3, 4, 5 ve 6. aşamaları içerir. Sonraki adımlar: v2 ürün yöneticisi, UX ve UI tasarımcıları, DevOps mühendisi ile 2 ve 7. aşamaları; v3 pazarlama ve kalan iş rolleri ile 8 ve 9. aşamaları ekler.
+**v1.2 kapsamı.** Bu sürüm çekirdek rolleri (ekip lideri, araştırmacı, finans analisti, mimar, planlayıcı, backend geliştirici, frontend geliştirici, veritabanı mühendisi, test mühendisi, kod incelemecisi, son incelemeci, güvenlik incelemecisi, doküman yazarı, asistan) ve 0, 1, 3, 4, 5 ve 6. aşamaları içerir. Sonraki adımlar: v2 ürün yöneticisi, UX ve UI tasarımcıları, DevOps mühendisi ile 2 ve 7. aşamaları; v3 pazarlama ve kalan iş rolleri ile 8 ve 9. aşamaları ekler.
 
 ## Kurulum
 
@@ -49,7 +49,7 @@ claude
 /nac:setup
 ```
 
-Kurulum önce bir deneme çıktısı (dry run) gösterir: oluşturacağı her dosya, `.claude/settings.json` değişikliği (agent teams açık, NAC etkin) ve `.gitignore` satırı ve projenin `CLAUDE.md` dosyasına kısa bir NAC bloğu (`<!-- nac:guard:start -->` ile `<!-- nac:guard:end -->` arasında; diğer içeriğe dokunulmaz). Bu blok, `NAC-LEAD-ACTIVE` işaretini görmeyen bir oturuma NAC yüklü olmadığını, lider gibi davranmaması gerektiğini ve eklentinin nasıl geri getirileceğini söyler; daha önce kurulmuş bir projede `setup.js --guard-block` yalnız bu bloğu yazar. Siz onaylamadan hiçbir şey yazılmaz. Var olan bir dosyanın ya da ayarın üzerine asla yazmaz; çakışan bir ayar kurulumu durdurur. Ardından ayrı bir soru olarak, genel `~/.claude/CLAUDE.md` dosyanızdaki model bölümünün NAC model tablosunu göstermesini isteyip istemediğinizi sorar. Son olarak `/clear` çalıştırın (ya da Claude Code'u yeniden başlatın): kurulumu yapan oturum NAC kurulmadan önce başladığı için lider talimatlarını ancak sonraki oturum yükler. Ardından lider 0. aşamayı başlatır.
+Kurulum önce bir deneme çıktısı (dry run) gösterir: oluşturacağı her dosya, `.claude/settings.json` değişikliği (agent teams açık, NAC etkin) ve `.gitignore` satırı ve projenin `CLAUDE.md` dosyasına kısa bir NAC bloğu (`<!-- nac:guard:start -->` ile `<!-- nac:guard:end -->` arasında; diğer içeriğe dokunulmaz). Bu blok, `NAC-LEAD-ACTIVE` işaretini görmeyen bir oturuma NAC yüklü olmadığını, lider gibi davranmaması gerektiğini ve eklentinin nasıl geri getirileceğini söyler; daha önce kurulmuş bir projede `setup.js --guard-block` yalnız bu bloğu yazar (`--guard-block --dry-run` yazmadan gösterir). Otomatik mod sınıflandırıcısı liderin `CLAUDE.md` yazmasını engeller; bu yüzden oturum başı ipucu `! node <yol>/scripts/setup.js --guard-block` komutunu sizin yazmanızı ister. Siz onaylamadan hiçbir şey yazılmaz. Var olan bir dosyanın ya da ayarın üzerine asla yazmaz; çakışan bir ayar kurulumu durdurur. Ardından ayrı bir soru olarak, genel `~/.claude/CLAUDE.md` dosyanızdaki model bölümünün NAC model tablosunu göstermesini isteyip istemediğinizi sorar. Son olarak `/clear` çalıştırın (ya da Claude Code'u yeniden başlatın): kurulumu yapan oturum NAC kurulmadan önce başladığı için lider talimatlarını ancak sonraki oturum yükler. Ardından lider 0. aşamayı başlatır.
 
 Oturumunuz liderdir ve lider oturumunuzun modeliyle çalışır. Lider için `/model opus` kullanın.
 
@@ -187,6 +187,16 @@ Bilmeniz gereken sınırlar:
 - Liderin modeli oturum modelinizdir. `/model opus` kullanın.
 - `TaskCompleted` hook'u (bir ekip görevi ancak panoda bitti görünüyorsa kapanır) yalnız Claude Code yerel ekip görev araçları sunduğunda çalışır. Claude Code 2.1.302 ile yapılan canlı testlerde hiçbir oturumda bu görev araçları yoktu, bu yüzden hook hiç tetiklenmedi; erken "bitti"yi panodaki lider incelemesi durdurur.
 - Agent teams, Claude Code'un deneysel bir özelliğidir (`CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS`).
+
+## Koşullu sıkıştırma
+
+Lider bağlamı Claude Code tarafından kendiliğinden sıkıştırılır; bu bir görevin ortasında olabilir. NAC, otomatik sıkıştırmanın yalnız temiz bir noktada çalışmasına izin verir (yalnız lider oturumunda çalışan `PreCompact` kancası): devam eden görev yok, git çalışma ağacı temiz, son biten görevin commit'i var, açık/ertelenmiş sahip sorusu yok. Aksi halde tek satır gerekçeyle ertelenir; bağlam `compaction.ceiling` (varsayılan 300000 token) eşiğini aşarsa yine de çalışır. Elle `/compact` asla engellenmez, kanca hatası sıkıştırmaya izin verir. Çalıştığında `team/work/handoffs/compact-<damga>.md` devir notu yazılır ve sonraki oturum başı lideri ona yönlendirir. `/nac:setup` proje `.claude/settings.json` dosyasına `autoCompactWindow` (varsayılan 200000) ve `idleCompaction: false` yazar; daha önce kurulmuş projede `! node <yol>/scripts/setup.js --compaction` yalnız bunları yazar. Varsayılanlar:
+
+```json
+{ "compaction": { "autoCompactWindow": 200000, "ceiling": 300000 } }
+```
+
+Ayrıntılar İngilizce README'de.
 
 ## Güvenlik kuralları
 

@@ -14,7 +14,7 @@ Building a product alone means playing every role: architect, developer, reviewe
 
 NAC has no graphical interface. It runs inside the Claude Code terminal.
 
-**v1.1 scope.** This release ships the core roles (team lead, researcher, finance analyst, architect, planner, backend developer, frontend developer, database engineer, test engineer, code reviewer, final reviewer, security reviewer, doc writer, assistant) and phases 0, 1, 3, 4, 5 and 6. Planned next: v2 adds product manager, UX and UI designers, DevOps engineer and phases 2 and 7; v3 adds marketing and the remaining business roles and phases 8 and 9.
+**v1.2 scope.** This release ships the core roles (team lead, researcher, finance analyst, architect, planner, backend developer, frontend developer, database engineer, test engineer, code reviewer, final reviewer, security reviewer, doc writer, assistant) and phases 0, 1, 3, 4, 5 and 6. Planned next: v2 adds product manager, UX and UI designers, DevOps engineer and phases 2 and 7; v3 adds marketing and the remaining business roles and phases 8 and 9.
 
 ## Install
 
@@ -49,7 +49,7 @@ claude
 /nac:setup
 ```
 
-Setup first shows a dry run: every file it would create, the change to `.claude/settings.json` (agent teams on, NAC enabled), and the `.gitignore` line, and a short NAC block in the project `CLAUDE.md` (between `<!-- nac:guard:start -->` and `<!-- nac:guard:end -->`; other content is untouched). That block tells a session that lacks the marker `NAC-LEAD-ACTIVE` that NAC is not loaded, so it must not act as lead, and how to restore the plugin; for a project set up earlier, `setup.js --guard-block` writes only that block. Nothing is written until you approve. It never overwrites an existing file or setting; a conflicting setting stops it. It then asks, as a separate question, whether to point the model section of your global `~/.claude/CLAUDE.md` at NAC's model table. Finally run `/clear` (or restart Claude Code): the session that ran setup started before NAC was set up, so only the next session loads the lead instructions. The lead then starts phase 0.
+Setup first shows a dry run: every file it would create, the change to `.claude/settings.json` (agent teams on, NAC enabled), and the `.gitignore` line, and a short NAC block in the project `CLAUDE.md` (between `<!-- nac:guard:start -->` and `<!-- nac:guard:end -->`; other content is untouched). That block tells a session that lacks the marker `NAC-LEAD-ACTIVE` that NAC is not loaded, so it must not act as lead, and how to restore the plugin; for a project set up earlier, `setup.js --guard-block` writes only that block (`--guard-block --dry-run` prints it without writing). The auto-mode classifier blocks the lead from writing `CLAUDE.md`, so the session-start hint asks you to type `! node <path>/scripts/setup.js --guard-block` yourself. Nothing is written until you approve. It never overwrites an existing file or setting; a conflicting setting stops it. It then asks, as a separate question, whether to point the model section of your global `~/.claude/CLAUDE.md` at NAC's model table. Finally run `/clear` (or restart Claude Code): the session that ran setup started before NAC was set up, so only the next session loads the lead instructions. The lead then starts phase 0.
 
 Your session is the lead, and the lead runs on your session's model. Use `/model opus` for the lead.
 
@@ -92,6 +92,13 @@ The same rules apply to every role; no role is skipped and no role's model is lo
 - **Shared role rules**: every role and the lead try the automated path first and hand you only steps that truly need a human, each as one exact minimal action; fix rounds go back to the role that owns the work (on `to-lead` the lead decides, re-plans or escalates; the fix still goes to the owning role); nobody reads outside the project root without asking you first; the board's `rounds` field is the only round count.
 - **Checked commit hashes** (`board.js update --commit <sha>`): the hash must exist and be reachable from HEAD, so a hash written from memory is refused. Decision and escalation dates use your local day, not the UTC day. Every script prints its usage and exits 0 for `--help`.
 - **Lessons** (`lessons.js add --trigger <text> --what <text> --rule <text> [--task <id>]`, `lessons.js show [--since <date>]`): the lead records a lesson when an escalation reaches `to-lead` or `to-owner`, when a role repeats the same mistake, or when you correct the lead, and reviews every phase for lessons. Each goes to `team/lessons.md` (this project) and to `~/.claude/nac/lessons.md` (every project on this machine; the file stays on this machine and is never sent anywhere). The phase report lists the new lessons; you decide which become NAC rules, nothing becomes a rule automatically.
+- **Hardening loop** (`board.js add --module <m> --hardening yes [--decision D-xxx]`): at most one hardening task per module per phase; a second needs a recorded decision. A hardening task is reviewed on its changed lines and their direct impact sites only: a blocker is fixed in the same task, every other finding is recorded with `findings.js add --origin hardening` and waits for the phase end. The brief names the violated invariant and requires a test for every route to it.
+- **Findings threshold** (`findingsBatch`): only open `hardening` and `blocker` findings count; `minor` ones, bulk imports (`findings.js add --migrated`) and findings from a hardening task's review do not. `board.js phase` still lists every deferred finding.
+- **Proportional new-task proposals** (`decisions.js ask --finding-class observed|known|theoretical`): a proposal that rests on a theoretical finding only cannot recommend doing the task now.
+- **Security tag from the brief**: a brief that cites threat-model IDs tags the task `security: yes` when it is added or started.
+- **Pack size tolerance** (`pack.js`): a pack up to 25% over `packMaxChars` is accepted with a note; above that the diff of changed test files is left out and named (`testsLeftOut`); only a pack still over 125% stops.
+- **Plain-chat questions** (`Stop` hook): a lead message that ends with a question and has no recommendation is sent back once to go through `decisions.js ask`. The hook does nothing outside the lead session and never blocks on an error.
+- **Plugin source drift**: session start warns, in one line, when the plugin cache (`installed_plugins.json` commit) and the marketplace source folder are at different commits.
 
 ## Roles and models
 
@@ -173,6 +180,22 @@ Settings resolve in three layers, later wins: plugin defaults (`defaults/config.
 ```
 
 `testCommand` (for example `"cargo test"`) is the one command that runs the project's whole suite from the project root. The test gate runs it as a shell command on every task. The planner proposes it, you approve it in the phase 4 report, and the lead writes it.
+
+## Conditional compaction
+
+Claude Code compacts the lead's context by itself, which can happen in the middle of a task. NAC lets an automatic compaction run only at a clean point, through a `PreCompact` hook that acts in the lead session only:
+
+- Allowed when nothing is in flight: no task `in-progress` or `review`, the git working tree is clean (ignored files do not count), the last `done` task has its commit on HEAD, and no owner question is open or deferred. NAC then writes a short `team/work/handoffs/compact-<stamp>.md` (board state, next task, pointer to `team/decisions.md`), and the next session start (source `compact`) points the lead to it.
+- Otherwise the compaction is deferred with a one-line reason. Above the ceiling (`compaction.ceiling`, default 300000 tokens in context) it runs anyway, so a deferral can never overflow the context.
+- Manual `/compact` is never blocked. Any error in the hook allows the compaction.
+
+Defaults, in `defaults/config.json` (override in `team/config.json`):
+
+```json
+{ "compaction": { "autoCompactWindow": 200000, "ceiling": 300000 } }
+```
+
+`/nac:setup` writes `autoCompactWindow` (minimum 100000) and `idleCompaction: false` into the project `.claude/settings.json` without touching values you already set; for a project set up earlier, `node <path>/scripts/setup.js --compaction` writes only these two keys (`--dry-run` prints them). The auto-mode classifier can block the lead from editing settings, so the session-start hint asks you to type it with `!`. The first automatic compaction fires somewhat below the window (about 72% in a spike with 100000), so do not rely on the exact point. If your shell sets `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE`, its interaction with `autoCompactWindow` is untested; NAC does not depend on it.
 
 ## Team mode vs subagent mode and limits
 

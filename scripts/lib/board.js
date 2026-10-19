@@ -8,6 +8,7 @@ import { nextAction } from './escalation.js';
 import { execFileSync } from 'node:child_process';
 import { readDecisions, deferredFor } from './decisions.js';
 import { listFindings } from './findings.js';
+import { parseRefs } from './refs.js';
 
 export const STATUSES = ['todo', 'in-progress', 'review', 'done', 'blocked'];
 const ID_RE = /^[A-Za-z0-9-]{1,64}$/;
@@ -59,6 +60,7 @@ export function readBoard(root) {
     ...(f.code === 'no' ? { code: 'no' } : {}),
     ...(SECURITY_TAGS.includes(f.security) ? { security: f.security } : {}),
     ...(f.module ? { module: f.module } : {}),
+    ...(f.hardening === 'yes' ? { hardening: 'yes', hphase: Number(f.hphase ?? 0), ...(f.hdecision ? { hdecision: f.hdecision } : {}) } : {}),
     ...(f.reviews ? { reviews: parseReviews(f.reviews) } : {}),
   }));
   const rotLine = lines.find((l) => /^done-since-rotation:\s*\d+\s*$/.test(l));
@@ -77,6 +79,7 @@ export function writeBoard(root, board) {
     ...(e.code === 'no' ? { code: 'no' } : {}),
     ...(SECURITY_TAGS.includes(e.security) ? { security: e.security } : {}),
     ...(e.module ? { module: e.module } : {}),
+    ...(e.hardening === 'yes' ? { hardening: 'yes', hphase: e.hphase ?? 0, ...(e.hdecision ? { hdecision: e.hdecision } : {}) } : {}),
     ...(e.reviews && Object.keys(e.reviews).length ? { reviews: formatReviews(e.reviews) } : {}),
   }));
   const rotation = board.doneSinceRotation > 0 ? `\ndone-since-rotation: ${board.doneSinceRotation}` : '';
@@ -84,17 +87,50 @@ export function writeBoard(root, board) {
 }
 
 // code: 'no' marks a task that produces no code (spike, research, docs only); its gate checks the report file.
-export function addEntry(root, { id, title, owner, model, code, security, module }) {
+// At most one hardening task per module per phase: each hardening review opens the next hardening otherwise.
+// A second one needs a decision recorded in decisions.md (--decision D-xxx).
+function planHardening(root, board, { module, decision }) {
+  if (!module) throw new Error('--hardening needs --module <m>: a hardening task belongs to one module');
+  checkModuleName(module);
+  const earlier = board.entries.find((e) => e.hardening === 'yes' && e.module === module && e.hphase === board.phase);
+  if (decision !== undefined && !readDecisions(root).decided.some((d) => d.id === decision)) {
+    throw new Error(`--decision ${decision}: no decision with that id in team/decisions.md. Record the owner's decision first (decisions.js), then pass its id.`);
+  }
+  if (earlier && decision === undefined) {
+    throw new Error(`Module ${module} already has a hardening task in phase ${board.phase} (${earlier.id}). One per module per phase: record the findings with findings.js add --origin hardening and deal with them at the phase end, or ask the owner, record the decision and pass --decision D-xxx.`);
+  }
+  return { hardening: 'yes', hphase: board.phase, ...(decision === undefined ? {} : { hdecision: decision }) };
+}
+
+export function addEntry(root, { id, title, owner, model, code, security, module, hardening, decision }) {
   const board = readBoard(root);
   checkOwner(board, owner);
   checkCodeOwner(owner, code);
   const entryId = id ?? nextId('T', board.entries.map((e) => e.id));
   if (!ID_RE.test(entryId)) throw new Error(`Invalid board id "${entryId}"`);
   if (board.entries.some((e) => e.id === entryId)) throw new Error(`Board entry ${entryId} already exists`);
-  const entry = { id: entryId, title, owner, status: 'todo', rounds: 0, model, commits: [], handoff: '', ...(code === 'no' ? { code: 'no' } : {}), ...(SECURITY_TAGS.includes(security) ? { security } : {}), ...(module ? { module: checkModuleName(module) } : {}) };
+  const hard = hardening === 'yes' ? planHardening(root, board, { module, decision }) : {};
+  const entry = { id: entryId, title, owner, status: 'todo', rounds: 0, model, commits: [], handoff: '', ...(code === 'no' ? { code: 'no' } : {}), ...(SECURITY_TAGS.includes(security) ? { security } : {}), ...(module ? { module: checkModuleName(module) } : {}), ...hard };
+  const note = autoTagSecurity(root, entry, { explicit: security });
   board.entries.push(entry);
   writeBoard(root, board);
-  return entry;
+  return note ? { ...entry, securityNote: note } : entry;
+}
+
+// A brief that cites threat-model IDs belongs to a security review: the task is tagged security: yes unless it has a tag.
+// Returns a note for the lead when it tagged the entry.
+function autoTagSecurity(root, entry, { explicit } = {}) {
+  if (entry.security || explicit !== undefined) return undefined;
+  let brief;
+  try {
+    brief = fs.readFileSync(path.join(teamPaths(root).tasks, `${entry.id}.md`), 'utf8');
+  } catch {
+    return undefined;
+  }
+  const { threats } = parseRefs(brief);
+  if (!threats.length) return undefined;
+  entry.security = 'yes';
+  return `Tagged security: yes because the brief cites threat-model ${threats.join(', ')}. Use board.js update ${entry.id} --security contract if it changes a security contract.`;
 }
 
 // A task is not done while it has questions the owner has not been given yet, or while a security: contract task
@@ -122,11 +158,12 @@ export function updateEntry(root, id, patch) {
   if (patch.status === 'done' && entry.status !== 'done') board.doneSinceRotation = (board.doneSinceRotation ?? 0) + 1;
   if (patch.module !== undefined && patch.module !== '') checkModuleName(patch.module);
   Object.assign(entry, patch);
+  const note = patch.status === 'in-progress' ? autoTagSecurity(root, entry, { explicit: patch.security }) : undefined;
   if (!entry.module) delete entry.module;
   if (entry.code !== 'no') delete entry.code;
   if (!SECURITY_TAGS.includes(entry.security)) delete entry.security;
   writeBoard(root, board);
-  return entry;
+  return note ? { ...entry, securityNote: note } : entry;
 }
 
 const MODULE_RE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;

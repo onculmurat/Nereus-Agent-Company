@@ -5,12 +5,16 @@ import { fileURLToPath } from 'node:url';
 import { runCli, need, UsageError } from './lib/cli.js';
 import { readBoard, addEntry, updateEntry, recordReview, recordModuleReview, phaseCloseProblems, setPhase, incrementRound, verifyCommit, rotationDue, markRotated, countFoldIn } from './lib/board.js';
 import { loadConfig, validateConfig } from './lib/config.js';
+import { listFindings } from './lib/findings.js';
 
 const usage = `Usage:
   board.js show
-  board.js add --title <text> --owner <role> --model <haiku|sonnet|opus> [--id <id>] [--code <yes|no>] [--security <yes|no|contract>] [--module <m>]
+  board.js add --title <text> --owner <role> --model <haiku|sonnet|opus> [--id <id>] [--code <yes|no>] [--security <yes|no|contract>] [--module <m>] [--hardening yes [--decision <D-id>]]
+                                         --hardening yes: the module's hardening task (needs --module); a second one in the same module and phase is refused
+                                         unless --decision names a decision recorded in decisions.md
                                          --code no: a task that produces no code (spike, research, docs only); gate.js --task checks its report file
   board.js update <id> [--status <todo|in-progress|review|done|blocked>] [--owner <role>] [--model <m>] [--commit <sha>] [--handoff <path>] [--code <yes|no>] [--security <yes|no|contract>] [--module <m>]
+                                         a brief that cites threat-model IDs ("threat-model T12, M2") tags the task security: yes when it is added or started (--security no or an existing tag wins)
                                          --security yes: reviewed per module by security-reviewer; contract (task changes a security contract): done is refused until a pass is recorded (review)
                                          --commit checks that the sha exists and is reachable from HEAD; read it first: git log -1 --format=%h
   board.js review <id> --role <role> --verdict <pass|fail>
@@ -38,7 +42,8 @@ const commands = {
     need(v, 'title', 'owner', 'model');
     checkYesNo('code', v.code);
     checkYesNo('security', v.security, ['yes', 'no', 'contract']);
-    return addEntry(root, { id: v.id, title: v.title, owner: v.owner, model: v.model, code: v.code, security: v.security, module: v.module });
+    checkYesNo('hardening', v.hardening);
+    return addEntry(root, { id: v.id, title: v.title, owner: v.owner, model: v.model, code: v.code, security: v.security, module: v.module, hardening: v.hardening, decision: v.decision });
   },
   update: ({ values: v, positionals: [, id], root }) => {
     if (!id) throw new UsageError('Missing entry id');
@@ -86,13 +91,14 @@ const commands = {
     const problems = phaseCloseProblems(root);
     if (problems.length) throw new Error(`Phase ${n} cannot start yet:\n- ${problems.join('\n- ')}`);
     setPhase(root, Number(n));
-    return { phase: Number(n) };
+    // Every open finding is listed, whatever its severity or origin: the owner sees what is deferred at the phase end.
+    return { phase: Number(n), deferredFindings: listFindings(root, { open: true }).map(({ id, module, severity, task, text }) => ({ id, module, severity, task, text })) };
   },
 };
 
 const options = {
   title: { type: 'string' }, owner: { type: 'string' }, model: { type: 'string' }, id: { type: 'string' },
-  status: { type: 'string' }, code: { type: 'string' }, security: { type: 'string' }, module: { type: 'string' }, role: { type: 'string' }, verdict: { type: 'string' }, commit: { type: 'string' }, handoff: { type: 'string' }, reset: { type: 'boolean' }, approach: { type: 'string' },
+  status: { type: 'string' }, code: { type: 'string' }, security: { type: 'string' }, module: { type: 'string' }, role: { type: 'string' }, verdict: { type: 'string' }, commit: { type: 'string' }, handoff: { type: 'string' }, reset: { type: 'boolean' }, approach: { type: 'string' }, hardening: { type: 'string' }, decision: { type: 'string' },
 };
 
 runCli(usage, options, (ctx) => {

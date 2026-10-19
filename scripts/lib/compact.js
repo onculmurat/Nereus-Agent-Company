@@ -1,0 +1,116 @@
+// Conditional autocompact. Claude Code compacts the lead's context on its own; the PreCompact hook lets that happen
+// only at a clean point (nothing in flight), or when the context passes a ceiling. Every function here is cheap,
+// and the hook treats any error as "allow".
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { execFileSync } from 'node:child_process';
+import { readBoard, verifyCommit } from './board.js';
+import { readDecisions } from './decisions.js';
+import { buildResumeSummary } from './summary.js';
+import { teamPaths } from './paths.js';
+import { localDate } from './dates.js';
+
+export const DEFAULT_CEILING = 300000;
+export const DEFAULT_WINDOW = 200000;
+const TAIL_BYTES = 512 * 1024;
+const CACHE_MS = 10000;
+const HANDOFF_GLOB = 'team/work/handoffs/compact-*';
+
+// Tokens in the context at the last assistant message: input + cache read + cache creation. null when unknown.
+export function contextTokens(file) {
+  try {
+    const size = fs.statSync(file).size;
+    const fd = fs.openSync(file, 'r');
+    try {
+      const start = Math.max(0, size - TAIL_BYTES);
+      const buf = Buffer.alloc(size - start);
+      fs.readSync(fd, buf, 0, buf.length, start);
+      const lines = buf.toString('utf8').split('\n').filter(Boolean);
+      for (let i = lines.length - 1; i >= 0; i--) {
+        let u;
+        try {
+          const entry = JSON.parse(lines[i]);
+          u = entry?.type === 'assistant' ? entry.message?.usage : null;
+        } catch {
+          continue;
+        }
+        if (u) return (u.input_tokens ?? 0) + (u.cache_read_input_tokens ?? 0) + (u.cache_creation_input_tokens ?? 0);
+      }
+    } finally {
+      fs.closeSync(fd);
+    }
+  } catch {
+    // unreadable transcript: unknown
+  }
+  return null;
+}
+
+// null when compaction may run, else a one-line reason. Throws on a problem the caller treats as "allow".
+export function compactBlocker(root) {
+  const board = readBoard(root);
+  const active = board.entries.filter((e) => e.status === 'in-progress' || e.status === 'review');
+  if (active.length) return `${active.map((e) => e.id).join(', ')} still in flight; finish or hand off, then compaction can run.`;
+  const dirty = execFileSync('git', ['status', '--porcelain', '--', '.', `:(exclude)${HANDOFF_GLOB}`], { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], timeout: 5000 }).trim();
+  if (dirty) return 'uncommitted changes in the working tree; commit them first.';
+  const last = board.entries.filter((e) => e.status === 'done').at(-1);
+  if (last && last.code !== 'no') {
+    const sha = last.commits.at(-1);
+    if (!sha) return `${last.id} is done but has no commit recorded on the board.`;
+    try {
+      verifyCommit(root, sha);
+    } catch {
+      return `${last.id}: commit ${sha} is not reachable from HEAD.`;
+    }
+  }
+  const open = readDecisions(root).open;
+  if (open.length) return `${open.length} owner question(s) not answered yet (${open.map((q) => q.id).join(', ')}); ask or answer them first.`;
+  return null;
+}
+
+// A block is remembered briefly: Claude Code asks again after every tool result.
+const cacheFile = (sessionId) => path.join(os.tmpdir(), `nac-precompact-${String(sessionId).replace(/[^A-Za-z0-9_-]/g, '_')}.json`);
+
+export function cachedBlocker(sessionId, root, now = Date.now()) {
+  if (!sessionId) return compactBlocker(root);
+  const file = cacheFile(sessionId);
+  try {
+    const c = JSON.parse(fs.readFileSync(file, 'utf8'));
+    if (c.root === root && now - c.time < CACHE_MS && typeof c.reason === 'string') return c.reason;
+  } catch { /* no usable cache */ }
+  const reason = compactBlocker(root);
+  try {
+    if (reason) fs.writeFileSync(file, JSON.stringify({ root, time: now, reason }));
+    else fs.rmSync(file, { force: true });
+  } catch { /* the cache is an optimisation */ }
+  return reason;
+}
+
+export function writeCompactHandoff(root, now = new Date()) {
+  const dir = teamPaths(root).handoffs;
+  fs.mkdirSync(dir, { recursive: true });
+  const pad = (n) => String(n).padStart(2, '0');
+  const name = `compact-${localDate(now)}-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}.md`;
+  const board = readBoard(root);
+  const next = board.entries.find((e) => e.status === 'todo');
+  const text = [
+    '# Compact hand-off',
+    'Written by the PreCompact hook at a clean point: nothing in flight, tree committed, last done task committed, no open owner question.',
+    `Next task: ${next ? `${next.id}: ${next.title}` : 'none on the board; ask the owner or plan the next step'}`,
+    'Owner questions: team/decisions.md (open and decided).',
+    '',
+    buildResumeSummary(root, { gitStatus: '' }).trim(),
+    '',
+  ].join('\n');
+  fs.writeFileSync(path.join(dir, name), text);
+  return name;
+}
+
+export function latestCompactHandoff(root) {
+  try {
+    const names = fs.readdirSync(teamPaths(root).handoffs).filter((n) => /^compact-.+\.md$/.test(n)).sort();
+    return names.length ? `team/work/handoffs/${names[names.length - 1]}` : null;
+  } catch {
+    return null;
+  }
+}

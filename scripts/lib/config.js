@@ -67,6 +67,11 @@ export function validateConfig(cfg) {
   if (cfg.testCommand !== undefined && (typeof cfg.testCommand !== 'string' || !cfg.testCommand.trim())) {
     throw new Error(`testCommand must be a non-empty command string; got ${JSON.stringify(cfg.testCommand)}`);
   }
+  const c = cfg.compaction;
+  if (c !== undefined) {
+    if (!Number.isInteger(c.autoCompactWindow) || c.autoCompactWindow < 100000) throw new Error(`compaction.autoCompactWindow must be a whole number of at least 100000 tokens; got ${JSON.stringify(c.autoCompactWindow)}`);
+    if (!Number.isInteger(c.ceiling) || c.ceiling < 1) throw new Error(`compaction.ceiling must be a positive integer; got ${JSON.stringify(c.ceiling)}`);
+  }
   const age = cfg.cleanup?.closedThreadMaxAgeDays;
   if (!Number.isInteger(age) || age < 0) throw new Error(`cleanup.closedThreadMaxAgeDays must be a whole number of days, 0 or more; got ${JSON.stringify(age)}`);
 }

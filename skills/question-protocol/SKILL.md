@@ -23,6 +23,10 @@ Every question starts with its context, then the choice:
 
 Every owner question goes through `decisions.js ask` with `--options` (at least 2) and `--recommend`; the `AskUserQuestion` call copies them.
 
+A question that proposes a new task (for example a hardening task) states the class of the finding behind it, `--finding-class observed|known|theoretical`. `decisions.js ask` refuses to recommend "now" when that class is `theoretical` (it needs, for example, an attacker-planted file in the data dir): recommend the phase end instead. Proportionality covers proposals, not only fix rounds.
+
+Never ask the owner in plain chat ("yes / no?") without going through `decisions.js ask`: a chat question skips the options and recommendation checks. A Stop hook checks the lead's final message: it ends with a question and has no recommendation, the lead is sent back once to ask it properly.
+
 One question at a time. Each message holds exactly one question: no sub-questions, no bullet list of things to cover, and no preview of the questions still to come. A question asks about one thing: never join two questions with "and". Wait for the answer before the next one.
 
 A question gets its own message: no status report, summary or news in it; send those in a message before it. Ask a question in full every time, re-asks included: never refer to it only by its id ("waiting for your answer to Q-010"), so the owner never has to search earlier messages for it. When several questions are queued, ask them one after another, each after the previous answer, except as allowed under Batching below.
