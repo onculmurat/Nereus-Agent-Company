@@ -20,6 +20,14 @@ The board (`team/work/board.md`) is the source of truth. A task whose board stat
 7. **Hand-off.** When the reviewer says `APPROVED`, make sure `team/work/handoffs/<id>.md` exists (a read-only role sends it to you to save).
 8. **Done.** `update <id> --status done --commit <sha> --handoff team/work/handoffs/<id>.md`. Ask `doc-writer` to update the project documents when the task changed behaviour.
 
+## Parallel tasks
+
+When an implementer is already active and another task starts, the new task does not share the working tree. Run `node "<scripts>/worktree.js" add <id>`: it creates a git worktree at `<repo>-wt/<id>` on branch `task/<id>`, outside the repo. Brief, pack, hand-off and board stay in the main project; the pack path is absolute, and the role works inside the worktree path.
+
+After the reviewer says `APPROVED` and the gate is green, integrate locally: `node "<scripts>/worktree.js" integrate <id>` cherry-picks the task's commits onto the working branch (it aborts and leaves the branch unchanged on a conflict; then the task goes back as a fix round), then `worktree.js remove <id>` deletes the worktree and the branch. The owner decided that this local integration is part of the loop, so it needs no separate approval. It is a cherry-pick onto the working branch, not a push and not a merge of a remote or release branch: push, merge into the main branch, deploy and publish still need the owner's separate approval for that one action.
+
+Every role stages only its own paths (`git add <path>`), never `git add -A` or `git add .`: another task's unstaged work must never ride along in a commit.
+
 ## Role rule
 
 Every role that gets a pack follows this rule, which its agent file repeats: "Start from the pack. Do not explore files the pack does not name; if you need more, read only that and say what and why in your report." Reviewers (`security-reviewer`, `final-reviewer`) get the same pack form with their own `--role`.

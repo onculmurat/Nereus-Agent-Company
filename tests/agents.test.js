@@ -117,3 +117,13 @@ for (const role of ['backend-developer', 'frontend-developer', 'database-enginee
     assert.ok(body.split('## Working rules')[1].split('\n## ')[0].includes(PACK_RULE));
   });
 }
+
+// Seen live: one commit swept in another task's unstaged deletion.
+for (const role of ['backend-developer', 'frontend-developer', 'database-engineer', 'test-engineer', 'doc-writer']) {
+  test(`${role} stages only its own paths`, () => {
+    const { body } = parseFrontmatter(fs.readFileSync(path.join(agentsDir, `${role}.md`), 'utf8'));
+    const rules = body.split('## Working rules')[1].split('\n## ')[0];
+    assert.match(rules, /git add <path>/);
+    assert.match(rules, /never `git add -A` or `git add \.`/);
+  });
+}

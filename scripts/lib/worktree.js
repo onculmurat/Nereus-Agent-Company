@@ -1,0 +1,57 @@
+// Parallel tasks run in their own git worktree on branch task/<id>, outside the repo.
+// The lead integrates an approved task locally by cherry-picking its commits; push and remote merge stay with the owner.
+import fs from 'node:fs';
+import path from 'node:path';
+import { execFileSync } from 'node:child_process';
+
+const ID_RE = /^[A-Za-z0-9-]{1,64}$/;
+
+function git(cwd, ...args) {
+  try {
+    return execFileSync('git', args, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
+  } catch (e) {
+    throw new Error(`git ${args[0]} failed: ${String(e.stderr || e.message).trim()}`);
+  }
+}
+
+const checkId = (id) => {
+  if (!ID_RE.test(id ?? '')) throw new Error(`Invalid task id "${id}"`);
+  return id;
+};
+
+export const worktreePath = (root, id) => path.join(`${path.resolve(root)}-wt`, checkId(id));
+const branchOf = (id) => `task/${id}`;
+
+export function addWorktree(root, id) {
+  const dir = worktreePath(root, id);
+  if (fs.existsSync(dir)) throw new Error(`Worktree for ${id} already exists at ${dir}`);
+  const base = git(root, 'rev-parse', 'HEAD');
+  fs.mkdirSync(path.dirname(dir), { recursive: true });
+  git(root, 'worktree', 'add', '-b', branchOf(id), dir, base);
+  return { id, path: dir, branch: branchOf(id), base };
+}
+
+// Cherry-picks the commits of task/<id> (since it left the working branch) onto the current branch, oldest first.
+export function integrateWorktree(root, id) {
+  const branch = branchOf(checkId(id));
+  if (git(root, 'status', '--porcelain', '--untracked-files=no')) {
+    throw new Error('The working branch has uncommitted changes; commit or stash them before integrating.');
+  }
+  const commits = git(root, 'rev-list', '--reverse', `${git(root, 'merge-base', 'HEAD', branch)}..${branch}`).split('\n').filter(Boolean);
+  if (!commits.length) throw new Error(`Branch ${branch} has no commits to integrate`);
+  try {
+    git(root, 'cherry-pick', ...commits);
+  } catch (e) {
+    try { git(root, 'cherry-pick', '--abort'); } catch { /* nothing to abort */ }
+    throw new Error(`Cherry-pick conflict integrating ${branch}; the working branch is unchanged. ${e.message}`);
+  }
+  const added = git(root, 'rev-list', '--reverse', `HEAD~${commits.length}..HEAD`).split('\n').filter(Boolean);
+  return { id, branch, commits: added };
+}
+
+export function removeWorktree(root, id) {
+  const dir = worktreePath(root, id);
+  git(root, 'worktree', 'remove', dir);
+  git(root, 'branch', '-D', branchOf(id));
+  return { id, removed: dir };
+}

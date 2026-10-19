@@ -173,3 +173,14 @@ test('task-loop builds a pack before the implementer, the reviewer and every fix
   assert.match(loop, /Start from the pack\. Do not explore files the pack does not name/);
   assert.ok(loop.indexOf('pack.js') < loop.indexOf('`code-reviewer`'));
 });
+
+// Seen live: two implementers shared one worktree. Parallel tasks get their own worktree and a local, owner-approved integration.
+test('task-loop runs a parallel task in its own worktree and integrates it locally without a push', () => {
+  const loop = read('skills', 'task-loop', 'SKILL.md');
+  assert.match(loop, /worktree\.js" add <id>/);
+  assert.match(loop, /task\/<id>/);
+  assert.match(loop, /worktree\.js" integrate <id>/);
+  assert.match(loop, /owner decided that this local integration is part of the loop/);
+  assert.match(loop, /push[^\n]*still need the owner's separate approval/);
+  assert.match(loop, /never `git add -A` or `git add \.`/);
+});
