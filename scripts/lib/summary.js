@@ -1,14 +1,26 @@
 // Resume summary (injected at SessionStart) and phase report data.
+import fs from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { readBoard } from './board.js';
 import { readDecisions } from './decisions.js';
 import { listInbox } from './mailbox.js';
+import { teamPaths } from './paths.js';
 
 function gitStatusOf(root) {
   try {
     return execFileSync('git', ['status', '--porcelain'], { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], timeout: 5000 });
   } catch {
     return '';
+  }
+}
+
+// The newest session hand-off the lead wrote before a rotation (lead-<YYYY-MM-DD-HHMM>.md sorts by time).
+function latestLeadHandoff(root) {
+  try {
+    const names = fs.readdirSync(teamPaths(root).handoffs).filter((n) => /^lead-.+.md$/.test(n)).sort();
+    return names.length ? `team/work/handoffs/${names[names.length - 1]}` : null;
+  } catch {
+    return null;
   }
 }
 
@@ -28,6 +40,8 @@ export function buildResumeSummary(root, { gitStatus } = {}) {
   const questions = [...open].sort((a, b) => (a.blocking === 'yes' ? 0 : 1) - (b.blocking === 'yes' ? 0 : 1));
 
   const parts = [`Phase: ${board.phase}`];
+  const handoff = latestLeadHandoff(root);
+  if (handoff) parts.push(`Lead hand-off: ${handoff}`);
   if (inProgress.length || changes.length) {
     const lines = capped(inProgress.map(line));
     if (changes.length) lines.push('- Uncommitted changes (git status):', ...capped(changes).map((c) => `  ${c}`));

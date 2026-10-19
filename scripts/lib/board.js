@@ -7,6 +7,8 @@ import { nextAction } from './escalation.js';
 
 export const STATUSES = ['todo', 'in-progress', 'review', 'done', 'blocked'];
 const ID_RE = /^[A-Za-z0-9-]{1,64}$/;
+// The lead hands off and restarts its session after this many tasks are marked done.
+export const ROTATE_EVERY = 5;
 
 export function readBoard(root) {
   const file = teamPaths(root).board;
@@ -23,7 +25,10 @@ export function readBoard(root) {
     commits: (f.commits ?? '').split(',').map((s) => s.trim()).filter(Boolean),
     handoff: f.handoff ?? '',
   }));
-  return { phase: phaseLine ? Number(phaseLine.split(':')[1]) : 0, entries };
+  const rotLine = lines.find((l) => /^done-since-rotation:\s*\d+\s*$/.test(l));
+  const board = { phase: phaseLine ? Number(phaseLine.split(':')[1]) : 0, entries };
+  if (rotLine) board.doneSinceRotation = Number(rotLine.split(':')[1]);
+  return board;
 }
 
 export function writeBoard(root, board) {
@@ -32,7 +37,8 @@ export function writeBoard(root, board) {
   const blocks = board.entries.map((e) => formatEntry('##', e.id, e.title, {
     owner: e.owner, status: e.status, rounds: e.rounds, model: e.model, commits: e.commits.join(', '), handoff: e.handoff,
   }));
-  fs.writeFileSync(file, [`# Board\nphase: ${board.phase}`, ...blocks].join('\n\n') + '\n');
+  const rotation = board.doneSinceRotation > 0 ? `\ndone-since-rotation: ${board.doneSinceRotation}` : '';
+  fs.writeFileSync(file, [`# Board\nphase: ${board.phase}${rotation}`, ...blocks].join('\n\n') + '\n');
 }
 
 export function addEntry(root, { id, title, owner, model }) {
@@ -53,9 +59,21 @@ export function updateEntry(root, id, patch) {
   const board = readBoard(root);
   const entry = board.entries.find((e) => e.id === id);
   if (!entry) throw new Error(`No board entry ${id}`);
+  if (patch.status === 'done' && entry.status !== 'done') board.doneSinceRotation = (board.doneSinceRotation ?? 0) + 1;
   Object.assign(entry, patch);
   writeBoard(root, board);
   return entry;
+}
+
+export function rotationDue(root) {
+  return (readBoard(root).doneSinceRotation ?? 0) >= ROTATE_EVERY;
+}
+
+// The lead calls this after writing its hand-off, so the next rotation counts from zero.
+export function markRotated(root) {
+  const board = readBoard(root);
+  delete board.doneSinceRotation;
+  writeBoard(root, board);
 }
 
 export function setPhase(root, n) {

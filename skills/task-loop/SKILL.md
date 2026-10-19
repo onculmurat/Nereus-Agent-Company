@@ -20,6 +20,14 @@ The board (`team/work/board.md`) is the source of truth. A task whose board stat
 7. **Hand-off.** When the reviewer says `APPROVED`, make sure `team/work/handoffs/<id>.md` exists (a read-only role sends it to you to save).
 8. **Done.** `update <id> --status done --commit <sha> --handoff team/work/handoffs/<id>.md`. Ask `doc-writer` to update the project documents when the task changed behaviour.
 
+## Session rotation
+
+The lead session grows with every task. Rotate it at each milestone end and after every 5 tasks marked done since the last rotation, whichever comes first. `board.js update <id> --status done` prints `rotate: true` when the fifth done is reached; a milestone end is your own call.
+
+1. Write `team/work/handoffs/lead-<YYYY-MM-DD-HHMM>.md`: done, in progress, next task, open questions, risks. Only facts the next session needs.
+2. Run `node "<scripts>/board.js" rotated` to reset the counter.
+3. Tell the owner: run `/clear`, then say "devam" (or "continue"). The session-start summary then shows the newest `lead-*.md` as "Lead hand-off"; read it first and carry on from the next task.
+
 ## Parallel tasks
 
 When an implementer is already active and another task starts, the new task does not share the working tree. Run `node "<scripts>/worktree.js" add <id>`: it creates a git worktree at `<repo>-wt/<id>` on branch `task/<id>`, outside the repo. Brief, pack, hand-off and board stay in the main project; the pack path is absolute, and the role works inside the worktree path.

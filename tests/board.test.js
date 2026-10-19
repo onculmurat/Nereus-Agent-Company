@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { makeProject } from './helpers.js';
-import { readBoard, writeBoard, addEntry, updateEntry, setPhase } from '../scripts/lib/board.js';
+import { readBoard, writeBoard, addEntry, updateEntry, setPhase, rotationDue, markRotated } from '../scripts/lib/board.js';
 import { teamPaths } from '../scripts/lib/paths.js';
 
 test('missing board reads as empty phase 0', () => {
@@ -54,4 +54,51 @@ test('setPhase', () => {
   const root = makeProject();
   setPhase(root, 4);
   assert.equal(readBoard(root).phase, 4);
+});
+
+// Session rotation: the lead's context grows with every task, so every 5 done tasks (or a milestone end) it hands off and restarts.
+function addTasks(root, n) {
+  for (let i = 0; i < n; i += 1) addEntry(root, { title: `Task ${i + 1}`, owner: 'planner', model: 'sonnet' });
+}
+const finish = (root, n) => updateEntry(root, `T-${String(n).padStart(3, '0')}`, { status: 'done' });
+
+test('rotation is due after the fifth task marked done since the last rotation', () => {
+  const root = makeProject();
+  addTasks(root, 6);
+  for (let n = 1; n <= 4; n += 1) { finish(root, n); assert.equal(rotationDue(root), false, `after ${n}`); }
+  finish(root, 5);
+  assert.equal(rotationDue(root), true);
+  assert.equal(readBoard(root).entries.length, 6, 'entries survive the counter');
+});
+
+test('only a change to done counts; repeating done or other updates do not', () => {
+  const root = makeProject();
+  addTasks(root, 2);
+  updateEntry(root, 'T-001', { status: 'review' });
+  finish(root, 1);
+  finish(root, 1);
+  updateEntry(root, 'T-001', { commits: ['a1'] });
+  assert.equal(readBoard(root).doneSinceRotation, 1);
+});
+
+test('markRotated resets the counter and the board keeps its entries', () => {
+  const root = makeProject();
+  addTasks(root, 5);
+  for (let n = 1; n <= 5; n += 1) finish(root, n);
+  markRotated(root);
+  assert.equal(rotationDue(root), false);
+  assert.equal(readBoard(root).doneSinceRotation, undefined);
+  assert.equal(readBoard(root).entries.length, 5);
+  setPhase(root, 5);
+  assert.equal(readBoard(root).phase, 5);
+});
+
+test('the counter survives setPhase and a CRLF board', () => {
+  const root = makeProject();
+  addTasks(root, 2);
+  finish(root, 1);
+  setPhase(root, 5);
+  const file = teamPaths(root).board;
+  fs.writeFileSync(file, fs.readFileSync(file, 'utf8').replace(/\n/g, '\r\n'));
+  assert.equal(readBoard(root).doneSinceRotation, 1);
 });

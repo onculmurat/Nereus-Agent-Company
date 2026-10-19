@@ -184,3 +184,14 @@ test('task-loop runs a parallel task in its own worktree and integrates it local
   assert.match(loop, /push[^\n]*still need the owner's separate approval/);
   assert.match(loop, /never `git add -A` or `git add \.`/);
 });
+
+// Seen live: the lead session was never restarted and every call re-read an ever larger context.
+test('task-loop rotates the lead session every 5 done tasks or at a milestone end', () => {
+  const loop = read('skills', 'task-loop', 'SKILL.md');
+  assert.match(loop, /every 5 tasks marked done/);
+  assert.match(loop, /rotate: true/);
+  assert.match(loop, /team\/work\/handoffs\/lead-<YYYY-MM-DD-HHMM>\.md/);
+  assert.match(loop, /board\.js" rotated/);
+  assert.match(loop, /\/clear/);
+  assert.match(loop, /devam/);
+});

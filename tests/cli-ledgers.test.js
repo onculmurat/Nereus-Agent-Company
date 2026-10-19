@@ -36,3 +36,13 @@ test('decisions CLI ask, open (blocking first), decide', () => {
   assert.deepEqual(run('decisions.js', root, 'open').map((q) => q.title), ['Now', 'Later']);
   assert.equal(run('decisions.js', root, 'decide', 'Q-002', '--answer', 'go').question, 'Q-002');
 });
+
+test('board CLI reports rotate: true on the fifth done and rotated resets it', () => {
+  const root = makeProject();
+  for (let i = 1; i <= 5; i += 1) run('board.js', root, 'add', '--title', `T${i}`, '--owner', 'backend-developer', '--model', 'sonnet');
+  const flags = [1, 2, 3, 4, 5].map((n) => run('board.js', root, 'update', `T-00${n}`, '--status', 'done').rotate);
+  assert.deepEqual(flags, [false, false, false, false, true]);
+  assert.deepEqual(run('board.js', root, 'rotated'), { rotated: true });
+  assert.equal(run('board.js', root, 'update', 'T-001', '--commit', 'x').rotate, undefined);
+  assert.equal(run('board.js', root, 'show').doneSinceRotation, undefined);
+});

@@ -282,3 +282,15 @@ test('O-M16 at the top model tier the ladder retries instead of a no-op raise', 
   assert.ok(!fs.existsSync(path.join(teamPaths(root).escalations, `${e.id}-r2.md`)));
   assert.equal(readBoard(root).entries[0].model, 'opus');
 });
+
+test('session-start context stays under 10,000 characters on a busy project that also has a lead hand-off', async () => {
+  const root = makeProject();
+  for (let i = 0; i < 80; i++) addEntry(root, { title: `A fairly long task title number ${i}`, owner: 'backend-developer', model: 'sonnet' });
+  const dir = path.join(root, 'team', 'work', 'handoffs');
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(path.join(dir, 'lead-2026-10-19-1430.md'), 'x');
+  const r = runHook('session-start', await fixture('session-start-startup', { cwd: root }));
+  const ctx = JSON.parse(r.stdout).hookSpecificOutput.additionalContext;
+  assert.match(ctx, /Lead hand-off/);
+  assert.ok(ctx.length < 10000, `context is ${ctx.length} characters`);
+});

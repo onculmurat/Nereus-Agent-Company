@@ -32,7 +32,7 @@ runHook(async (payload, root) => {
   const rules = { rules: config.rules, models: shippedModels(config.models), escalation: config.escalation, maxActiveRoles: config.maxActiveRoles };
   const additionalContext = [
     lead.trim(),
-    `## Resolved rules\n\nPlugin scripts: ${path.join(pluginRoot, 'scripts')}\n\n\`\`\`json\n${JSON.stringify(rules, null, 2)}\n\`\`\``,
+    `## Resolved rules\n\nPlugin scripts: ${path.join(pluginRoot, 'scripts')}\n\n\`\`\`json\n${JSON.stringify(rules, null, 1)}\n\`\`\``,
     `## Resume (session ${payload.source ?? 'startup'})\n\n${buildResumeSummary(root)}`,
   ].join('\n\n');
   return contextOutput(additionalContext);

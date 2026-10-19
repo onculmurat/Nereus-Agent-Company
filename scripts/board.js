@@ -1,9 +1,9 @@
 #!/usr/bin/env node
-// Board CLI (lead only): show | add | update | phase.
+// Board CLI (lead only): show | add | update | round | phase | rotated.
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { runCli, need, UsageError } from './lib/cli.js';
-import { readBoard, addEntry, updateEntry, setPhase, incrementRound } from './lib/board.js';
+import { readBoard, addEntry, updateEntry, setPhase, incrementRound, rotationDue, markRotated } from './lib/board.js';
 import { loadConfig, validateConfig } from './lib/config.js';
 
 const usage = `Usage:
@@ -12,6 +12,7 @@ const usage = `Usage:
   board.js update <id> [--status <todo|in-progress|review|done|blocked>] [--owner <role>] [--model <m>] [--commit <sha>] [--handoff <path>]
   board.js round <id>                    count one unresolved round; prints {entry, next} (next.action: retry|raise-model|to-lead|to-owner)
   board.js phase <n>
+  board.js rotated                       after the lead hand-off: reset the done counter (update --status done prints rotate: true at 5)
   (all accept --project <dir>; default: nearest directory with team/config.json)
 `;
 
@@ -29,7 +30,8 @@ const commands = {
       const entry = readBoard(root).entries.find((e) => e.id === id);
       patch.commits = [...(entry?.commits ?? []), v.commit];
     }
-    return updateEntry(root, id, patch);
+    const entry = updateEntry(root, id, patch);
+    return v.status === 'done' ? { ...entry, rotate: rotationDue(root) } : entry;
   },
   round: ({ positionals: [, id], root }) => {
     if (!id) throw new UsageError('Missing entry id');
@@ -37,6 +39,10 @@ const commands = {
     const config = loadConfig({ pluginRoot, projectRoot: root });
     validateConfig(config);
     return incrementRound(root, id, config);
+  },
+  rotated: ({ root }) => {
+    markRotated(root);
+    return { rotated: true };
   },
   phase: ({ positionals: [, n], root }) => {
     if (!/^\d+$/.test(n ?? '')) throw new UsageError('Phase must be a number');
