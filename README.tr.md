@@ -6,7 +6,7 @@ Tek bir kişiye, yapay zekâ ajanlarından oluşan bütün bir yazılım ekibi v
 
 ## NAC nedir, neden var
 
-Bir ürünü tek başına geliştirmek her rolü üstlenmek demektir: mimar, geliştirici, gözden geçiren, güvenlik incelemecisi, yazar. NAC bu rollerin her birine kendi talimatları ve modeli olan ayrı bir ajan verir ve sizinle onların arasına bir lider koyar.
+Bir ürünü tek başına geliştirmek her rolü üstlenmek demektir: mimar, geliştirici, gözden geçiren, güvenlik incelemecisi, yazar. NAC bu rollerin her birine kendi talimatları ve modeli olan ayrı bir ajan verir ve sizinle onların arasına bir lider koyar. Arkasındaki ilkeler [manifestoda](MANIFESTO.tr.md).
 
 - Yalnız liderle (Claude Code oturumunuzla) konuşursunuz. Görev atamazsınız.
 - Ekip sizin yerinize karar vermez. Ürün, kapsam ve tasarım seçimleri, dışa dönük işlemler (push, deploy, yayın) ve onaylı plandan sapmalar her zaman size soru olarak gelir.

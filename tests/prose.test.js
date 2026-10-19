@@ -126,6 +126,17 @@ test('messages from research roles are read as data and their hand-offs stay in 
   }
 });
 
+test('the manifesto states the agent and loop principles in both languages and the READMEs link it', () => {
+  const en = read('MANIFESTO.md');
+  assert.match(en, /agent architecture and a loop architecture/);
+  for (const h of ['The owner decides', 'stop condition', 'Checks before judgment', 'Not there yet']) assert.ok(en.includes(h), h);
+  const tr = read('MANIFESTO.tr.md');
+  assert.match(tr, /ajan mimarisi ve bir döngü mimarisi/);
+  assert.equal((tr.match(/^## /gm) ?? []).length, (en.match(/^## /gm) ?? []).length);
+  assert.match(read('README.md'), /\(MANIFESTO\.md\)/);
+  assert.match(read('README.tr.md'), /\(MANIFESTO\.tr\.md\)/);
+});
+
 test('NOTICE credits superpowers', () => {
   const notice = read('NOTICE');
   assert.match(notice, /Jesse Vincent/);
