@@ -13,7 +13,7 @@ At the end of each phase:
    node "<scripts>/summary.js" --phase-report --since <ISO time the phase started>
    ```
 
-   It returns the phase, board items done and not done, decisions taken and open questions, and `cost`: calls and tokens per role and per task (and model), the totals and the top 5 most expensive dispatches, read from the Claude Code transcripts of this project (`node "<scripts>/cost.js"` gives the same data on its own; leave `--since` out for the whole project).
+   It returns the phase, board items done and not done, decisions taken and open questions, and `cost`: calls and tokens per role and per task (and model), the totals and the top 5 most expensive dispatches (ranked by `weighted`: input + 1.25 x cache creation + 0.1 x cache read + 5 x output, relative to the input price; the raw totals stay beside it), read from the Claude Code transcripts of this project (`node "<scripts>/cost.js"` gives the same data on its own; leave `--since` out for the whole project).
 2. Write a short report to the owner in the owner's language:
    - **Done:** what the phase produced, with file paths.
    - **Decided:** the decisions taken in this phase.

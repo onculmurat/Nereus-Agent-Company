@@ -74,7 +74,7 @@ test('by role sums usage per role and model, counts calls once per API message a
   const r = buildCostReport(root, { by: 'role', projectsDir: projects });
   const row = (key, model) => r.rows.find((x) => x.key === key && x.model === model);
   assert.deepEqual(row('lead', 'claude-opus-4-8'), {
-    key: 'lead', model: 'claude-opus-4-8', calls: 2, inputTokens: 15, cacheCreationTokens: 1000, cacheReadTokens: 5000, outputTokens: 150, totalTokens: 6165,
+    key: 'lead', model: 'claude-opus-4-8', calls: 2, inputTokens: 15, cacheCreationTokens: 1000, cacheReadTokens: 5000, outputTokens: 150, totalTokens: 6165, weighted: 2515,
   });
   // a3 has no usage: not counted
   assert.equal(row('backend-developer', 'claude-sonnet-5-5').calls, 2);
@@ -164,4 +164,44 @@ test('the phase report cost can be limited to the phase with since, also from th
   const r = spawnSync(process.execPath, [summaryCli, '--phase-report', '--since', '2026-10-02T00:00:00Z', '--project', root], { encoding: 'utf8', env: { ...process.env, USERPROFILE: path.dirname(projects), HOME: path.dirname(projects) } });
   assert.equal(r.status, 0, r.stderr);
   assert.ok(JSON.parse(r.stdout).cost);
+});
+
+// Prices relative to one input token: cache creation 1.25, cache read 0.1, output 5.
+test('weighted = input + 1.25 x cache creation + 0.1 x cache read + 5 x output, on rows, totals and dispatches', () => {
+  const { root, projects } = fixture();
+  const r = buildCostReport(root, { by: 'role', projectsDir: projects });
+  const lead = r.rows.find((x) => x.key === 'lead');
+  assert.equal(lead.weighted, 15 + 1.25 * 1000 + 0.1 * 5000 + 5 * 150);
+  assert.equal(r.totals.weighted, Math.round(r.rows.reduce((a, x) => a + x.weighted, 0) * 10) / 10);
+  const aaa = r.topDispatches.find((x) => x.agentId === 'aaa');
+  assert.equal(aaa.weighted, 4 + 1.25 * 600 + 0.1 * 4000 + 5 * 100);
+  assert.equal(aaa.totalTokens, 4 + 600 + 4000 + 100);
+});
+
+test('the most expensive dispatches and rows are ranked by weighted cost, raw totals stay', () => {
+  const root = makeProject();
+  const projects = fs.mkdtempSync(path.join(os.tmpdir(), 'nac projects '));
+  const sub = path.join(projects, projectSlug(root), 's1', 'subagents');
+  fs.mkdirSync(sub, { recursive: true });
+  const dispatch = (id, type, usage) => {
+    fs.writeFileSync(path.join(sub, `agent-${id}.jsonl`), `${user('go', '2026-10-01T10:00:00Z')}
+${assistant(`${id}1`, 'claude-sonnet-5-5', usage, '2026-10-01T10:00:01Z')}
+`);
+    fs.writeFileSync(path.join(sub, `agent-${id}.meta.json`), JSON.stringify({ agentType: type }));
+  };
+  dispatch('big', 'code-reviewer', u(0, 0, 100000, 10)); // many raw tokens, cheap
+  dispatch('dear', 'backend-developer', u(0, 0, 1000, 5000)); // few raw tokens, expensive
+  const r = buildCostReport(root, { projectsDir: projects });
+  assert.deepEqual(r.topDispatches.map((x) => x.agentId), ['dear', 'big']);
+  assert.equal(r.topDispatches[0].weighted, 100 + 25000);
+  assert.equal(r.topDispatches[1].totalTokens, 100010);
+  assert.deepEqual(r.rows.map((x) => x.key), ['backend-developer', 'code-reviewer']);
+  assert.equal(r.totals.totalTokens, 106010);
+});
+
+test('cost.js documents the weights and the phase-report skill ranks by weighted', () => {
+  const help = spawnSync(process.execPath, [cli, '--help'], { encoding: 'utf8' }).stdout;
+  assert.ok(help.includes('weighted = input + 1.25 x cache_creation + 0.1 x cache_read + 5 x output'));
+  const skill = fs.readFileSync(path.join(pluginRoot, 'skills', 'phase-report', 'SKILL.md'), 'utf8');
+  assert.match(skill, /ranked by .?weighted/i);
 });

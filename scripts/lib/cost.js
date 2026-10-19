@@ -132,6 +132,10 @@ function collect(dirs, since) {
   return items;
 }
 
+// Relative price of one token, input = 1: cache creation 1.25, cache read 0.1, output 5. The figure ranks cost;
+// it is not money. Raw token totals stay next to it.
+export const WEIGHTS = { inputTokens: 1, cacheCreationTokens: 1.25, cacheReadTokens: 0.1, outputTokens: 5 };
+const weigh = (x) => Math.round(FIELDS.reduce((a, f) => a + WEIGHTS[f] * x[f], 0) * 10) / 10;
 const total = (x) => FIELDS.reduce((a, f) => a + x[f], 0);
 const zero = () => ({ calls: 0, inputTokens: 0, cacheCreationTokens: 0, cacheReadTokens: 0, outputTokens: 0 });
 function add(acc, m) {
@@ -162,8 +166,8 @@ export function buildCostReport(root, { by = 'role', since, projectsDir = defaul
       add(dispatches.get(m.agentId), m);
     }
   }
-  const withTotal = (x) => ({ ...x, totalTokens: total(x) });
-  const rows = [...groups.values()].map(withTotal).sort((a, b) => b.totalTokens - a.totalTokens || a.key.localeCompare(b.key));
-  const topDispatches = [...dispatches.values()].map(withTotal).sort((a, b) => b.totalTokens - a.totalTokens).slice(0, TOP);
+  const withTotal = (x) => ({ ...x, totalTokens: total(x), weighted: weigh(x) });
+  const rows = [...groups.values()].map(withTotal).sort((a, b) => b.weighted - a.weighted || b.totalTokens - a.totalTokens || a.key.localeCompare(b.key));
+  const topDispatches = [...dispatches.values()].map(withTotal).sort((a, b) => b.weighted - a.weighted || b.totalTokens - a.totalTokens).slice(0, TOP);
   return { by, since: since ?? null, rows, totals: withTotal(totals), topDispatches };
 }
