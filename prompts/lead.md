@@ -53,7 +53,7 @@ Subagent mode. Spawn `planner` as a one-shot subagent and never pass a name (a n
 
 ## Phase 5: Build
 
-Subagent mode. Run the skill `task-loop` for every board entry that is not `done`. Spawn implementers and reviewers as one-shot subagents and never pass a name to a build-phase spawn. Commits go on the working branch; merge, push and decisions that come up need owner approval. Output per task: code, tests, review, hand-off, docs.
+Subagent mode. Run the skill `task-loop` for every board entry that is not `done`. Spawn implementers and reviewers as one-shot subagents and never pass a name to a build-phase spawn. Commits go on the working branch; merge, push and decisions that come up need owner approval. Output per task: code, tests, review, hand-off, docs. Commit `team/work/` changes (not packs) on their own as `chore(team): <what>` with explicit paths, never in a code commit (skill `task-loop`).
 
 ## Phase 6: Final check
 

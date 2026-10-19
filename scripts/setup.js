@@ -21,7 +21,8 @@ function describe(plan) {
   const s = plan.settings;
   if (s.conflicts.length) lines.push(`CONFLICT  ${rel(s.path)}: ${s.conflicts.join(', ')} already set to a different value`);
   else if (JSON.stringify(s.before) !== JSON.stringify(s.after)) lines.push(`${s.before ? 'merge ' : 'create'}  ${rel(s.path)} (agent teams env, enable nac plugin)`);
-  if (plan.gitignoreLine) lines.push(`append  .gitignore: ${plan.gitignoreLine}`);
+  if (plan.gitignoreReplaces) lines.push(`change  .gitignore:\n- ${plan.gitignoreReplaces}\n+ ${plan.gitignoreLine}`);
+  else if (plan.gitignoreLine) lines.push(`append  .gitignore:\n+ ${plan.gitignoreLine}`);
   if (plan.nodeWarning) lines.push(`WARNING  ${plan.nodeWarning}`);
   return `${lines.join('\n')}\n`;
 }

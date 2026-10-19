@@ -19,6 +19,7 @@ The board (`team/work/board.md`) is the source of truth. A task whose board stat
 6. **Fix rounds.** The lead never fixes a role's output itself: every fix goes back to the owning role, and you take a round yourself only when `next.action` is `to-lead`. The `rounds` field of the board entry is the only round count; notes and packs refer to it and keep no count of their own. Each failing gate, `CHANGES_REQUESTED` or failed attempt is one round: run `node "<scripts>/board.js" round <id>` and act on `next.action` (skill `escalation`). Every fix round and every re-review uses the delta pack, never the full pack, for every role (developers and the test engineer, reviewers such as `code-reviewer`, `security-reviewer` and `final-reviewer`, and an architect folding findings into the spec): save the findings (or the gate output) to a file and run `node "<scripts>/pack.js" <id> --role <role> --round <n> --findings <file> --base <sha-of-previous-attempt>` (`--gate <file>` instead of `--findings` for a failing gate). It holds the findings, the diff since the previous attempt and the brief's acceptance criteria only; the role already has the brief and spec from its first pack. Re-dispatch the implementer with that pack path; run the gate again, then re-review with a delta pack of the same form. A criteria section the pack could not find is listed under "Not found": add it to the prompt.
 7. **Hand-off.** When the reviewer says `APPROVED`, make sure `team/work/handoffs/<id>.md` exists (a read-only role sends it to you to save). When the gate reported `skipped` greater than 0, write the reason for each skip in that hand-off before `done`; a skip you cannot explain goes back as a fix round.
 8. **Done.** `update <id> --status done --commit <sha> --handoff team/work/handoffs/<id>.md`. Read `<sha>` from git first (`git log -1 --format=%h`, or the task's range); `board.js` checks that it exists and is reachable from HEAD and refuses the update otherwise. Roles do the same before they put a commit hash in a report. Ask `doc-writer` to update the project documents when the task changed behaviour.
+9. **Commit the team state.** `team/work/` is committed (only `team/work/packs/` is ignored). After each task is marked done, commit what changed there (board, briefs, hand-offs, escalations, mailbox, and `team/decisions.md` if it changed) as its own commit `chore(team): <what>` (for example `chore(team): T-004 done`). Stage explicit paths (`git add team/work/board.md team/work/handoffs/T-004.md ...`), never `git add -A` or `.`, and never mix these files into a code commit: the task's code commit is already made by the role before step 8.
 
 ## Session rotation
 
@@ -26,7 +27,8 @@ The lead session grows with every task. Rotate it at each milestone end and afte
 
 1. Write `team/work/handoffs/lead-<YYYY-MM-DD-HHMM>.md`: done, in progress, next task, open questions, risks. Only facts the next session needs.
 2. Run `node "<scripts>/board.js" rotated` to reset the counter.
-3. Tell the owner: run `/clear`, then say "devam" (or "continue"). The session-start summary then shows the newest `lead-*.md` as "Lead hand-off"; read it first and carry on from the next task.
+3. Commit the hand-off and the board as `chore(team): lead hand-off <YYYY-MM-DD-HHMM>`, staging explicit paths only.
+4. Tell the owner: run `/clear`, then say "devam" (or "continue"). The session-start summary then shows the newest `lead-*.md` as "Lead hand-off"; read it first and carry on from the next task.
 
 ## Parallel tasks
 

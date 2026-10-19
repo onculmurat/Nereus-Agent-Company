@@ -60,3 +60,24 @@ test('the planner is told to keep research roles out of the build phase', () => 
   const text = fs.readFileSync(new URL('../agents/planner.md', import.meta.url), 'utf8');
   assert.match(text, /Never give a build-phase task \(phase 4 or 5\) to `researcher`, `research-reviewer` or `finance-analyst`/);
 });
+
+const read = (p) => fs.readFileSync(new URL(`../${p}`, import.meta.url), 'utf8');
+
+test('task-loop commits team/work changes as chore(team) after each done task and at rotation, never with code', () => {
+  const loop = read('skills/task-loop/SKILL.md');
+  const done = loop.split('## Session rotation')[0];
+  assert.match(done, /9\. \*\*Commit the team state\.\*\*[^\n]*`chore\(team\): [^`]*`[^\n]*explicit paths[^\n]*never[^\n]*code commit/);
+  const rotation = loop.split('## Session rotation')[1].split('## Parallel tasks')[0];
+  assert.match(rotation, /chore\(team\)[^\n]*explicit paths/);
+  assert.match(read('prompts/lead.md'), /chore\(team\)/);
+});
+
+test('README and README.tr say team/work/ is committed except packs', () => {
+  for (const f of ['README.md', 'README.tr.md']) {
+    const text = read(f);
+    assert.match(text, /team\/work\/packs\//);
+    assert.doesNotMatch(text, /`team\/work\/` is git-ignored/);
+    assert.doesNotMatch(text, /hand-offs, escalations, mailbox, archive; git-ignored/);
+    assert.match(text, /chore\(team\)/);
+  }
+});
