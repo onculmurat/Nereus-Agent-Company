@@ -102,10 +102,20 @@ function extractThreat(text, id) {
 const readIf = (file) => (fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : null);
 const fenceFor = (text) => '`'.repeat(Math.max(3, ...[...text.matchAll(/`+/g)].map((m) => m[0].length + 1)));
 
-function gitDiff(root, base) {
+// Pathspecs for the diff: --paths (comma separated) or the whole tree, always minus team/ (state, not code).
+function pathspecs(paths) {
+  let list = ['.'];
+  if (paths !== undefined) {
+    list = String(paths).split(',').map((p) => p.trim());
+    if (!list.length || list.some((p) => !p || p.startsWith('-') || p.startsWith(':'))) throw new Error(`Invalid path in --paths "${paths}"`);
+  }
+  return [...list, ':(exclude)team'];
+}
+
+function gitDiff(root, base, paths) {
   if (!BASE_RE.test(base)) throw new Error(`Invalid base "${base}"`);
   try {
-    return execFileSync('git', ['diff', base], { cwd: root, encoding: 'utf8', maxBuffer: 256 * 1024 * 1024, stdio: ['ignore', 'pipe', 'pipe'] });
+    return execFileSync('git', ['diff', base, '--', ...pathspecs(paths)], { cwd: root, encoding: 'utf8', maxBuffer: 256 * 1024 * 1024, stdio: ['ignore', 'pipe', 'pipe'] });
   } catch (e) {
     throw new Error(`git diff ${base} failed: ${String(e.stderr || e.message).trim()}`);
   }
@@ -138,7 +148,7 @@ function readFindings(file) {
 
 // Delta pack for a fix round or a re-review: findings (or gate output), the diff since the previous attempt and the
 // acceptance criteria. The full brief, spec, contracts and decisions are not repeated: the role already saw them.
-function buildDelta(root, { id, role, base, gate, round, findings }, brief) {
+function buildDelta(root, { id, role, base, gate, round, findings, paths }, brief) {
   if (!Number.isInteger(round) || round < 1) throw new Error(`Invalid round "${round}"`);
   if (findings === undefined && gate === undefined) throw new Error('Delta mode needs --findings or --gate');
   if (base === undefined) throw new Error('Delta mode needs --base (the commit of the previous attempt)');
@@ -156,20 +166,20 @@ function buildDelta(root, { id, role, base, gate, round, findings }, brief) {
     notFound.push('acceptance criteria');
     parts.push('## Acceptance criteria\n\nNot found in the brief: read the task brief itself.');
   }
-  const diff = gitDiff(root, base).trimEnd();
+  const diff = gitDiff(root, base, paths).trimEnd();
   const fence = fenceFor(diff);
   parts.push(`## Diff since ${base}\n\n${fence}diff\n${diff}\n${fence}`);
   return { text: `${parts.join('\n\n')}\n`, notFound };
 }
 
-export function buildPack(root, { id, role, base, gate, round, findings }) {
+export function buildPack(root, { id, role, base, gate, round, findings, paths }) {
   if (!ID_RE.test(id ?? '')) throw new Error(`Invalid task id "${id}"`);
   if (!ROLE_RE.test(role ?? '')) throw new Error(`Invalid role "${role}"`);
   const p = teamPaths(root);
   const briefFile = path.join(p.work, 'tasks', `${id}.md`);
   const brief = readIf(briefFile);
   if (brief === null) throw new Error(`No task brief at ${briefFile}`);
-  if (round !== undefined) return buildDelta(root, { id, role, base, gate, round, findings }, brief);
+  if (round !== undefined) return buildDelta(root, { id, role, base, gate, round, findings, paths }, brief);
   if (findings !== undefined) throw new Error('--findings needs --round');
 
   const refs = parseRefs(brief);
@@ -205,7 +215,7 @@ export function buildPack(root, { id, role, base, gate, round, findings }) {
   if (found.length) parts.push(`## Decisions\n\n${found.join('\n\n')}`);
   if (notFound.length) parts.push(`## Not found\n\n${notFound.map((n) => `- ${n}`).join('\n')}`);
   if (base !== undefined) {
-    const diff = gitDiff(root, base).trimEnd();
+    const diff = gitDiff(root, base, paths).trimEnd();
     const fence = fenceFor(diff);
     parts.push(`## Diff against ${base}\n\n${fence}diff\n${diff}\n${fence}`);
   }
@@ -223,5 +233,6 @@ export function writePack(root, opts) {
   fs.mkdirSync(dir, { recursive: true });
   const file = path.join(dir, `${opts.id}-${opts.role}${opts.round === undefined ? '' : `-r${opts.round}`}.md`);
   fs.writeFileSync(file, text);
-  return { path: file, chars: text.length, notFound };
+  const limit = loadConfig({ pluginRoot, projectRoot: root }).packMaxChars;
+  return { path: file, chars: text.length, notFound, limit, tooLarge: text.length > limit };
 }

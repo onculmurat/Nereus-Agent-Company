@@ -3,7 +3,7 @@ name: final-reviewer
 description: Use at the end of a phase to review the whole branch as one change before it goes to the owner.
 model: opus
 tools: Read, Grep, Glob, Bash, SendMessage
-maxTurns: 40
+maxTurns: 45
 ---
 
 # Final reviewer

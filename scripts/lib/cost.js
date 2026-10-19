@@ -5,6 +5,9 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { loadConfig } from './config.js';
+import { localDate } from './dates.js';
+import { teamPaths } from './paths.js';
 
 const pluginRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const TOP = 5;
@@ -25,6 +28,9 @@ function knownRoles() {
 }
 
 // The task id from the first pack path in a dispatch prompt: team/work/packs/<id>-<role>[-r<n>].md.
+// A dispatch prompt names a pack or a hand-off (either slash form) when it points the role at prepared context.
+export const namesPack = (text) => /team[\\/]+work[\\/]+(packs|handoffs)[\\/]/.test(text ?? '');
+
 export function taskFromPrompt(text) {
   const m = /team[\\/]+work[\\/]+packs[\\/]+([^\s"'`<>|*?\\/]+?)\.md/.exec(text ?? '');
   if (!m) return 'unassigned';
@@ -66,7 +72,7 @@ function readJson(file) {
 }
 
 // One entry per API message: Claude Code writes a message once per content block, all with the same id.
-function messagesOf(records, since) {
+function messagesOf(records, since, until) {
   const byId = new Map();
   let anon = 0;
   for (const rec of records) {
@@ -75,6 +81,7 @@ function messagesOf(records, since) {
     if (!usage || typeof usage !== 'object') continue;
     const t = Date.parse(rec.timestamp);
     if (since !== undefined && !(t >= since)) continue;
+    if (until !== undefined && !(t <= until)) continue;
     const num = (v) => (Number.isFinite(v) ? v : 0);
     byId.set(msg.id ?? `anon-${anon++}`, {
       model: msg.model ?? 'unknown',
@@ -99,7 +106,7 @@ function projectDirs(root, projectsDir) {
   return names.filter((n) => n === slug || n.startsWith(`${slug}-wt-`)).map((n) => path.join(projectsDir, n));
 }
 
-function collect(dirs, since) {
+function collect(dirs, since, until, session) {
   const items = [];
   for (const dir of dirs) {
     let entries = [];
@@ -108,8 +115,11 @@ function collect(dirs, since) {
     } catch { continue; }
     for (const e of entries) {
       if (e.isFile() && e.name.endsWith('.jsonl')) {
-        for (const m of messagesOf(readLines(path.join(dir, e.name)), since)) items.push({ ...m, role: 'lead', task: 'unassigned', agentId: null });
+        const sid = e.name.slice(0, -'.jsonl'.length);
+        if (session !== undefined && sid !== session) continue;
+        for (const m of messagesOf(readLines(path.join(dir, e.name)), since, until)) items.push({ ...m, role: 'lead', task: 'unassigned', agentId: null, session: sid, packed: false });
       } else if (e.isDirectory()) {
+        if (session !== undefined && e.name !== session) continue;
         const subDir = path.join(dir, e.name, 'subagents');
         let files = [];
         try {
@@ -120,10 +130,12 @@ function collect(dirs, since) {
           const meta = readJson(path.join(subDir, `${base}.meta.json`));
           const records = readLines(path.join(subDir, f));
           const first = records.find((r) => r?.type === 'user');
-          const task = taskFromPrompt(textOf(first?.message?.content));
+          const prompt = textOf(first?.message?.content);
+          const task = taskFromPrompt(prompt);
+          const packed = namesPack(prompt);
           const role = roleOf(meta.agentType);
-          for (const m of messagesOf(records, since)) {
-            items.push({ ...m, role, task, agentId: base.slice('agent-'.length), description: meta.description ?? '' });
+          for (const m of messagesOf(records, since, until)) {
+            items.push({ ...m, role, task, packed, session: e.name, agentId: `${e.name}/${base.slice('agent-'.length)}`, shortId: base.slice('agent-'.length), description: meta.description ?? '' });
           }
         }
       }
@@ -143,14 +155,20 @@ function add(acc, m) {
   for (const f of FIELDS) acc[f] += m[f];
 }
 
-export function buildCostReport(root, { by = 'role', since, projectsDir = defaultProjectsDir() } = {}) {
+function parseInstant(name, value) {
+  if (value === undefined) return undefined;
+  const ms = Date.parse(value);
+  if (Number.isNaN(ms)) throw new Error(`Invalid --${name} "${value}": use an ISO date such as 2026-10-01T00:00:00Z`);
+  return ms;
+}
+
+function itemsFor(root, { since, until, session, projectsDir = defaultProjectsDir() }) {
+  return collect(projectDirs(root, projectsDir), parseInstant('since', since), parseInstant('until', until), session);
+}
+
+export function buildCostReport(root, { by = 'role', since, until, session, projectsDir = defaultProjectsDir() } = {}) {
   if (!BY.includes(by)) throw new Error(`--by must be one of ${BY.join(', ')}; got "${by}"`);
-  let sinceMs;
-  if (since !== undefined) {
-    sinceMs = Date.parse(since);
-    if (Number.isNaN(sinceMs)) throw new Error(`Invalid --since "${since}": use an ISO date such as 2026-10-01T00:00:00Z`);
-  }
-  const items = collect(projectDirs(root, projectsDir), sinceMs);
+  const items = itemsFor(root, { since, until, session, projectsDir });
 
   const groups = new Map();
   const totals = zero();
@@ -162,7 +180,7 @@ export function buildCostReport(root, { by = 'role', since, projectsDir = defaul
     add(groups.get(gk), m);
     add(totals, m);
     if (m.agentId) {
-      if (!dispatches.has(m.agentId)) dispatches.set(m.agentId, { agentId: m.agentId, role: m.role, task: m.task, description: m.description, model: m.model, ...zero() });
+      if (!dispatches.has(m.agentId)) dispatches.set(m.agentId, { agentId: m.shortId, role: m.role, task: m.task, description: m.description, model: m.model, ...zero() });
       add(dispatches.get(m.agentId), m);
     }
   }
@@ -170,4 +188,146 @@ export function buildCostReport(root, { by = 'role', since, projectsDir = defaul
   const rows = [...groups.values()].map(withTotal).sort((a, b) => b.weighted - a.weighted || b.totalTokens - a.totalTokens || a.key.localeCompare(b.key));
   const topDispatches = [...dispatches.values()].map(withTotal).sort((a, b) => b.weighted - a.weighted || b.totalTokens - a.totalTokens).slice(0, TOP);
   return { by, since: since ?? null, rows, totals: withTotal(totals), topDispatches };
+}
+
+// ---- Durable metrics: rows saved under team/metrics/ so a later session can compare with an earlier one. ----
+
+const BASELINE_RE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
+const pad = (n) => String(n).padStart(2, '0');
+const tokensOf = (r) => r.input + r.cacheWrite + r.cacheRead + r.output;
+const metricsDir = (root) => path.join(teamPaths(root).team, 'metrics');
+const jsonlPath = (root) => path.join(metricsDir(root), 'cost.jsonl');
+export const sharedMetricsPath = (home = os.homedir()) => path.join(home, '.claude', 'nac', 'metrics.md');
+
+function scopeOf({ since, until, session, baseline }) {
+  if (baseline !== undefined) return 'baseline';
+  const parts = [];
+  if (session !== undefined) parts.push(`session ${session}`);
+  if (since !== undefined) parts.push(`since ${since}`);
+  if (until !== undefined) parts.push(`until ${until}`);
+  return parts.length ? parts.join(' ') : 'all';
+}
+
+// One row per role, task, model and session. dispatches = subagent runs in the row; packed = those whose dispatch
+// prompt names a pack or hand-off; overBudget = those with more tool calls than callBudget.
+export function buildMetricRows(root, { since, until, session, baseline, projectsDir = defaultProjectsDir(), now = new Date() } = {}) {
+  const items = itemsFor(root, { since, until, session, projectsDir });
+  const budget = loadConfig({ pluginRoot, projectRoot: root }).callBudget;
+  const date = localDate(now);
+  const project = path.basename(path.resolve(root));
+  const scope = scopeOf({ since, until, session, baseline });
+  const dispatchCalls = new Map();
+  for (const m of items) if (m.agentId) dispatchCalls.set(m.agentId, (dispatchCalls.get(m.agentId) ?? 0) + 1);
+  const rows = new Map();
+  const seen = new Set();
+  for (const m of items) {
+    const key = [m.session, m.role, m.task, m.model].join('\u0000');
+    if (!rows.has(key)) {
+      const row = { date, project, session: m.session, scope, role: m.role, task: m.task, model: m.model, calls: 0, input: 0, cacheWrite: 0, cacheRead: 0, output: 0, weighted: 0, dispatches: 0, packed: 0, overBudget: 0 };
+      if (baseline !== undefined) row.baseline = baseline;
+      rows.set(key, row);
+    }
+    const r = rows.get(key);
+    r.calls += 1;
+    r.input += m.inputTokens;
+    r.cacheWrite += m.cacheCreationTokens;
+    r.cacheRead += m.cacheReadTokens;
+    r.output += m.outputTokens;
+    if (m.agentId && !seen.has(`${key}\u0000${m.agentId}`)) {
+      seen.add(`${key}\u0000${m.agentId}`);
+      r.dispatches += 1;
+      if (m.packed) r.packed += 1;
+      if (dispatchCalls.get(m.agentId) > budget) r.overBudget += 1;
+    }
+  }
+  return [...rows.values()]
+    .map((r) => ({ ...r, weighted: weigh({ inputTokens: r.input, cacheCreationTokens: r.cacheWrite, cacheReadTokens: r.cacheRead, outputTokens: r.output }) }))
+    .sort((a, b) => b.weighted - a.weighted || a.role.localeCompare(b.role) || a.session.localeCompare(b.session));
+}
+
+const sum = (rows, f) => rows.reduce((a, r) => a + f(r), 0);
+const round = (n, d) => Math.round(n * 10 ** d) / 10 ** d;
+
+function table(rows) {
+  const head = '| role | task | model | session | calls | input | cacheWrite | cacheRead | output | weighted | dispatches | packed | overBudget |\n|---|---|---|---|---|---|---|---|---|---|---|---|---|';
+  const body = rows.map((r) => `| ${[r.role, r.task, r.model, r.session, r.calls, r.input, r.cacheWrite, r.cacheRead, r.output, r.weighted, r.dispatches, r.packed, r.overBudget].join(' | ')} |`);
+  return [head, ...body].join('\n');
+}
+
+function totalsOf(rows) {
+  const dispatches = sum(rows, (r) => r.dispatches);
+  const packed = sum(rows, (r) => r.packed);
+  return { calls: sum(rows, (r) => r.calls), tokens: sum(rows, tokensOf), weighted: round(sum(rows, (r) => r.weighted), 1), dispatches, packed, overBudget: sum(rows, (r) => r.overBudget), packedShare: dispatches ? Math.round((100 * packed) / dispatches) : 0 };
+}
+
+// Saves the run: team/metrics/cost-<date>-<HHMM>.md (or baseline-<name>.md), appends the rows to cost.jsonl and one
+// line to the shared ~/.claude/nac/metrics.md (this machine only).
+export function saveMetrics(root, opts = {}) {
+  const { baseline, home = os.homedir(), now = new Date() } = opts;
+  if (baseline !== undefined && !BASELINE_RE.test(baseline)) throw new Error(`Invalid baseline name "${baseline}": letters, digits, dot, dash and underscore only`);
+  const rows = buildMetricRows(root, opts);
+  const dir = metricsDir(root);
+  fs.mkdirSync(dir, { recursive: true });
+  const hhmm = `${pad(now.getHours())}${pad(now.getMinutes())}`;
+  const stamp = `${localDate(now)} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
+  const name = baseline !== undefined ? `baseline-${baseline}.md` : `cost-${localDate(now)}-${hhmm}.md`;
+  const md = path.join(dir, name);
+  const scope = rows[0]?.scope ?? scopeOf({ ...opts, baseline });
+  const t = totalsOf(rows);
+  fs.writeFileSync(md, `# ${baseline !== undefined ? `Baseline ${baseline}` : 'Cost'} ${stamp}\n\nScope: ${scope}. Calls ${t.calls}, tokens ${t.tokens}, weighted ${t.weighted}, dispatches ${t.dispatches}, packed ${t.packedShare}%, over budget ${t.overBudget}.\n\n${table(rows)}\n`);
+  const jsonl = jsonlPath(root);
+  if (baseline !== undefined && fs.existsSync(jsonl)) {
+    // a baseline taken again under the same name replaces its earlier rows
+    const kept = fs.readFileSync(jsonl, 'utf8').split('\n').filter((l) => {
+      if (!l.trim()) return false;
+      try {
+        const r = JSON.parse(l);
+        return !(r.scope === 'baseline' && r.baseline === baseline);
+      } catch { return true; }
+    }).map((l) => `${l}\n`).join('');
+    fs.writeFileSync(jsonl, kept);
+  }
+  if (rows.length) fs.appendFileSync(jsonl, rows.map((r) => `${JSON.stringify(r)}\n`).join(''));
+  const shared = sharedMetricsPath(home);
+  fs.mkdirSync(path.dirname(shared), { recursive: true });
+  const fresh = !fs.existsSync(shared) || fs.readFileSync(shared, 'utf8').trim() === '';
+  const header = '# NAC metrics (all projects on this machine)\n\n| date | project | scope | calls | tokens | weighted | dispatches | packed | over budget |\n|---|---|---|---|---|---|---|---|---|\n';
+  fs.appendFileSync(shared, `${fresh ? header : ''}| ${[localDate(now), path.basename(path.resolve(root)), scope, t.calls, t.tokens, t.weighted, t.dispatches, `${t.packedShare}%`, t.overBudget].join(' | ')} |\n`);
+  return { md, jsonl, shared, rows, totals: t };
+}
+
+function roleAverages(rows) {
+  const by = new Map();
+  for (const r of rows) {
+    if (r.role === 'lead' || !r.dispatches) continue;
+    const a = by.get(r.role) ?? { dispatches: 0, calls: 0, tokens: 0 };
+    a.dispatches += r.dispatches;
+    a.calls += r.calls;
+    a.tokens += tokensOf(r);
+    by.set(r.role, a);
+  }
+  return new Map([...by].map(([role, a]) => [role, { dispatches: a.dispatches, avgCalls: round(a.calls / a.dispatches, 1), avgTokens: Math.round(a.tokens / a.dispatches) }]));
+}
+
+// Per role, average calls and tokens per dispatch now against the latest baseline file; null without a baseline.
+export function compareWithBaseline(root, current) {
+  let files = [];
+  try {
+    files = fs.readdirSync(metricsDir(root)).filter((f) => /^baseline-.+\.md$/.test(f))
+      .map((f) => ({ f, t: fs.statSync(path.join(metricsDir(root), f)).mtimeMs })).sort((a, b) => b.t - a.t || b.f.localeCompare(a.f));
+  } catch { return null; }
+  if (!files.length) return null;
+  const name = files[0].f.slice('baseline-'.length, -'.md'.length);
+  const old = readLines(jsonlPath(root)).filter((r) => r?.scope === 'baseline' && r.baseline === name);
+  const before = roleAverages(old);
+  const now = roleAverages(current);
+  const ratio = (a, b) => (a && b ? round(b / a, 2) : null);
+  const roles = [...new Set([...before.keys(), ...now.keys()])].sort().map((role) => ({
+    role,
+    baseline: before.get(role) ?? null,
+    current: now.get(role) ?? null,
+    callsRatio: ratio(before.get(role)?.avgCalls, now.get(role)?.avgCalls),
+    tokensRatio: ratio(before.get(role)?.avgTokens, now.get(role)?.avgTokens),
+  }));
+  return { name, roles };
 }

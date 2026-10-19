@@ -5,7 +5,7 @@ import { readBoard } from './board.js';
 import { readDecisions } from './decisions.js';
 import { listInbox } from './mailbox.js';
 import { teamPaths } from './paths.js';
-import { buildCostReport } from './cost.js';
+import { buildCostReport, buildMetricRows, compareWithBaseline } from './cost.js';
 
 function gitStatusOf(root) {
   try {
@@ -62,9 +62,13 @@ function costOf(root, projectsDir, since) {
   try {
     const byRole = buildCostReport(root, { by: 'role', projectsDir, since });
     const byTask = buildCostReport(root, { by: 'task', projectsDir, since });
-    return { byRole: byRole.rows, byTask: byTask.rows, totals: byRole.totals, topDispatches: byRole.topDispatches };
+    let vsBaseline = null;
+    try {
+      vsBaseline = compareWithBaseline(root, buildMetricRows(root, { projectsDir, since }));
+    } catch { /* a missing baseline is not an error */ }
+    return { byRole: byRole.rows, byTask: byTask.rows, totals: byRole.totals, topDispatches: byRole.topDispatches, vsBaseline };
   } catch {
-    return { byRole: [], byTask: [], totals: { calls: 0, totalTokens: 0 }, topDispatches: [] };
+    return { byRole: [], byTask: [], totals: { calls: 0, totalTokens: 0 }, topDispatches: [], vsBaseline: null };
   }
 }
 

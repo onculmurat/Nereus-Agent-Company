@@ -1,5 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
@@ -23,6 +24,7 @@ test('board CLI add, update with commit, phase', () => {
 
 test('board CLI round reaches to-lead on the fourth round', () => {
   const root = makeProject();
+  fs.writeFileSync(path.join(root, 'team', 'config.json'), JSON.stringify({ reviewRoundCap: 10 }));
   run('board.js', root, 'add', '--title', 'API', '--owner', 'backend-developer', '--model', 'sonnet');
   const actions = [1, 2, 3, 4].map(() => run('board.js', root, 'round', 'T-001').next.action);
   assert.deepEqual(actions, ['retry', 'raise-model', 'retry', 'to-lead']);

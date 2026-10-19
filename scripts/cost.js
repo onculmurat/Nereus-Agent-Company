@@ -1,10 +1,14 @@
 #!/usr/bin/env node
 // Cost CLI: calls and tokens per role or task from this project's Claude Code transcripts.
 import { runCli } from './lib/cli.js';
-import { buildCostReport } from './lib/cost.js';
+import { buildCostReport, saveMetrics } from './lib/cost.js';
 
 const usage = `Usage:
-  cost.js [--since <iso date>] [--by role|task]
+  cost.js [--since <iso date>] [--until <iso date>] [--session <id>] [--by role|task] [--save | --baseline <name>]
+          --session keeps one lead session and its subagents; --until is an inclusive upper bound.
+          --save writes team/metrics/cost-<date>-<HHMM>.md, appends one JSON line per role/task row to
+          team/metrics/cost.jsonl and one summary line to ~/.claude/nac/metrics.md (this machine only).
+          --baseline <name> does the same into team/metrics/baseline-<name>.md with scope "baseline".
           sums input, cache creation, cache read and output tokens and counts calls per role (agent type) or task,
           per model, plus totals and the 5 most expensive dispatches. "Most expensive" is ranked by weighted:
           weighted = input + 1.25 x cache_creation + 0.1 x cache_read + 5 x output (relative to the input price,
@@ -13,5 +17,10 @@ const usage = `Usage:
   (accepts --project <dir>; --transcripts <dir> overrides ~/.claude/projects)
 `;
 
-runCli(usage, { since: { type: 'string' }, by: { type: 'string' }, transcripts: { type: 'string' } }, ({ values: v, root }) =>
-  buildCostReport(root, { by: v.by, since: v.since, projectsDir: v.transcripts }));
+runCli(usage, { since: { type: 'string' }, until: { type: 'string' }, session: { type: 'string' }, by: { type: 'string' }, transcripts: { type: 'string' }, save: { type: 'boolean' }, baseline: { type: 'string' } }, ({ values: v, root }) => {
+  const opts = { since: v.since, until: v.until, session: v.session, projectsDir: v.transcripts };
+  const report = buildCostReport(root, { by: v.by, ...opts });
+  if (!v.save && v.baseline === undefined) return report;
+  const { md, jsonl, shared } = saveMetrics(root, { ...opts, baseline: v.baseline });
+  return { ...report, saved: { md, jsonl, shared } };
+});

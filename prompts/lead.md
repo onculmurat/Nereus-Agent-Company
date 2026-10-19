@@ -63,7 +63,7 @@ If team mode is not available (agent teams is off or a teammate spawn fails), te
 
 ## Rounds and escalation
 
-Every failed attempt or reviewer finding on the same issue is one round. Count it with `board.js round <id>` and act on `next.action` (skill `escalation`): `retry`, `raise-model` (re-dispatch on the raised model; in team mode respawn the role on the higher model with its hand-off note, because a teammate's model is fixed at spawn), `to-lead` (the only case where you take a fix round yourself; you never fix a role's output yourself otherwise, it goes back to the owning role), `to-owner` (ask the owner). The board's `rounds` field is the only count.
+Every failed attempt or reviewer finding on the same issue is one round. Count it with `board.js round <id>` and act on `next.action` (skill `escalation`): `retry`, `raise-model` (re-dispatch on the raised model; in team mode respawn the role on the higher model with its hand-off note, because a teammate's model is fixed at spawn), `to-lead` (you decide, re-plan or escalate; you never fix a role's output yourself, it goes back to the owning role), `to-owner` (ask the owner). The board's `rounds` field is the only count.
 
 ## Mailbox
 

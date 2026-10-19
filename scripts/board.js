@@ -12,7 +12,10 @@ const usage = `Usage:
                                          --code no: a task that produces no code (spike, research, docs only); gate.js --task checks its report file
   board.js update <id> [--status <todo|in-progress|review|done|blocked>] [--owner <role>] [--model <m>] [--commit <sha>] [--handoff <path>] [--code <yes|no>]
                                          --commit checks that the sha exists and is reachable from HEAD; read it first: git log -1 --format=%h
-  board.js round <id>                    count one unresolved round; prints {entry, next} (next.action: retry|raise-model|to-lead|to-owner)
+  board.js round <id> [--approach <decision-id>]
+                                         count one unresolved round; prints {entry, next} (next.action: retry|raise-model|to-lead|to-owner)
+                                         refused once reviewRoundCap (default 2) rounds are used since the start or the last approach;
+                                         --approach <id> (a decision recorded in decisions.md) lets the task continue for another window
   board.js foldin <id> [--reset]         before each spec fold-in round: prints action fold-in (rounds up to foldInRounds) or batch; --reset starts a new review cycle
   board.js phase <n>
   board.js rotated                       after the lead hand-off: reset the done counter (update --status done prints rotate: true at 5)
@@ -43,12 +46,12 @@ const commands = {
     const entry = updateEntry(root, id, patch);
     return v.status === 'done' ? { ...entry, rotate: rotationDue(root) } : entry;
   },
-  round: ({ positionals: [, id], root }) => {
+  round: ({ values: v, positionals: [, id], root }) => {
     if (!id) throw new UsageError('Missing entry id');
     const pluginRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
     const config = loadConfig({ pluginRoot, projectRoot: root });
     validateConfig(config);
-    return incrementRound(root, id, config);
+    return incrementRound(root, id, config, { approach: v.approach });
   },
   foldin: ({ values: v, positionals: [, id], root }) => {
     if (!id) throw new UsageError('Missing entry id');
@@ -70,7 +73,7 @@ const commands = {
 
 const options = {
   title: { type: 'string' }, owner: { type: 'string' }, model: { type: 'string' }, id: { type: 'string' },
-  status: { type: 'string' }, code: { type: 'string' }, commit: { type: 'string' }, handoff: { type: 'string' }, reset: { type: 'boolean' },
+  status: { type: 'string' }, code: { type: 'string' }, commit: { type: 'string' }, handoff: { type: 'string' }, reset: { type: 'boolean' }, approach: { type: 'string' },
 };
 
 runCli(usage, options, (ctx) => {

@@ -3,7 +3,7 @@ name: code-reviewer
 description: Use after each task to review its diff for spec compliance and code quality before the task counts as done.
 model: sonnet
 tools: Read, Grep, Glob, Bash, SendMessage
-maxTurns: 40
+maxTurns: 45
 ---
 
 # Code reviewer
@@ -71,4 +71,5 @@ If an attempt fails, report it honestly: what you tried, what happened, what you
 
 - One finding per line: `file:line`, severity (`Critical`, `Important`, `Minor`), the problem, the fix.
 - Cover spec compliance AND quality; both verdicts are required.
+- When a finding is the same class as one from an earlier round (another way past the same check), say so in the finding ("same class as round <n>: <earlier finding>"), so the lead sees a pattern and can take the approach question to the architect.
 - End with one verdict: `APPROVED` or `CHANGES_REQUESTED`.

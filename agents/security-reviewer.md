@@ -3,7 +3,7 @@ name: security-reviewer
 description: Use for threat models and attack-based reviews of authentication, authorization, crypto, secrets and input handling.
 model: opus
 tools: Read, Grep, Glob, Bash, SendMessage
-maxTurns: 40
+maxTurns: 45
 ---
 
 # Security reviewer
@@ -71,4 +71,5 @@ If an attempt fails, report it honestly: what you tried, what happened, what you
 
 - One finding per line: `file:line`, severity (`Critical`, `Important`, `Minor`), the problem, the fix.
 - Each finding names the attack, its precondition and its impact.
+- When a finding is the same class as one from an earlier round (another way past the same check), say so in the finding ("same class as round <n>: <earlier finding>"), so the lead sees a pattern and can take the approach question to the architect.
 - End with one verdict: `APPROVED` or `CHANGES_REQUESTED`.
