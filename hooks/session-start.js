@@ -7,6 +7,7 @@ import { runHook, pluginRoot } from '../scripts/lib/hookio.js';
 import { loadConfig, validateConfig } from '../scripts/lib/config.js';
 import { buildResumeSummary } from '../scripts/lib/summary.js';
 import { hasGuardBlock } from '../scripts/lib/setup.js';
+import { pluginSourceDrift } from '../scripts/lib/drift.js';
 
 const contextOutput = (additionalContext) => ({ output: { hookSpecificOutput: { hookEventName: 'SessionStart', additionalContext } } });
 
@@ -32,9 +33,11 @@ runHook(async (payload, root) => {
   const lead = fs.readFileSync(path.join(pluginRoot, 'prompts', 'lead.md'), 'utf8');
   const rules = { rules: config.rules, models: shippedModels(config.models), escalation: config.escalation, maxActiveRoles: config.maxActiveRoles };
   const guardHint = hasGuardBlock(root) ? '' : `\nNo NAC guard in CLAUDE.md. Owner, type once: ! node "${path.join(pluginRoot, 'scripts', 'setup.js')}" --guard-block`;
+  const drift = pluginSourceDrift();
   const additionalContext = [
     lead.trim(),
-    `NAC-LEAD-ACTIVE${guardHint}`,
+    `NAC-LEAD-ACTIVE${guardHint}${drift ? `
+${drift}` : ''}`,
     `## Resolved rules\n\nPlugin scripts: ${path.join(pluginRoot, 'scripts')}\n\n\`\`\`json\n${JSON.stringify(rules)}\n\`\`\``,
     `## Resume (session ${payload.source ?? 'startup'})\n\n${buildResumeSummary(root)}`,
   ].join('\n\n');

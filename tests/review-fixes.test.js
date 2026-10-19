@@ -293,7 +293,7 @@ test('session-start context stays under 9,400 characters (600 headroom) on a bus
   const dir = path.join(root, 'team', 'work', 'handoffs');
   fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(path.join(dir, 'lead-2026-10-19-1430.md'), 'x');
-  const r = runHook('session-start', await fixture('session-start-startup', { cwd: root }));
+  const r = runHook('session-start', await fixture('session-start-startup', { cwd: root }), { env: { NAC_PLUGINS_DIR: path.join(os.tmpdir(), 'nac-no-plugins') } });
   const ctx = JSON.parse(r.stdout).hookSpecificOutput.additionalContext;
   assert.match(ctx, /Lead hand-off/);
   // The plugin path is printed in the context; measure as if the plugin sat in a 22-character folder (D:\Projects\Agent Team).

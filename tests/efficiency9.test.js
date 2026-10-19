@@ -334,3 +334,54 @@ test('A6 the session-start hint tells the OWNER to run setup.js --guard-block wi
   assert.match(hint, /Owner/);
   assert.ok(hint.includes(`! node "${path.join(pluginRoot, 'scripts', 'setup.js')}" --guard-block`), hint);
 });
+
+// ---- A8: plugin source drift ----
+
+import { pluginSourceDrift } from '../scripts/lib/drift.js';
+
+function driftSetup({ installedSha, writeInstalled = true, git = true } = {}) {
+  const src = git ? makeGitProject() : null;
+  const folder = git ? src.root : fs.mkdtempSync(path.join(os.tmpdir(), 'nac src '));
+  const head = git ? src.commit('f1') : null;
+  const plugins = fs.mkdtempSync(path.join(os.tmpdir(), 'nac plugins '));
+  if (writeInstalled) {
+    fs.writeFileSync(path.join(plugins, 'installed_plugins.json'), JSON.stringify({ version: 2, plugins: { 'nac@nereus-agent-company': [{ gitCommitSha: installedSha ?? src?.git('rev-parse', 'HEAD') }] } }));
+  }
+  fs.writeFileSync(path.join(plugins, 'known_marketplaces.json'), JSON.stringify({ 'nereus-agent-company': { source: { source: 'directory', path: folder }, installLocation: folder } }));
+  return { plugins, folder, head };
+}
+
+test('A8 no warning when the cache sha is the source HEAD', () => {
+  const { plugins } = driftSetup();
+  assert.equal(pluginSourceDrift({ pluginsDir: plugins }), '');
+});
+
+test('A8 a one-line warning with the fix when the source folder moved on', () => {
+  const { plugins, folder, head } = driftSetup({ installedSha: 'a'.repeat(40) });
+  const w = pluginSourceDrift({ pluginsDir: plugins });
+  assert.ok(!w.includes('\n'), 'one line');
+  assert.ok(w.includes('aaaaaaa'));
+  assert.ok(w.includes(head));
+  assert.ok(w.includes(folder));
+  assert.match(w, /git pull/);
+  assert.match(w, /\/plugin/);
+});
+
+test('A8 fail-open: missing installed_plugins.json, a source that is not a git repo, broken JSON', () => {
+  assert.equal(pluginSourceDrift({ pluginsDir: driftSetup({ writeInstalled: false }).plugins }), '');
+  assert.equal(pluginSourceDrift({ pluginsDir: driftSetup({ git: false, installedSha: 'b'.repeat(40) }).plugins }), '');
+  const { plugins } = driftSetup();
+  fs.writeFileSync(path.join(plugins, 'installed_plugins.json'), '{ nope');
+  assert.equal(pluginSourceDrift({ pluginsDir: plugins }), '');
+  assert.equal(pluginSourceDrift({ pluginsDir: path.join(os.tmpdir(), 'nac-no-such-dir') }), '');
+});
+
+test('A8 session-start prints the warning for the lead only', async () => {
+  const { plugins } = driftSetup({ installedSha: 'c'.repeat(40) });
+  const root = makeProject();
+  const payload = await fixture('session-start-startup', { cwd: root });
+  const ctx = JSON.parse(runHookScript('session-start', payload, { env: { NAC_PLUGINS_DIR: plugins } }).stdout).hookSpecificOutput.additionalContext;
+  assert.match(ctx, /NAC plugin drift/);
+  const mate = JSON.parse(runHookScript('session-start', { ...payload, agent_type: 'planner', agent_id: 'x' }, { env: { NAC_PLUGINS_DIR: plugins } }).stdout).hookSpecificOutput.additionalContext;
+  assert.doesNotMatch(mate, /drift/);
+});
