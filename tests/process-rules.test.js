@@ -46,20 +46,20 @@ test('the lead prompt states the same rules in its own words and stays short', (
   assert.match(lead, /Try the automated path first[^\n]*only steps that truly need a human[^\n]*one exact minimal action/);
   assert.match(lead, /Never read files outside the project root[^\n]*without asking the owner first/);
   assert.match(lead, /Read every commit hash from git[^\n]*git log -1 --format=%h/);
-  assert.match(lead, /`to-lead` \(the only case where you take a fix round yourself/);
+  assert.match(lead, /`to-lead` \(you decide, re-plan or escalate/);
   assert.match(lead, /never fix a role's output yourself/);
   assert.match(lead, /absolute paths in Glob and Grep/);
   assert.ok(lead.length < 7200, `lead.md is ${lead.length} characters`);
 });
 
-test('task-loop and escalation: fixes go to the owning role, the lead fixes only on to-lead', () => {
+test('task-loop and escalation: fixes go to the owning role, to-lead means decide or escalate', () => {
   const loop = read('skills', 'task-loop', 'SKILL.md');
   assert.match(loop, /The lead never fixes a role's output itself/);
-  assert.match(loop, /only when `next\.action` is `to-lead`/);
+  assert.match(loop, /`to-lead` means you decide, re-plan or escalate/);
   const esc = read('skills', 'escalation', 'SKILL.md');
   assert.match(esc, /The lead never fixes a role's output itself/);
   assert.match(esc, /`retry`: re-dispatch the same role[^\n]*the owning role fixes/);
-  assert.match(esc, /`to-lead`: [^\n]*the only action in which you fix anything yourself/);
+  assert.match(esc, /`to-lead`: you decide, re-plan or escalate[^\n]*you do not write the fix/);
 });
 
 test('task-loop and question-protocol: automation first, owner steps as exact minimal actions', () => {

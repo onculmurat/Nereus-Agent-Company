@@ -24,6 +24,15 @@ function checkOwner(board, owner) {
   }
 }
 
+// The lead decides, plans and escalates; it does not own a task that produces code.
+const LEAD_OWNERS = ['lead', 'team-lead'];
+function checkCodeOwner(owner, code) {
+  if (typeof owner !== 'string' || code === 'no') return;
+  if (LEAD_OWNERS.includes(owner.replace(/^.*:/, ''))) {
+    throw new Error(`Owner "${owner}" cannot own a code task: the lead decides and escalates, a developer role implements (backend-developer, frontend-developer, database-engineer, test-engineer). Mark the task code: no only if it produces no code.`);
+  }
+}
+
 export function readBoard(root) {
   const file = teamPaths(root).board;
   if (!fs.existsSync(file)) return { phase: 0, entries: [] };
@@ -65,6 +74,7 @@ export function writeBoard(root, board) {
 export function addEntry(root, { id, title, owner, model, code }) {
   const board = readBoard(root);
   checkOwner(board, owner);
+  checkCodeOwner(owner, code);
   const entryId = id ?? nextId('T', board.entries.map((e) => e.id));
   if (!ID_RE.test(entryId)) throw new Error(`Invalid board id "${entryId}"`);
   if (board.entries.some((e) => e.id === entryId)) throw new Error(`Board entry ${entryId} already exists`);
@@ -82,6 +92,7 @@ export function updateEntry(root, id, patch) {
   const entry = board.entries.find((e) => e.id === id);
   if (!entry) throw new Error(`No board entry ${id}`);
   checkOwner(board, patch.owner);
+  checkCodeOwner(patch.owner ?? entry.owner, patch.code ?? entry.code);
   if (patch.status === 'done' && entry.status !== 'done') board.doneSinceRotation = (board.doneSinceRotation ?? 0) + 1;
   Object.assign(entry, patch);
   if (entry.code !== 'no') delete entry.code;

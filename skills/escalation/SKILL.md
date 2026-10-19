@@ -7,7 +7,7 @@ description: Use when a task or thread fails a round - count it on the board and
 
 One round is one attempt plus its review; a reviewer finding counts as a round. Only the lead counts rounds, on the board entry, so nobody relies on memory. The `rounds` field of the board entry is the only round count: hand-off notes, briefs and packs refer to it and never keep a count of their own.
 
-The lead never fixes a role's output itself. Every fix goes back to the role that owns the work; the lead takes a round only when `next.action` is `to-lead`.
+The lead never fixes a role's output itself. Every fix goes back to the role that owns the work. `to-lead` means you decide, re-plan or escalate (architect, owner); it never means you implement. Once the decision exists, the implementation round goes to the task's owning role with a delta pack (`--paths` set to the task's code paths), carrying the decision id and any probe findings as notes. You edit only team files (board, briefs, decisions, hand-offs) and one-line text fixes in docs, never source or test code.
 
 ```
 node "<scripts>/board.js" round <id>
@@ -17,7 +17,7 @@ It prints `{ entry, next }`. Act on `next.action`:
 
 - `retry`: re-dispatch the same role on the same model with the findings; the owning role fixes.
 - `raise-model`: the board entry's model is already raised one tier (haiku, sonnet, opus). Re-dispatch on it. In team mode a teammate's model is fixed at spawn, so close the teammate and respawn the role on the new model with its hand-off note.
-- `to-lead`: you take one round yourself, the only action in which you fix anything yourself: read the findings and the hand-off, then fix or re-brief.
+- `to-lead`: you decide, re-plan or escalate: read the findings and the hand-off, then re-brief, split the task, or take the question to the architect and the owner. When the decision exists (record its id with `decisions.js`), dispatch the owning role with a delta pack and the decision id in the notes; you do not write the fix.
 - `to-owner`: stop and ask the owner (skill `question-protocol`, blocking). Do not try again without an answer.
 
 Review round cap: `reviewRoundCap` (2 by default) is a hard limit on rounds per task, checked before the ladder. When `board.js round <id>` refuses because the cap is reached, the ladder does not continue: send the open findings and the round history to the `architect` as one approach question (read-only answer), bring the decision to the owner as one question, record it, then `board.js round <id> --approach <decision-id>` (skill `task-loop`, "Review round cap"). The cap applies again after that round.
