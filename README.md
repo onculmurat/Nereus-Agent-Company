@@ -82,6 +82,7 @@ The same rules apply to every role; no role is skipped and no role's model is lo
 - **Call budget** (`callBudget`, default 40): every dispatch may use 40 tool calls (`maxTurns` in the agent files, repeated in the pack header). A role that hits it reports what is done and what is left; the lead re-dispatches the rest with a fresh pack (same round) or splits the task.
 - **Delta packs** (`pack.js --round`): a fix round or re-review gets only the findings (or gate output), the diff since the previous attempt and the brief's acceptance criteria, for every role, not the full pack again.
 - **Cost report** (`cost.js [--since <iso>] [--by role|task]`): sums calls and tokens (input, cache creation, cache read, output) per role or task and model from the Claude Code transcripts of the project, with the 5 most expensive dispatches. The phase report includes the same table.
+- **Spec fold-in cap** (`foldInRounds`, default 2; `board.js foldin`): review findings are folded into the spec in at most 2 rounds per review cycle. After that the rest goes to the architect as one batched pass and the open decisions come to you as one list.
 
 ## Roles and models
 

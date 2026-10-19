@@ -96,3 +96,21 @@ test('task-loop step 6 uses the delta pack for every role in a fix round or re-r
   for (const who of ['developers', 'reviewers', 'security-reviewer', 'architect']) assert.match(step, new RegExp(who));
   assert.match(step, /never the full pack/i);
 });
+
+// Item 4: spec fold-in round cap.
+test('foldInRounds is 2 in the defaults and validated', () => {
+  assert.equal(defaults.foldInRounds, 2);
+  assert.throws(() => validateConfig({ ...defaults, foldInRounds: 0 }), /foldInRounds/);
+});
+
+test('phase 3 and the architect state the fold-in cap, the batched pass and the single owner list', () => {
+  const design = read('skills', 'phases', 'SKILL.md').split(/^## Phase 3\b/m)[1].split('\n## ')[0];
+  const architect = read('agents', 'architect.md');
+  for (const text of [design, architect]) {
+    assert.match(text, /at most 2 fold-in rounds per review cycle/i);
+    assert.match(text, /one batched (architect )?pass/i);
+    assert.match(text, /one list/i);
+  }
+  assert.match(design, /board\.js" foldin/);
+  assert.match(design, /--reset/);
+});

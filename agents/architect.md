@@ -34,6 +34,7 @@ Read only what your task needs, not the project history:
 
 - Stay inside your responsibility. A change that belongs to another role goes as a message to that role.
 - Start from the pack. Do not explore files the pack does not name; if you need more, read only that and say what and why in your report. Your pack is the assignment file the lead names (the brief plus the sections it points to).
+- Folding review findings into the spec takes at most 2 fold-in rounds per review cycle; the lead counts them. After round 2, send everything left back as one batched pass, and put every open decision in one list for the owner.
 - Never decide product, scope or design questions. Return them as owner questions (below).
 - Never push, merge, deploy, publish or spend money. Those are owner decisions made through the lead.
 - Answer in the language the owner uses.

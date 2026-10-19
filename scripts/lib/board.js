@@ -24,6 +24,7 @@ export function readBoard(root) {
     model: f.model ?? '',
     commits: (f.commits ?? '').split(',').map((s) => s.trim()).filter(Boolean),
     handoff: f.handoff ?? '',
+    ...(Number(f.foldins) > 0 ? { foldins: Number(f.foldins) } : {}),
   }));
   const rotLine = lines.find((l) => /^done-since-rotation:\s*\d+\s*$/.test(l));
   const board = { phase: phaseLine ? Number(phaseLine.split(':')[1]) : 0, entries };
@@ -36,6 +37,7 @@ export function writeBoard(root, board) {
   fs.mkdirSync(path.dirname(file), { recursive: true });
   const blocks = board.entries.map((e) => formatEntry('##', e.id, e.title, {
     owner: e.owner, status: e.status, rounds: e.rounds, model: e.model, commits: e.commits.join(', '), handoff: e.handoff,
+    ...(e.foldins > 0 ? { foldins: e.foldins } : {}),
   }));
   const rotation = board.doneSinceRotation > 0 ? `\ndone-since-rotation: ${board.doneSinceRotation}` : '';
   fs.writeFileSync(file, [`# Board\nphase: ${board.phase}${rotation}`, ...blocks].join('\n\n') + '\n');
@@ -80,6 +82,28 @@ export function setPhase(root, n) {
   const board = readBoard(root);
   board.phase = Number(n);
   writeBoard(root, board);
+}
+
+// Spec fold-in rounds of one review cycle (the entry is the design task). The lead calls this before each fold-in
+// round: up to the cap it counts and says "fold-in"; after that it says "batch" (everything left goes to the architect
+// as one pass and the open decisions to the owner as one list). reset starts a new review cycle.
+export function countFoldIn(root, id, { foldInRounds, reset = false }) {
+  const board = readBoard(root);
+  const entry = board.entries.find((e) => e.id === id);
+  if (!entry) throw new Error(`No board entry ${id}`);
+  const done = entry.foldins ?? 0;
+  let action;
+  if (reset) {
+    delete entry.foldins;
+    action = 'reset';
+  } else if (done < foldInRounds) {
+    entry.foldins = done + 1;
+    action = 'fold-in';
+  } else {
+    action = 'batch';
+  }
+  writeBoard(root, board);
+  return { id, action, foldIns: entry.foldins ?? 0, cap: foldInRounds };
 }
 
 // Counts one more unresolved round on an entry and applies the escalation ladder.

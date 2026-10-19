@@ -82,6 +82,7 @@ Aynı kurallar her role uygulanır; hiçbir rol atlanmaz ve hiçbir rolün model
 - **Çağrı bütçesi** (`callBudget`, varsayılan 40): her görevlendirme 40 araç çağrısı kullanabilir (ajan dosyalarında `maxTurns`, paket başlığında yinelenir). Bütçeye ulaşan rol neyin bittiğini ve neyin kaldığını bildirir; lider kalanı yeni bir paketle (aynı tur) yeniden görevlendirir ya da görevi böler.
 - **Fark paketleri** (`pack.js --round`): düzeltme turu ya da yeniden inceleme her rol için tam paketi değil, yalnız bulguları (ya da kapı çıktısını), önceki denemeden beri değişen farkı ve görev özetinin kabul ölçütlerini alır.
 - **Maliyet raporu** (`cost.js [--since <iso>] [--by role|task]`): projenin Claude Code kayıtlarından çağrı ve token sayılarını (girdi, önbellek oluşturma, önbellek okuma, çıktı) rol ya da görev ve model bazında toplar; en pahalı 5 görevlendirmeyi de verir. Aşama raporu aynı tabloyu içerir.
+- **Spec birleştirme sınırı** (`foldInRounds`, varsayılan 2; `board.js foldin`): inceleme bulguları spec içine bir inceleme döngüsünde en fazla 2 turda işlenir. Sonrasında kalanlar mimara tek toplu geçiş olarak gider ve açık kararlar size tek liste halinde gelir.
 
 ## Roller ve modeller
 

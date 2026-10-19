@@ -46,3 +46,15 @@ test('board CLI reports rotate: true on the fifth done and rotated resets it', (
   assert.equal(run('board.js', root, 'update', 'T-001', '--commit', 'x').rotate, undefined);
   assert.equal(run('board.js', root, 'show').doneSinceRotation, undefined);
 });
+
+test('board CLI foldin counts fold-in rounds from the config cap, and --reset starts a new cycle', () => {
+  const root = makeProject();
+  run('board.js', root, 'add', '--title', 'Spec', '--owner', 'architect', '--model', 'opus');
+  assert.equal(run('board.js', root, 'foldin', 'T-001').action, 'fold-in');
+  assert.equal(run('board.js', root, 'foldin', 'T-001').foldIns, 2);
+  const third = run('board.js', root, 'foldin', 'T-001');
+  assert.equal(third.action, 'batch');
+  assert.equal(third.cap, 2);
+  assert.equal(run('board.js', root, 'foldin', 'T-001', '--reset').action, 'reset');
+  assert.equal(run('board.js', root, 'foldin', 'T-001').foldIns, 1);
+});

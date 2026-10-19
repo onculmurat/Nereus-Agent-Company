@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { makeProject } from './helpers.js';
-import { readBoard, writeBoard, addEntry, updateEntry, setPhase, rotationDue, markRotated } from '../scripts/lib/board.js';
+import { readBoard, writeBoard, addEntry, updateEntry, setPhase, rotationDue, markRotated, countFoldIn } from '../scripts/lib/board.js';
 import { teamPaths } from '../scripts/lib/paths.js';
 
 test('missing board reads as empty phase 0', () => {
@@ -101,4 +101,38 @@ test('the counter survives setPhase and a CRLF board', () => {
   const file = teamPaths(root).board;
   fs.writeFileSync(file, fs.readFileSync(file, 'utf8').replace(/\n/g, '\r\n'));
   assert.equal(readBoard(root).doneSinceRotation, 1);
+});
+
+// Spec fold-in rounds: at most 2 per review cycle, then one batched architect pass.
+const foldProject = () => {
+  const root = makeProject();
+  addEntry(root, { id: 'T-001', title: 'Design the spec', owner: 'architect', model: 'opus' });
+  return root;
+};
+
+test('countFoldIn allows two fold-in rounds, then says batch without counting further', () => {
+  const root = foldProject();
+  const a = countFoldIn(root, 'T-001', { foldInRounds: 2 });
+  assert.deepEqual([a.action, a.foldIns, a.cap], ['fold-in', 1, 2]);
+  assert.equal(countFoldIn(root, 'T-001', { foldInRounds: 2 }).action, 'fold-in');
+  const third = countFoldIn(root, 'T-001', { foldInRounds: 2 });
+  assert.deepEqual([third.action, third.foldIns], ['batch', 2]);
+  assert.equal(countFoldIn(root, 'T-001', { foldInRounds: 2 }).foldIns, 2);
+  assert.equal(readBoard(root).entries[0].foldins, 2);
+});
+
+test('countFoldIn reset starts a new review cycle, the cap is configurable and unknown entries fail', () => {
+  const root = foldProject();
+  countFoldIn(root, 'T-001', { foldInRounds: 1 });
+  assert.equal(countFoldIn(root, 'T-001', { foldInRounds: 1 }).action, 'batch');
+  const r = countFoldIn(root, 'T-001', { foldInRounds: 1, reset: true });
+  assert.deepEqual([r.action, r.foldIns], ['reset', 0]);
+  assert.equal(readBoard(root).entries[0].foldins, undefined);
+  assert.equal(countFoldIn(root, 'T-001', { foldInRounds: 1 }).action, 'fold-in');
+  assert.throws(() => countFoldIn(root, 'T-404', { foldInRounds: 2 }), /No board entry/);
+});
+
+test('an entry without fold-ins keeps the board file free of a foldins line', () => {
+  const root = foldProject();
+  assert.doesNotMatch(fs.readFileSync(teamPaths(root).board, 'utf8'), /foldins/);
 });

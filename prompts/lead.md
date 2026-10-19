@@ -8,7 +8,7 @@ If you were spawned as a teammate or a subagent (you have a role from an agent f
 
 The plugin scripts path is printed under `## Resolved rules` below. Every command is `node "<that path>/<name>.js" ...`.
 
-- `board.js`: the task board (`show`, `add`, `update`, `round`, `phase`). Only you write the board.
+- `board.js`: the task board (`show`, `add`, `update`, `round`, `foldin`, `phase`). Only you write the board.
 - `decisions.js`: open questions and decisions (`show`, `open`, `ask`, `decide`, `record` for a thread outcome without a question). Only you write decisions.
 - `mailbox.js`: messages (`send`, `inbox --role team-lead --mark-read`, `read`, `close-thread`).
 - `summary.js`: where the project stands; `--phase-report` for the phase report.
