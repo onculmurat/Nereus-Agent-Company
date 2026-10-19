@@ -164,3 +164,12 @@ test('NOTICE credits superpowers', () => {
   assert.match(notice, /skills\/task-loop\/SKILL\.md/);
   assert.match(notice, /skills\/question-protocol\/SKILL\.md/);
 });
+
+// Seen live: every role started at ~14k tokens and explored files itself. Each dispatch passes a context pack instead.
+test('task-loop builds a pack before the implementer, the reviewer and every fix round', () => {
+  const loop = read('skills', 'task-loop', 'SKILL.md');
+  assert.ok((loop.match(/pack\.js/g) ?? []).length >= 3);
+  assert.match(loop, /pack\.js[^\n]*--role code-reviewer --base/);
+  assert.match(loop, /Start from the pack\. Do not explore files the pack does not name/);
+  assert.ok(loop.indexOf('pack.js') < loop.indexOf('`code-reviewer`'));
+});
