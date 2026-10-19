@@ -12,7 +12,7 @@
   "modelLadder": ["haiku", "sonnet", "opus"],
   "escalation": { "modelRounds": 2, "authorityRounds": 2, "leadRounds": 1 },
   "maxActiveRoles": 5,
-  "callBudget": 40,
+  "turnBudget": 40,
   "packMaxChars": 60000,
   "reviewRoundCap": 2,
   "foldInRounds": 2,

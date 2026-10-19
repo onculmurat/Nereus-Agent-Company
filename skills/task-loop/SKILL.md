@@ -47,9 +47,9 @@ Before you or a role hands the owner a manual step, try the automated path: scri
 
 Every role gets a pack and follows this rule, which its agent file repeats: "Start from the pack. Do not explore files the pack does not name; if you need more, read only that and say what and why in your report." Reviewers (`security-reviewer`, `final-reviewer`) get the same pack form with their own `--role`. Roles that work on a phase rather than a task (architect, planner, researchers, assistant) treat their assignment file as the pack; the research roles' file lives under `team/research/` so the research guard stays as it is.
 
-## Call budget
+## Turn budget
 
-Every dispatch has a budget of `callBudget` tool calls (40 by default, from the resolved rules). The pack header states it; `maxTurns` is the budget plus 5 in the agent files, so a role that reaches the budget still has calls left to write its report before the hard stop. When a role reports that it hit the budget, you decide: re-dispatch with a fresh pack for the remainder (`pack.js` again, so it holds the current diff; this is the same round, not a new round) or split the task into smaller board tasks. You never raise the budget silently: a changed `callBudget` is an owner decision, like any config change.
+Every dispatch has a budget of `turnBudget` model turns (40 by default, from the resolved rules; parallel tool calls share a turn; the old name `callBudget` still works). The pack header states it; `maxTurns` is the budget plus 5 in the agent files, so a role that reaches the budget still has turns left to write its report before the hard stop. When a role reports that it hit the budget, you decide: re-dispatch with a fresh pack for the remainder (`pack.js` again, so it holds the current diff; this is the same round, not a new round) or split the task into smaller board tasks. You never raise the budget silently: a changed `turnBudget` is an owner decision, like any config change.
 
 ## Review round cap
 

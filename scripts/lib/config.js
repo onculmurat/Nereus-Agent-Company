@@ -32,6 +32,8 @@ export function loadConfig({ pluginRoot, userConfigPath = defaultUserConfigPath(
   let cfg = readJson(path.join(pluginRoot, 'defaults', 'config.json'));
   for (const file of [userConfigPath, projectRoot && path.join(projectRoot, 'team', 'config.json')]) {
     const layer = readJson(file);
+    // callBudget is the old name of turnBudget; it counts only when the same layer has no turnBudget
+    if (layer && layer.callBudget !== undefined && layer.turnBudget === undefined) layer.turnBudget = layer.callBudget;
     if (layer) cfg = merge(cfg, layer);
   }
   return cfg;
@@ -49,7 +51,8 @@ export function validateConfig(cfg) {
     'escalation.authorityRounds': cfg.escalation?.authorityRounds,
     'escalation.leadRounds': cfg.escalation?.leadRounds,
     maxActiveRoles: cfg.maxActiveRoles,
-    callBudget: cfg.callBudget,
+    turnBudget: cfg.turnBudget,
+    ...(cfg.callBudget === undefined ? {} : { callBudget: cfg.callBudget }),
     packMaxChars: cfg.packMaxChars,
     reviewRoundCap: cfg.reviewRoundCap,
     foldInRounds: cfg.foldInRounds,

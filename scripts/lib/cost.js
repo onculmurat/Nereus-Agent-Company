@@ -247,10 +247,10 @@ function scopeOf({ since, until, session, task, baseline }) {
 }
 
 // One row per role, task, model and session. dispatches = subagent runs in the row; packed = those whose dispatch
-// prompt names a pack or hand-off; overBudget = those with more tool calls than callBudget.
+// prompt names a pack or hand-off; overBudget = those with more model turns (distinct message ids, which is what calls counts) than turnBudget.
 export function buildMetricRows(root, { since, until, session, task, baseline, projectsDir = defaultProjectsDir(), now = new Date() } = {}) {
   const items = itemsFor(root, { since, until, session, task, projectsDir });
-  const budget = loadConfig({ pluginRoot, projectRoot: root }).callBudget;
+  const budget = loadConfig({ pluginRoot, projectRoot: root }).turnBudget;
   const date = localDate(now);
   const project = path.basename(path.resolve(root));
   const scope = scopeOf({ since, until, session, task, baseline });
