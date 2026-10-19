@@ -117,7 +117,7 @@ Reviewers and the assistant get no file-editing tools; they read, run commands a
 
 ## Questions and decisions
 
-Every question to you has the same shape: **Source** (where it came from, who found it), **Status** (is code written, does the answer change existing work), **Impact**, the options, and one recommendation. One question at a time.
+Every question to you has the same shape: **Source** (where it came from, who found it), **Status** (is code written, does the answer change existing work), **Impact**, the options, and one recommendation. One question at a time. `decisions.js ask` refuses a question with fewer than 2 options or no recommended option.
 
 - A blocking question is asked immediately.
 - A non-blocking question is queued in `team/decisions.md` and the team keeps working. Ask for queued questions any time:

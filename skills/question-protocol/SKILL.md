@@ -21,6 +21,8 @@ Every question starts with its context, then the choice:
 4. **Options:** the realistic choices, each with its cost.
 5. **Recommendation:** exactly one, with the reason.
 
+Every owner question goes through `decisions.js ask` with `--options` (at least 2) and `--recommend`; the `AskUserQuestion` call copies them.
+
 One question at a time. Each message holds exactly one question: no sub-questions, no bullet list of things to cover, and no preview of the questions still to come. A question asks about one thing: never join two questions with "and". Wait for the answer before the next one.
 
 A question gets its own message: no status report, summary or news in it; send those in a message before it. Ask a question in full every time, re-asks included: never refer to it only by its id ("waiting for your answer to Q-010"), so the owner never has to search earlier messages for it. When several questions are queued, ask them one after another, each after the previous answer, except as allowed under Batching below.
@@ -31,7 +33,7 @@ A question gets its own message: no status report, summary or news in it; send t
 - **Not blocking:** record it deferred and keep working on everything that is not blocked:
 
   ```
-  node "<scripts>/decisions.js" ask --title <t> --source <s> --status <s> --impact <i> --blocking no --thread <id> --defer --task <id> [--options "a|b" --recommend a]
+  node "<scripts>/decisions.js" ask --title <t> --source <s> --status <s> --impact <i> --blocking no --thread <id> --defer --task <id> --options "a|b" --recommend a
   ```
 
   At task end (and when the owner says "any questions?" or in the phase report) run `node "<scripts>/decisions.js" flush [--task <id>]`: it prints the deferred questions as groups of at most 4, each group shaped for one `AskUserQuestion` call, and marks them open. `board.js update <id> --status done` refuses while the task still has deferred questions.

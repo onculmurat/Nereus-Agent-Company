@@ -9,7 +9,7 @@ const usage = `Usage:
   decisions.js show
   decisions.js open                      open questions, blocking first
   decisions.js ask --title <t> --source <s> --status <s> --impact <i> --blocking <yes|no> --thread <id>
-                                         [--defer] [--task <id>] [--options "a|b"] [--recommend <option>]
+                                         --options "a|b" --recommend <option> [--defer] [--task <id>]
                                          --defer: not blocking, asked later in a batch; board.js refuses done for the --task until flushed
   decisions.js flush [--task <id>]       prints deferred questions as JSON groups of at most 4 (one AskUserQuestion call each), marks them open
   decisions.js decide <Q-id> --answer <text> [--link <path or url>]
@@ -33,6 +33,15 @@ function readItems(file) {
   return items;
 }
 
+// Every owner question carries at least 2 options and one recommended option.
+function checkChoices({ options, recommend }) {
+  const list = (options ?? '').split('|').map((s) => s.trim()).filter(Boolean);
+  if (!options) throw new UsageError('Missing --options "a|b": every question needs at least 2 options');
+  if (list.length < 2) throw new UsageError('--options needs at least 2 options separated by |');
+  if (!recommend) throw new UsageError('Missing --recommend: name the recommended option');
+  if (!list.includes(recommend)) throw new UsageError('--recommend must be exactly one of the options');
+}
+
 // One decision to record: it needs an outcome; the thread defaults to one made from the title.
 function normalize(item, i) {
   if (typeof item?.outcome !== 'string' || !item.outcome.trim()) throw new UsageError(`Decision ${i + 1} has no outcome`);
@@ -54,6 +63,7 @@ runCli(usage, {
     case 'ask':
       need(v, 'title', 'source', 'status', 'impact', 'blocking', 'thread');
       if (!['yes', 'no'].includes(v.blocking)) throw new UsageError('--blocking must be yes or no');
+      checkChoices(v);
       return addQuestion(root, v);
     case 'flush':
       return flushQuestions(root, { task: v.task });

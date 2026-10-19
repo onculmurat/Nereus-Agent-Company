@@ -117,7 +117,7 @@ Aynı kurallar her role uygulanır; hiçbir rol atlanmaz ve hiçbir rolün model
 
 ## Sorular ve kararlar
 
-Size gelen her soru aynı biçimdedir: **Kaynak** (nereden geldi, kim buldu), **Durum** (kod yazıldı mı, cevap mevcut işi değiştirir mi), **Etki**, seçenekler ve tek bir öneri. Her seferinde tek soru.
+Size gelen her soru aynı biçimdedir: **Kaynak** (nereden geldi, kim buldu), **Durum** (kod yazıldı mı, cevap mevcut işi değiştirir mi), **Etki**, seçenekler ve tek bir öneri. Her seferinde tek soru. `decisions.js ask`, 2'den az seçenekli ya da önerisi olmayan soruyu reddeder.
 
 - Engelleyen bir soru hemen sorulur.
 - Engellemeyen bir soru `team/decisions.md` içinde sıraya alınır ve ekip çalışmayı sürdürür. Sıradaki soruları istediğiniz an isteyin:
