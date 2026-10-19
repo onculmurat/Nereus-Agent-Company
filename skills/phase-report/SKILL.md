@@ -23,7 +23,7 @@ At the end of each phase:
    - **Lessons:** the new lessons of this phase, each with its proposed rule. The owner decides which become NAC rules; nothing becomes a rule automatically.
    - **Next:** your forward-looking recommendations for the coming phase, each with its reason.
 3. Ask the queued questions one at a time (skill `question-protocol`).
-4. Ask for approval to start the next phase, naming it. Only on approval run `node "<scripts>/board.js" phase <n>`.
+4. Ask for approval to start the next phase, naming it. Only on approval run `node "<scripts>/board.js" phase <n>`; it refuses while a finding with severity `blocker` is open or a module has `security: yes` tasks done after its last security-reviewer pass (`board.js review --module <m> --role security-reviewer --verdict pass`): fix those or run that review first.
 5. Suggest a mailbox cleanup dry run (skill `cleanup`).
 
 ## Phase 1: recommendations
