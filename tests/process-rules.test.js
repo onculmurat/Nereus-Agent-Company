@@ -17,10 +17,13 @@ const ROLE_RULES = {
   append: 'Add to an existing file with the Edit or Write tool, never with `echo >>` or a heredoc through Bash.',
   outside: 'Do not read files outside the project root (other projects, home directories) without an owner question first, sent through the lead.',
   commit: 'Before you put a commit hash in a report or hand-off note, read it from git (`git log -1 --format=%h`); never write it from memory.',
+  batch: 'Batch edits: one Edit or Write per file change set, not many micro-edits or scripted in-place patches.',
+  filtered: 'While iterating run the filtered test (`cargo test <filter>`, `npm test -- <file>`); run the full suite once before you commit.',
+  reread: 'Do not re-read a file that is in the pack or that you already read in this dispatch, unless it changed.',
   rounds: "The board's `rounds` field is the only round count. Do not keep or report your own count.",
 };
 
-test('every agent carries the six shared working rules, word for word', () => {
+test('every agent carries the nine shared working rules, word for word', () => {
   assert.equal(agents.length, 14);
   for (const file of agents) {
     const text = read('agents', file);
