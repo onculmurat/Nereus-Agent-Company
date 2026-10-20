@@ -6,6 +6,7 @@ import path from 'node:path';
 import { spawnSync, execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { addWorktree, integrateWorktree, removeWorktree, worktreePath } from '../scripts/lib/worktree.js';
+import './helpers.js';
 
 const pluginRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const cli = path.join(pluginRoot, 'scripts', 'worktree.js');

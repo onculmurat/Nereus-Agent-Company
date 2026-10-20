@@ -1149,3 +1149,42 @@ test('g23 run: planner and question-protocol say Go-path test takes a command th
   assert.match(qp, /Go-path test: <command>/);
   assert.match(qp, /exits? 0/);
 });
+
+// ---- F7 deterministic git timing in the suite ----
+import { cachedBlocker } from '../scripts/lib/compact.js';
+
+test('F7: the test helpers pin git dates, identity and background maintenance, and commits get strictly increasing explicit dates', () => {
+  const p = makeGitProject();
+  const a = p.commit('one.txt');
+  const b = p.commit('two.txt');
+  const times = p.git('log', '--format=%at %ct', '--reverse').split('\n').map((l) => l.split(' ').map(Number));
+  assert.equal(times.length, 2);
+  assert.ok(times[1][1] > times[0][1] && times[1][0] > times[0][0], 'later commit has a later explicit date');
+  assert.ok(times[0][0] < Date.UTC(2027, 0, 1) / 1000, 'dates come from the helper, not from the wall clock');
+  assert.notEqual(a, b);
+  assert.equal(p.git('config', 'gc.auto'), '0');
+  assert.equal(p.git('config', 'maintenance.auto'), 'false');
+  assert.ok(process.env.GIT_AUTHOR_DATE && process.env.GIT_COMMITTER_DATE && process.env.GIT_AUTHOR_NAME, 'child git processes of the suite inherit pinned dates and identity');
+});
+
+test('F7: every test file that runs git imports the helpers that pin the git environment', () => {
+  const walk = (d) => fs.readdirSync(d, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? (e.name === 'live' || e.name === 'fixtures' ? [] : walk(path.join(d, e.name))) : [path.join(d, e.name)]));
+  const missing = walk(path.join(pluginRoot, 'tests')).filter((f) => f.endsWith('.test.js'))
+    .filter((f) => { const t = fs.readFileSync(f, 'utf8'); return /['"]git['"]/.test(t) && !/helpers\.js['"]/.test(t); })
+    .map((f) => path.relative(pluginRoot, f));
+  assert.deepEqual(missing, []);
+});
+
+test('F7: the pre-compact block cache is tested with an explicit clock, not the wall clock', () => {
+  const p = makeGitProject();
+  p.commit('seed.txt');
+  p.git('add', 'team');
+  p.git('commit', '-q', '-m', 'team');
+  fs.writeFileSync(path.join(p.root, 'team', 'dirty.txt'), 'x');
+  const sid = `f7-cache-${process.pid}-${Math.random().toString(36).slice(2)}`;
+  const first = cachedBlocker(sid, p.root, 1_000_000);
+  assert.ok(first, 'a dirty team/ blocks');
+  fs.rmSync(path.join(p.root, 'team', 'dirty.txt'));
+  assert.equal(cachedBlocker(sid, p.root, 1_000_000 + 9_999), first, 'served from the cache inside the window');
+  assert.equal(cachedBlocker(sid, p.root, 1_000_000 + 10_001), null, 'looked up again once the window has passed');
+});

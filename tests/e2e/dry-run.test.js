@@ -6,6 +6,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { pluginRoot, runHook, fixture } from '../hooks/run-hook.js';
+import '../helpers.js';
 
 const script = (name) => path.join(pluginRoot, 'scripts', `${name}.js`);
 

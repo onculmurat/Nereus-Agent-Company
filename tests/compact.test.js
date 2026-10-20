@@ -151,17 +151,6 @@ test('any error allows: unreadable transcript, garbage input, broken config', ()
   assert.equal(pre(p, 150000).status, 0);
 });
 
-test('a block repeats from a short cache, so repeated checks do not repeat the git work', () => {
-  const p = cleanProject();
-  fs.writeFileSync(path.join(p.root, 'team', 'dirty.txt'), 'x');
-  const sid = `cache-${process.pid}-${Date.now()}`;
-  const tr = transcript(150000);
-  const call = () => runHook('pre-compact', { session_id: sid, cwd: p.root, trigger: 'auto', transcript_path: tr });
-  assert.equal(call().status, 2);
-  fs.rmSync(path.join(p.root, 'team', 'dirty.txt'));
-  assert.equal(call().status, 2, 'served from the cache');
-});
-
 test('setup writes autoCompactWindow and idleCompaction false without clobbering existing keys', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'nac set '));
   const config = loadConfig({ pluginRoot, userConfigPath: path.join(dir, 'none.json') });
