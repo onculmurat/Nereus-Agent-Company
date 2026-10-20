@@ -229,6 +229,10 @@ Sonraki oturum bir devam özetiyle başlar: aşama, süren iş (`git status` ile
 
 `team/brief.md`, `decisions.md`, `contracts/`, `research/`, `glossary.md` ve `config.json` commit'lenmek içindir. `team/work/` (pano, görev özetleri, devir notları, eskalasyonlar, posta kutusu) de commit'lenir; yalnız `team/work/packs/` (üretilen bağlam paketleri) git dışındadır. Lider bunu kendi commit'lerinde, `chore(team): <ne>`, her görev bittiğinde ve her lider rotasyonunda, açık yolları ekleyerek commit'ler; kod commit'lerine karıştırmaz. Kurulum eski `.gitignore` satırını `team/work/` yerine `team/work/packs/` yapar ve önce farkı gösterir.
 
+## 1.3.4 değişiklikleri
+
+- **Worktree silme board'u izler** (g30): `worktree.js remove` yalnız `<worktreeRoot>/<repo>-wt/<id>` altına bakıyordu; board'da başka yerde kayıtlı worktree bulunamıyor, git ile elle siliniyordu. Artık board'daki worktree'yi siler, kayıt yoksa hesaplanan yola düşer.
+
 ## 1.3.3 değişiklikleri
 
 - **Vekil config'te** (g29): yalnız sohbette kararlaştırılan vekil oturumu bir sonraki lider oturumu tarafından bilinmiyordu; lider vekilin cevaplayamadığı soru kutusu açıyordu, kalıcı yetkiyi kendisi kaydetmesi de sınıflandırıcıda reddediliyordu. Artık bir kez `! node <yol>/scripts/setup.js --proxy <oturum> [--until YYYY-AA-GG]` ile ayarlarsın (`--proxy off` kaldırır); `team/config.json`'a `ownerProxy` olarak yazılır, her lider oturumu sahip sorularını o oturuma SendMessage ile gönderir. Push, ana dala merge, deploy, yayın ve verini silme yine sana gelir.

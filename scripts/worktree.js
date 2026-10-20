@@ -10,7 +10,7 @@ const usage = `Usage:
   worktree.js add <task-id>              new worktree <repo>-wt/<id> on branch task/<id> from the current commit
                                          (config worktreeRoot: <worktreeRoot>/<repo>-wt/<id>); prints the path for board.js update --worktree
   worktree.js integrate <task-id>        cherry-pick the task's commits onto the current branch (aborts on conflict)
-  worktree.js remove <task-id>           remove the worktree and delete branch task/<id>
+  worktree.js remove <task-id>           remove the worktree (the one the board records, else the path above) and delete branch task/<id>
   (all accept --project <dir>; default: nearest directory with team/config.json)
 `;
 
