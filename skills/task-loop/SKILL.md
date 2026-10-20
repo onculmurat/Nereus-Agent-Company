@@ -42,7 +42,7 @@ When you resume a task after a restart, quota stop or new session, read its hand
 
 The lead session grows with every task. Rotate it at each milestone end and after every 5 tasks marked done since the last rotation, whichever comes first. `board.js update <id> --status done` prints `rotate: true` when the fifth done is reached; a milestone end is your own call.
 
-1. Write `team/work/handoffs/lead-<YYYY-MM-DD-HHMM>.md`: done, in progress, next task, open questions, risks. Only facts the next session needs.
+1. Write `team/work/handoffs/lead-<YYYY-MM-DD-HHMM>.md`: done, in progress, next task, open questions, risks. Only facts the next session needs. Never write the question lists by hand: paste the output of `node "<scripts>/decisions.js" handoff-questions` (queued and parked, from the log), so a question a decision closed is not listed as open.
 2. Run `node "<scripts>/board.js" rotated` to reset the counter.
 3. Commit the hand-off and the board as `chore(team): lead hand-off <YYYY-MM-DD-HHMM>`, staging explicit paths only.
 4. Tell the owner: run `/clear`, then say "devam" (or "continue"). The session-start summary then shows the newest `lead-*.md` as "Lead hand-off"; read it first and carry on from the next task.

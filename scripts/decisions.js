@@ -5,6 +5,7 @@ import fs from 'node:fs';
 import { readDecisions, pendingQuestions, parkedQuestions, parkQuestion, unparkQuestion, addQuestion, flushQuestions, decide, recordOutcomes, amendDecision, threadFromText } from './lib/decisions.js';
 import { isValidThread } from './lib/mailbox.js';
 import { irreversibleProblems } from './lib/irreversible.js';
+import { questionListsMarkdown } from './lib/summary.js';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -25,6 +26,7 @@ const usage = `Usage:
                                          blocks compaction or counts as pending; the hand-off lists it separately
   decisions.js unpark <Q-id>
   decisions.js parked                    parked questions
+  decisions.js handoff-questions         markdown lists of queued and parked questions from the log, for a hand-off (never hand-write them)
   decisions.js flush [--task <id>]       prints deferred questions as JSON groups of at most 4 (one AskUserQuestion call each), marks them open
   decisions.js decide <Q-id> --answer <text> [--link <path or url>]
   decisions.js record --outcome <text> [--thread <id>] [--title <t>] [--link <path or url>]
@@ -93,6 +95,8 @@ runCli(usage, {
       return parkedQuestions(root);
     case 'open':
       return pendingQuestions(root).sort((a, b) => (a.blocking === 'yes' ? 0 : 1) - (b.blocking === 'yes' ? 0 : 1));
+    case 'handoff-questions':
+      return questionListsMarkdown(root);
     case 'ask':
       need(v, 'title', 'source', 'status', 'impact', 'blocking', 'thread');
       if (!['yes', 'no'].includes(v.blocking)) throw new UsageError('--blocking must be yes or no');

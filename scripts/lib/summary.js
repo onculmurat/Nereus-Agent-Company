@@ -31,6 +31,26 @@ const line = (e) => `- ${e.id}: ${e.title} (${e.owner}, ${e.status})`;
 const MAX_LINES = 20;
 const capped = (lines) => (lines.length > MAX_LINES ? [...lines.slice(0, MAX_LINES), `- ... and ${lines.length - MAX_LINES} more`] : lines);
 
+// Queued and parked owner questions, generated from decisions.md state. Hand-offs use this instead of a hand-written
+// list, so a question closed by a decision never shows up as open.
+function questionParts(open) {
+  const parked = open.filter((q) => q.state === 'parked');
+  const questions = open.filter((q) => q.state !== 'parked').sort((a, b) => (a.blocking === 'yes' ? 0 : 1) - (b.blocking === 'yes' ? 0 : 1));
+  const parts = [];
+  if (questions.length) {
+    parts.push(['Queued owner questions:', ...capped(questions.map((q) => `- ${q.id}: ${q.title}${q.blocking === 'yes' ? ' [blocking]' : ''}`))].join('\n'));
+  }
+  if (parked.length) {
+    parts.push(['Parked owner questions (owner-deferred; they do not block compaction):', ...capped(parked.map((q) => `- ${q.id}: ${q.title} (until ${q['parked-until'] ?? 'later'})`))].join('\n'));
+  }
+  return parts;
+}
+
+export function questionListsMarkdown(root) {
+  const parts = questionParts(readDecisions(root).open);
+  return `${parts.length ? parts.join('\n\n') : 'No open owner questions.'}\n`;
+}
+
 export function buildResumeSummary(root, { gitStatus } = {}) {
   const board = readBoard(root);
   const { open } = readDecisions(root);
@@ -38,12 +58,9 @@ export function buildResumeSummary(root, { gitStatus } = {}) {
   const inProgress = board.entries.filter((e) => e.status === 'in-progress' || e.status === 'review');
   const pending = board.entries.filter((e) => e.status === 'todo' || e.status === 'blocked');
   const unread = listInbox(root, 'team-lead').length;
-  const parked = open.filter((q) => q.state === 'parked');
-  const questions = open.filter((q) => q.state !== 'parked').sort((a, b) => (a.blocking === 'yes' ? 0 : 1) - (b.blocking === 'yes' ? 0 : 1));
-
   const parts = [`Phase: ${board.phase}`];
   const handoff = latestLeadHandoff(root);
-  if (handoff) parts.push(`Lead hand-off: ${handoff}`);
+  if (handoff) parts.push(`Lead hand-off: ${handoff} (its question lists may be stale)`);
   if (inProgress.length || changes.length) {
     const lines = capped(inProgress.map(line));
     if (changes.length) lines.push('- Uncommitted changes (git status):', ...capped(changes).map((c) => `  ${c}`));
@@ -51,12 +68,7 @@ export function buildResumeSummary(root, { gitStatus } = {}) {
   }
   if (pending.length) parts.push(['Open board items:', ...capped(pending.map(line))].join('\n'));
   if (unread) parts.push(`Unread for team-lead: ${unread}`);
-  if (questions.length) {
-    parts.push(['Queued owner questions:', ...capped(questions.map((q) => `- ${q.id}: ${q.title}${q.blocking === 'yes' ? ' [blocking]' : ''}`))].join('\n'));
-  }
-  if (parked.length) {
-    parts.push(['Parked owner questions (owner-deferred; they do not block compaction):', ...capped(parked.map((q) => `- ${q.id}: ${q.title} (until ${q['parked-until'] ?? 'later'})`))].join('\n'));
-  }
+  parts.push(...questionParts(open));
   return `${parts.join('\n\n')}\n`;
 }
 

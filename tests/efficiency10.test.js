@@ -556,3 +556,49 @@ test('g20: a refused done writes no cost file; a cost.js failure only warns', ()
   assert.match(r.stderr, /cost file not written/i);
   assert.equal(JSON.parse(r.stdout).status, 'done');
 });
+
+// ---- C1 (g14) question lists in hand-offs come from decisions state ----
+import { decide } from '../scripts/lib/decisions.js';
+import { questionListsMarkdown } from '../scripts/lib/summary.js';
+
+test('g14: a closed question is absent from the compact hand-off, an open and a parked one are listed apart', () => {
+  const p = cleanGitProject();
+  addQuestion(p.root, q);
+  addQuestion(p.root, { ...q, title: 'Second?' });
+  addQuestion(p.root, { ...q, title: 'Third?' });
+  decide(p.root, 'Q-001', { answer: 'yes' });
+  parkQuestion(p.root, 'Q-003', { until: 'first sale' });
+  const t = handoffText(p, writeCompactHandoff(p.root, new Date(), { trigger: 'manual' }));
+  assert.doesNotMatch(t, /Q-001/, 'closed question must not appear');
+  assert.match(t, /Queued owner questions:[\s\S]*Q-002/);
+  assert.match(t, /Parked owner questions[\s\S]*Q-003/);
+});
+
+test('g14: questionListsMarkdown is generated from state and decisions.js handoff-questions prints it', () => {
+  const root = makeProject();
+  addQuestion(root, q);
+  addQuestion(root, { ...q, title: 'Second?' });
+  decide(root, 'Q-001', { answer: 'yes' });
+  const md = questionListsMarkdown(root);
+  assert.match(md, /Q-002/);
+  assert.doesNotMatch(md, /Q-001/);
+  const r = spawnSync(process.execPath, [decisionsCli, 'handoff-questions', '--project', root], { encoding: 'utf8' });
+  assert.equal(r.status, 0, r.stderr);
+  assert.match(r.stdout, /Q-002/);
+  assert.doesNotMatch(r.stdout, /Q-001/);
+  assert.equal(questionListsMarkdown(makeProject()).trim(), 'No open owner questions.');
+});
+
+test('g14: the resume summary warns that a hand-written lead hand-off may list stale questions', () => {
+  const root = makeProject();
+  const dir = path.join(root, 'team', 'work', 'handoffs');
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(path.join(dir, 'lead-2026-10-19-1430.md'), 'x');
+  assert.match(buildResumeSummary(root, { gitStatus: '' }), /question lists[\s\S]*stale|stale[\s\S]*decisions/i);
+  assert.doesNotMatch(buildResumeSummary(makeProject(), { gitStatus: '' }), /stale/i);
+});
+
+test('g14: the rotation skill tells the lead to generate the question lists, not write them', () => {
+  const s = fs.readFileSync(path.join(pluginRoot, 'skills', 'task-loop', 'SKILL.md'), 'utf8');
+  assert.match(s, /decisions\.js" handoff-questions/);
+});
