@@ -32,6 +32,17 @@ Measures per arm:
 
 Positioning: NAC's claim is fewer escaped defects and less owner effort, an end-to-end software team; the token saving is expected to come from Memory Agent. The wording follows the results, not the other way round.
 
-Tooling: `claude plugin eval` runs a plugin's eval cases with a no-plugin baseline arm; the task set can be written as eval cases.
+Tooling: `claude plugin eval` (Claude Code's own plugin eval) runs a plugin's eval cases with a no-plugin baseline arm, an LLM grader that does not know the arm (default haiku, `--judge-model` overrides it), 3 runs per case by default, a scaffold script per case, `--max-cost-usd` and a JSON/HTML report.
+- Arms: one eval of NAC gives NAC vs plain Claude; Memory Agent packaged as a plugin gives Memory Agent vs plain Claude. NAC + Memory Agent has no ready arm: a combined plugin, or the NAC eval with Memory Agent's real MCP server (`--mocks off` / `--allow-real-servers`).
+- Start state: the scaffold script resets the repo to the commit before the task.
+- Quality: the grader is blind by construction; hard graders (gates green, tests pass) are added per case; a stronger judge model for large tasks.
+- Cost: 6 tasks x 4 arms x 3 runs = 72 full tasks at 0.75M-3.8M weighted tokens each; set `--max-cost-usd`.
 
-Before it: measure 3-4 tasks after the lead restarts on 1.3.9 against the 0.5M target.
+Fairness: runs are unattended, so nobody answers questions live.
+- Every arm gets the same answer rule in the case prompt (for example "take the recommended option", or one shared decisions file).
+- Owner effort is measured as the questions an arm asked and the times it stalled.
+- The owner's proxy session (autopilot) checks that the four arms are set up alike, watches the runs, logs every manual step (restart, stopping a stuck run) per arm, and reports what the owner missed.
+
+Unknowns, answered by a pilot first (one small task, one run, NAC vs plain Claude): does NAC's lead and subagent flow run inside eval, do long tasks hit the case `max_turns` / `timeout_seconds`, does the report give tokens per arm.
+
+Before it: measure 3-4 tasks after the lead restarts on 1.3.10 against the 0.5M target.
