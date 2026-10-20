@@ -2,6 +2,8 @@
 // Owner questions go through decisions.js ask (options and one recommendation are checked there); a chat question
 // skips those checks. Cheap and conservative: only the last non-empty line is looked at.
 import fs from 'node:fs';
+import { readDecisions } from './decisions.js';
+import { teamPaths } from './paths.js';
 
 const RECOMMENDATION = /recommend|öneri|tavsiye/i;
 const TAIL_BYTES = 256 * 1024;
@@ -62,6 +64,30 @@ export function buriedQuestionProblem(text, openIds) {
       return `it names open owner question ${mentioned.join(', ')} without the question's own block (Source, Status, Impact, options, recommendation)`;
     }
     return '';
+  } catch {
+    return '';
+  }
+}
+
+// g26: Q-ids and D-ids in the lead's text must exist in team/decisions.md. Seen live: a question went to the owner
+// proxy without `decisions.js ask`, `decide Q-123` then threw "No open question", and the lead still reported
+// "recorded as D-225" (another item's id). Returns the problem as text, or '' (also when there is no log or on any error).
+export function unknownIdsProblem(root, text) {
+  try {
+    if (typeof root !== 'string' || typeof text !== 'string' || !text) return '';
+    const mentioned = [...text.matchAll(/(?<![A-Za-z0-9-])([QD])-(\d+)(?![A-Za-z0-9-])/g)].map((m) => ({ kind: m[1], num: Number(m[2]), id: m[0] }));
+    if (!mentioned.length || !fs.existsSync(teamPaths(root).decisions)) return '';
+    const { open, decided } = readDecisions(root);
+    const known = new Set([...open.map((x) => x.id), ...decided.map((x) => x.id), ...decided.map((x) => x.question)]
+      .filter(Boolean).map((id) => /^([QD])-(\d+)$/.exec(id)).filter(Boolean).map((m) => `${m[1]}${Number(m[2])}`));
+    const unknown = [...new Set(mentioned.filter((m) => !known.has(`${m.kind}${m.num}`)).map((m) => m.id))];
+    if (!unknown.length) return '';
+    const q = unknown.filter((id) => id.startsWith('Q'));
+    const d = unknown.filter((id) => id.startsWith('D'));
+    return [
+      q.length ? `${q.join(', ')} ${q.length > 1 ? 'are' : 'is'} not in team/decisions.md: register an owner or proxy question with decisions.js ask first and quote the Q-id that ask prints` : '',
+      d.length ? `${d.join(', ')} ${d.length > 1 ? 'are' : 'is'} not in team/decisions.md: report a D-id only as printed by decisions.js decide (or record), after reading its output` : '',
+    ].filter(Boolean).join('; ');
   } catch {
     return '';
   }

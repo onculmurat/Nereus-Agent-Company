@@ -944,3 +944,50 @@ test('g22 wider: test-engineer and final-reviewer dispatches without a pack are 
   assert.equal(dispatch(root, 'final-reviewer', 'x --no-pack whole-project review').status, 0, 'the escape hatch is unchanged');
   assert.equal(dispatch(root, 'my-test-engineer-helper', 'x').status, 0, 'only the exact role names are covered');
 });
+
+// ---- F3 (g26) unregistered Q-ids and unread D-ids ----
+import { unknownIdsProblem } from '../scripts/lib/owner-question.js';
+import { decide as decideQuestion } from '../scripts/lib/decisions.js';
+
+test('g26: unknownIdsProblem names Q-ids and D-ids that are not in decisions.md', () => {
+  const root = makeProject();
+  addQuestion(root, q);
+  decideQuestion(root, 'Q-001', { answer: 'yes' });
+  addQuestion(root, { ...q, title: 'second?' });
+  assert.equal(unknownIdsProblem(root, 'Q-001 was decided as D-001; Q-002 is open.'), '', 'registered ids pass');
+  assert.match(unknownIdsProblem(root, 'Sent Q-123 to the proxy.'), /Q-123/);
+  assert.match(unknownIdsProblem(root, 'Recorded as D-225.'), /D-225/);
+  const both = unknownIdsProblem(root, 'Q-123 answered, recorded as D-225, also D-001.');
+  assert.match(both, /Q-123/);
+  assert.match(both, /D-225/);
+  assert.doesNotMatch(both, /D-001/);
+  assert.equal(unknownIdsProblem(root, 'No ids here, only T-001 and F-12.'), '');
+});
+
+test('g26: unknownIdsProblem fails open on odd input and on an unreadable log', () => {
+  const root = makeProject();
+  assert.equal(unknownIdsProblem(root, undefined), '');
+  assert.equal(unknownIdsProblem(root, ''), '');
+  assert.equal(unknownIdsProblem(null, 'Q-9'), '');
+  assert.equal(unknownIdsProblem(path.join(root, 'nope'), 'Q-9'), '', 'a project without a decisions log has nothing to compare with');
+});
+
+test('g26: the Stop hook sends the lead back once for an unregistered Q-id or an unread D-id', () => {
+  const root = makeProject();
+  addQuestion(root, q);
+  const stop = (msg, patch = {}) => runHookScript('stop-question', { session_id: 's', cwd: root, hook_event_name: 'Stop', stop_hook_active: false, last_assistant_message: msg, ...patch });
+  const r = stop('Sent Q-123 to the proxy. Recorded as D-225.');
+  assert.equal(r.status, 2);
+  assert.match(r.stderr, /Q-123/);
+  assert.match(r.stderr, /D-225/);
+  assert.match(r.stderr, /decisions\.js ask/);
+  assert.equal(stop('Sent Q-123 to the proxy.', { stop_hook_active: true }).status, 0, 'only once');
+  assert.equal(stop('Q-001 is open.\nSource: x').status, 0, 'a registered id passes');
+});
+
+test('g26: question-protocol says register first, quote the Q-id from ask, report D-ids from decide', () => {
+  const qp = fs.readFileSync(path.join(pluginRoot, 'skills', 'question-protocol', 'SKILL.md'), 'utf8');
+  assert.match(qp, /register[^\n]*before[^\n]*(proxy|owner)/i);
+  assert.match(qp, /Q-id[^\n]*`ask`|`ask`[^\n]*Q-id/);
+  assert.match(qp, /D-id[^\n]*`decide`|`decide`[^\n]*D-id/);
+});
