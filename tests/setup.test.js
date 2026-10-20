@@ -7,6 +7,7 @@ import { execFileSync, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { planSetup, applySetup, planGlobalModelPointer } from '../scripts/lib/setup.js';
 import { loadConfig } from '../scripts/lib/config.js';
+import './helpers.js';
 
 const pluginRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const config = loadConfig({ pluginRoot, userConfigPath: null, projectRoot: null });
@@ -40,12 +41,13 @@ test('apply creates files; a second run changes nothing', () => {
   assert.match(fs.readFileSync(path.join(dir, '.gitignore'), 'utf8'), /^team\/work\/packs\/$/m);
   assert.doesNotMatch(fs.readFileSync(path.join(dir, '.gitignore'), 'utf8'), /^team\/work\/$/m);
   const settingsFile = path.join(dir, '.claude', 'settings.json');
-  const before = fs.readdirSync(dir, { recursive: true }).map((f) => [f, fs.statSync(path.join(dir, f)).mtimeMs]);
+  const snapshot = () => fs.readdirSync(dir, { recursive: true }).sort().map((f) => [f, fs.statSync(path.join(dir, f)).isDirectory() ? null : fs.readFileSync(path.join(dir, f), 'utf8')]);
+  const before = snapshot();
   const again = plan(dir);
   assert.ok(again.files.every((f) => f.action === 'skip-exists'));
   assert.equal(again.gitignoreLine, null);
   applySetup(again);
-  const after = fs.readdirSync(dir, { recursive: true }).map((f) => [f, fs.statSync(path.join(dir, f)).mtimeMs]);
+  const after = snapshot();
   assert.deepEqual(after, before);
   assert.equal(fs.readFileSync(path.join(dir, '.gitignore'), 'utf8').match(/team\/work\//g).length, 1);
   assert.ok(fs.existsSync(settingsFile));

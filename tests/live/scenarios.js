@@ -194,7 +194,7 @@ export const scenarios = {
       addEntry(root, { title: 'Veri modeli', owner: 'backend-developer', model: 'sonnet' });
       addEntry(root, { title: 'Giriş ekranı', owner: 'frontend-developer', model: 'sonnet' });
       addEntry(root, { title: 'Ayarlar sayfası', owner: 'frontend-developer', model: 'sonnet' });
-      updateEntry(root, 'T-001', { status: 'done' });
+      updateEntry(root, 'T-001', { status: 'done' }, { singleCommit: 'live fixture' });
       updateEntry(root, 'T-002', { status: 'in-progress' });
       addQuestion(root, { title: 'Oturum süresi ne kadar olsun?', source: 'T-002 Giriş ekranı', status: 'Süre belirlenmedi', impact: 'Güvenlik ve kullanım kolaylığı', blocking: 'yes', thread: 'oturum-suresi' });
       writeMessage(root, { from: 'architect', to: 'team-lead', thread: 'api', body: 'API sözleşmesi hazır, onayını bekliyorum.' });

@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import { makeProject } from './helpers.js';
 import { readBoard, writeBoard, addEntry, updateEntry, setPhase, rotationDue, markRotated, countFoldIn } from '../scripts/lib/board.js';
 import { teamPaths } from '../scripts/lib/paths.js';
+const SC = { singleCommit: 'test fixture' };
 
 test('missing board reads as empty phase 0', () => {
   assert.deepEqual(readBoard(makeProject()), { phase: 0, entries: [] });
@@ -60,7 +61,7 @@ test('setPhase', () => {
 function addTasks(root, n) {
   for (let i = 0; i < n; i += 1) addEntry(root, { title: `Task ${i + 1}`, owner: 'planner', model: 'sonnet' });
 }
-const finish = (root, n) => updateEntry(root, `T-${String(n).padStart(3, '0')}`, { status: 'done' });
+const finish = (root, n) => updateEntry(root, `T-${String(n).padStart(3, '0')}`, { status: 'done' }, SC);
 
 test('rotation is due after the fifth task marked done since the last rotation', () => {
   const root = makeProject();

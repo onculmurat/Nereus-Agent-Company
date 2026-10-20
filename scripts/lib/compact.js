@@ -1,17 +1,18 @@
 // Conditional autocompact. Claude Code compacts the lead's context on its own; the PreCompact hook lets that happen
-// only at a clean point (nothing in flight), or when the context passes a ceiling. Every function here is cheap,
+// only when the lead's own state is safe (team/ committed, no owner question waiting, every in-progress task has a
+// hand-off file; tasks in flight alone do not block), or when the context passes a ceiling. Every function here is cheap,
 // and the hook treats any error as "allow".
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { readBoard, verifyCommit } from './board.js';
-import { readDecisions } from './decisions.js';
+import { pendingQuestions } from './decisions.js';
 import { buildResumeSummary } from './summary.js';
 import { teamPaths } from './paths.js';
 import { localDate } from './dates.js';
 
-export const DEFAULT_CEILING = 300000;
+export const DEFAULT_CEILING = 220000;
 export const DEFAULT_WINDOW = 200000;
 const TAIL_BYTES = 512 * 1024;
 const CACHE_MS = 10000;
@@ -46,26 +47,43 @@ export function contextTokens(file) {
   return null;
 }
 
-// null when compaction may run, else a one-line reason. Throws on a problem the caller treats as "allow".
-export function compactBlocker(root) {
+// Every condition that is not met, one line each (empty when compaction may run). Throws on a problem the caller
+// treats as "allow". g25: only the lead's own state counts. Tasks in flight do not block by themselves, and developer
+// files elsewhere in a shared tree are ignored: only uncommitted paths under team/ count.
+export function compactBlockers(root) {
+  const out = [];
   const board = readBoard(root);
-  const active = board.entries.filter((e) => e.status === 'in-progress' || e.status === 'review');
-  if (active.length) return `${active.map((e) => e.id).join(', ')} still in flight; finish or hand off, then compaction can run.`;
-  const dirty = execFileSync('git', ['status', '--porcelain', '--', '.', `:(exclude)${HANDOFF_GLOB}`], { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], timeout: 5000 }).trim();
-  if (dirty) return 'uncommitted changes in the working tree; commit them first.';
+  const missing = board.entries.filter((e) => e.status === 'in-progress' && !handoffFileOf(root, e));
+  if (missing.length) out.push(`${missing.map((e) => e.id).join(', ')} in progress without a hand-off file (team/work/handoffs/<id>.md); write it so the task can resume after compaction.`);
+  const dirty = execFileSync('git', ['status', '--porcelain', '--', 'team', `:(exclude)${HANDOFF_GLOB}`], { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], timeout: 5000 }).trim();
+  if (dirty) out.push('uncommitted changes under team/ (board, decisions, hand-offs); commit them first.');
   const last = board.entries.filter((e) => e.status === 'done').at(-1);
   if (last && last.code !== 'no') {
     const sha = last.commits.at(-1);
-    if (!sha) return `${last.id} is done but has no commit recorded on the board.`;
-    try {
-      verifyCommit(root, sha);
-    } catch {
-      return `${last.id}: commit ${sha} is not reachable from HEAD.`;
+    if (!sha) out.push(`${last.id} is done but has no commit recorded on the board.`);
+    else {
+      try {
+        verifyCommit(root, sha);
+      } catch {
+        out.push(`${last.id}: commit ${sha} is not reachable from HEAD.`);
+      }
     }
   }
-  const open = readDecisions(root).open;
-  if (open.length) return `${open.length} owner question(s) not answered yet (${open.map((q) => q.id).join(', ')}); ask or answer them first.`;
-  return null;
+  // waiting for an answer in this turn: parked, deferred and queued questions are not
+  const open = pendingQuestions(root).filter((q) => q.state !== 'deferred' && q.state !== 'queued');
+  if (open.length) out.push(`${open.length} owner question(s) not answered yet (${open.map((q) => q.id).join(', ')}); ask or answer them first.`);
+  return out;
+}
+
+// The hand-off file of a task: the path recorded on the board, else team/work/handoffs/<id>.md. null when none exists.
+function handoffFileOf(root, e) {
+  const rel = e.handoff || `team/work/handoffs/${e.id}.md`;
+  return fs.existsSync(path.resolve(root, rel)) ? rel : null;
+}
+
+// null when compaction may run, else a one-line reason (the first unmet condition).
+export function compactBlocker(root) {
+  return compactBlockers(root)[0] ?? null;
 }
 
 // A block is remembered briefly: Claude Code asks again after every tool result.
@@ -86,17 +104,59 @@ export function cachedBlocker(sessionId, root, now = Date.now()) {
   return reason;
 }
 
-export function writeCompactHandoff(root, now = new Date()) {
+// The task to resume: one in progress or in review first, then a todo whose brief exists, then any todo.
+function nextTaskLine(root) {
+  const board = readBoard(root);
+  const inFlight = board.entries.find((e) => e.status === 'in-progress') ?? board.entries.find((e) => e.status === 'review');
+  if (inFlight) return `${inFlight.id}: ${inFlight.title} (${inFlight.status}; resume it first)`;
+  const todo = board.entries.filter((e) => e.status === 'todo');
+  const ready = todo.find((e) => fs.existsSync(path.join(teamPaths(root).tasks, `${e.id}.md`)));
+  const pick = ready ?? todo[0];
+  if (pick) return `${pick.id}: ${pick.title} (${ready ? 'brief ready' : 'todo, no brief yet'})`;
+  return 'none on the board; ask the owner or plan the next step';
+}
+
+// g25: each task in flight, so the lead resumes them after compaction.
+function inFlightLines(root) {
+  return readBoard(root).entries.filter((e) => e.status === 'in-progress' || e.status === 'review').map((e) => {
+    const parts = [`${e.id}: ${e.title} (${e.status})`, `owner ${e.owner}`];
+    if (e.agent) parts.push(`agent ${e.agent}`);
+    if (e.worktree) parts.push(`worktree ${e.worktree}`);
+    parts.push(`hand-off ${handoffFileOf(root, e) ?? 'none yet'}`);
+    return `- ${parts.join('; ')}`;
+  });
+}
+
+// trigger: 'safe point' (the hook found every condition met), 'ceiling' (token ceiling reached) or 'manual'.
+// The header states the real trigger and, unless it is a verified safe point, the conditions that were not met.
+export function writeCompactHandoff(root, now = new Date(), { trigger = 'safe point', tokens, ceiling } = {}) {
   const dir = teamPaths(root).handoffs;
   fs.mkdirSync(dir, { recursive: true });
   const pad = (n) => String(n).padStart(2, '0');
   const name = `compact-${localDate(now)}-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}.md`;
-  const board = readBoard(root);
-  const next = board.entries.find((e) => e.status === 'todo');
+  let failed;
+  try {
+    failed = compactBlockers(root);
+  } catch {
+    failed = null; // could not check: say so instead of claiming a clean point
+  }
+  const how = trigger === 'ceiling'
+    ? `Written by the PreCompact hook because the context reached the token ceiling${tokens ? ` (${tokens} of ${ceiling} tokens)` : ''}, not because a safe point was reached.`
+    : trigger === 'manual' ? 'Written for a manual compaction (the owner asked for it); nothing checked that it is a safe point.'
+      : 'Written by the PreCompact hook at a safe point.';
+  const status = failed === null ? 'Conditions could not be checked; treat the state below as unverified.'
+    : failed.length ? ['Conditions not met when this was written:', ...failed.map((f) => `- ${f}`)].join('\n')
+      : 'All conditions met: team/ state committed, last done task committed, no pending owner question (parked and deferred ones are listed below), every in-progress task has a hand-off file.';
+  let flight = [];
+  try {
+    flight = inFlightLines(root);
+  } catch { /* the list is informational */ }
   const text = [
     '# Compact hand-off',
-    'Written by the PreCompact hook at a clean point: nothing in flight, tree committed, last done task committed, no open owner question.',
-    `Next task: ${next ? `${next.id}: ${next.title}` : 'none on the board; ask the owner or plan the next step'}`,
+    how,
+    status,
+    ...(flight.length ? ['In flight (resume each after compaction; read its hand-off first):', ...flight] : []),
+    `Next task: ${nextTaskLine(root)}`,
     'Owner questions: team/decisions.md (open and decided).',
     '',
     buildResumeSummary(root, { gitStatus: '' }).trim(),

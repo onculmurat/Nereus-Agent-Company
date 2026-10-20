@@ -6,7 +6,7 @@ import { teamPaths } from './paths.js';
 import { parseEntries, formatEntry, toLines, nextId } from './sections.js';
 import { nextAction } from './escalation.js';
 import { execFileSync } from 'node:child_process';
-import { readDecisions, deferredFor } from './decisions.js';
+import { readDecisions, deferredFor, recordOutcomes, threadFromText } from './decisions.js';
 import { listFindings } from './findings.js';
 import { parseRefs } from './refs.js';
 
@@ -38,6 +38,11 @@ function checkCodeOwner(owner, code) {
 // reviews are stored as "role:verdict, role:verdict" and read as { role: verdict }.
 // security: yes marks a task for the module-level security review; contract (a changed security contract) also needs a pass before done.
 const SECURITY_TAGS = ['yes', 'contract'];
+export const SIZES = ['S', 'M', 'L'];
+const checkSize = (size) => {
+  if (size !== undefined && !SIZES.includes(size)) throw new Error(`Invalid size "${size}" (allowed: ${SIZES.join(', ')})`);
+  return size;
+};
 const parseReviews = (s) => Object.fromEntries(s.split(',').map((p) => p.trim().split(':')).filter(([r, v]) => r && v));
 const formatReviews = (r) => Object.entries(r).map(([role, verdict]) => `${role}:${verdict}`).join(', ');
 
@@ -55,9 +60,12 @@ export function readBoard(root) {
     model: f.model ?? '',
     commits: (f.commits ?? '').split(',').map((s) => s.trim()).filter(Boolean),
     handoff: f.handoff ?? '',
+    ...(f.worktree ? { worktree: f.worktree } : {}),
+    ...(f.agent ? { agent: f.agent } : {}),
     ...(Number(f.foldins) > 0 ? { foldins: Number(f.foldins) } : {}),
     ...(f.approach ? { approach: f.approach, roundsBase: Number(f.roundsbase ?? 0) } : {}),
     ...(f.code === 'no' ? { code: 'no' } : {}),
+    ...(SIZES.includes(f.size) ? { size: f.size } : {}),
     ...(SECURITY_TAGS.includes(f.security) ? { security: f.security } : {}),
     ...(f.module ? { module: f.module } : {}),
     ...(f.hardening === 'yes' ? { hardening: 'yes', hphase: Number(f.hphase ?? 0), ...(f.hdecision ? { hdecision: f.hdecision } : {}) } : {}),
@@ -74,9 +82,12 @@ export function writeBoard(root, board) {
   fs.mkdirSync(path.dirname(file), { recursive: true });
   const blocks = board.entries.map((e) => formatEntry('##', e.id, e.title, {
     owner: e.owner, status: e.status, rounds: e.rounds, model: e.model, commits: e.commits.join(', '), handoff: e.handoff,
+    ...(e.worktree ? { worktree: e.worktree } : {}),
+    ...(e.agent ? { agent: e.agent } : {}),
     ...(e.foldins > 0 ? { foldins: e.foldins } : {}),
     ...(e.approach ? { approach: e.approach, roundsbase: e.roundsBase ?? 0 } : {}),
     ...(e.code === 'no' ? { code: 'no' } : {}),
+    ...(SIZES.includes(e.size) ? { size: e.size } : {}),
     ...(SECURITY_TAGS.includes(e.security) ? { security: e.security } : {}),
     ...(e.module ? { module: e.module } : {}),
     ...(e.hardening === 'yes' ? { hardening: 'yes', hphase: e.hphase ?? 0, ...(e.hdecision ? { hdecision: e.hdecision } : {}) } : {}),
@@ -102,7 +113,8 @@ function planHardening(root, board, { module, decision }) {
   return { hardening: 'yes', hphase: board.phase, ...(decision === undefined ? {} : { hdecision: decision }) };
 }
 
-export function addEntry(root, { id, title, owner, model, code, security, module, hardening, decision }) {
+export function addEntry(root, { id, title, owner, model, code, security, module, hardening, decision, size }) {
+  checkSize(size);
   const board = readBoard(root);
   checkOwner(board, owner);
   checkCodeOwner(owner, code);
@@ -110,7 +122,7 @@ export function addEntry(root, { id, title, owner, model, code, security, module
   if (!ID_RE.test(entryId)) throw new Error(`Invalid board id "${entryId}"`);
   if (board.entries.some((e) => e.id === entryId)) throw new Error(`Board entry ${entryId} already exists`);
   const hard = hardening === 'yes' ? planHardening(root, board, { module, decision }) : {};
-  const entry = { id: entryId, title, owner, status: 'todo', rounds: 0, model, commits: [], handoff: '', ...(code === 'no' ? { code: 'no' } : {}), ...(SECURITY_TAGS.includes(security) ? { security } : {}), ...(module ? { module: checkModuleName(module) } : {}), ...hard };
+  const entry = { id: entryId, title, owner, status: 'todo', rounds: 0, model, commits: [], handoff: '', ...(code === 'no' ? { code: 'no' } : {}), ...(size ? { size } : {}), ...(SECURITY_TAGS.includes(security) ? { security } : {}), ...(module ? { module: checkModuleName(module) } : {}), ...hard };
   const note = autoTagSecurity(root, entry, { explicit: security });
   board.entries.push(entry);
   writeBoard(root, board);
@@ -145,25 +157,56 @@ function checkDone(root, entry) {
   }
 }
 
-export function updateEntry(root, id, patch) {
+export function updateEntry(root, id, patch, { singleCommit } = {}) {
   if (patch.status !== undefined && !STATUSES.includes(patch.status)) {
     throw new Error(`Invalid status "${patch.status}" (allowed: ${STATUSES.join(', ')})`);
   }
+  checkSize(patch.size);
   const board = readBoard(root);
   const entry = board.entries.find((e) => e.id === id);
   if (!entry) throw new Error(`No board entry ${id}`);
   checkOwner(board, patch.owner);
   checkCodeOwner(patch.owner ?? entry.owner, patch.code ?? entry.code);
   if (patch.status === 'done') checkDone(root, { ...entry, ...(patch.security === undefined ? {} : { security: patch.security }) });
+  if (patch.status === 'done') checkCommits(root, { ...entry, ...patch }, singleCommit);
   if (patch.status === 'done' && entry.status !== 'done') board.doneSinceRotation = (board.doneSinceRotation ?? 0) + 1;
   if (patch.module !== undefined && patch.module !== '') checkModuleName(patch.module);
+  if (patch.status === 'in-progress') checkTreeFree(board, entry, patch.worktree ?? entry.worktree);
   Object.assign(entry, patch);
+  if (!entry.worktree) delete entry.worktree;
+  if (!entry.agent) delete entry.agent;
   const note = patch.status === 'in-progress' ? autoTagSecurity(root, entry, { explicit: patch.security }) : undefined;
   if (!entry.module) delete entry.module;
   if (entry.code !== 'no') delete entry.code;
   if (!SECURITY_TAGS.includes(entry.security)) delete entry.security;
   writeBoard(root, board);
-  return note ? { ...entry, securityNote: note } : entry;
+  return { ...entry, ...(note ? { securityNote: note } : {}) };
+}
+
+// g24: two implementers in one working tree share the git index (a formatter or `git add` of one pulls the other's
+// files into its commit). A code task starts only when no other in-progress code task uses the same tree: the main
+// tree (no worktree recorded) or the same worktree path. Tasks with distinct worktrees run in parallel.
+function checkTreeFree(board, entry, worktree) {
+  if (entry.code === 'no') return;
+  const tree = worktree || '';
+  const other = board.entries.find((e) => e.id !== entry.id && e.status === 'in-progress' && e.code !== 'no' && (e.worktree || '') === tree);
+  if (!other) return;
+  throw new Error(tree
+    ? `${entry.id} cannot start in worktree ${tree}: ${other.id} is in progress there. Use its own worktree.`
+    : `${entry.id} cannot start in the main working tree: ${other.id} is in progress there, and two implementers in one tree share the git index (one's formatter or commit pulls in the other's files). Run it in its own worktree: node "<scripts>/worktree.js" add ${entry.id}, then board.js update ${entry.id} --status in-progress --worktree <printed path>.`);
+}
+
+// g19: a task without a size counts as M. A medium or large code task with at most one code commit lost its work once
+// at a quota stop, so done is refused unless the lead names a reason (--single-commit <reason>, recorded in the
+// decisions log). S tasks and tasks that produce no code (code: no) are not checked.
+function checkCommits(root, entry, singleCommit) {
+  if (entry.code === 'no' || entry.size === 'S' || entry.commits.length > 1) return;
+  const size = entry.size ?? 'M (no size set counts as M)';
+  const reason = typeof singleCommit === 'string' ? singleCommit.trim() : '';
+  if (!reason) {
+    throw new Error(`${entry.id} is size ${size} but has at most one code commit: developers commit each green step (wip allowed) so a quota stop or a restart loses nothing. Check the hand-off lists the steps. If one commit is right for this task, repeat the command with --single-commit "<reason>" (recorded in team/decisions.md); for a small task use board.js update ${entry.id} --size S.`);
+  }
+  recordOutcomes(root, [{ thread: threadFromText(`single commit ${entry.id}`), title: `Single code commit: ${entry.id}`, outcome: `${entry.id} (size ${entry.size ?? 'M'}) closed with ${entry.commits.length} code commit(s) (--single-commit): ${reason}` }]);
 }
 
 const MODULE_RE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;

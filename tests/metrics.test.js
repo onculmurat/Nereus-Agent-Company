@@ -8,6 +8,8 @@ import { fileURLToPath } from 'node:url';
 import { makeProject } from './helpers.js';
 import { projectSlug, buildCostReport, buildMetricRows, saveMetrics } from '../scripts/lib/cost.js';
 import { buildPhaseReport } from '../scripts/lib/summary.js';
+// These tests point HOME at a temp dir themselves; helpers.js sets NAC_METRICS_HOME for the others.
+delete process.env.NAC_METRICS_HOME;
 
 const pluginRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const cli = path.join(pluginRoot, 'scripts', 'cost.js');

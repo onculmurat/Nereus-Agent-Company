@@ -25,7 +25,13 @@ Every owner question goes through `decisions.js ask` with `--options` (at least 
 
 A question that proposes a new task (for example a hardening task) states the class of the finding behind it, `--finding-class observed|known|theoretical`. `decisions.js ask` refuses to recommend "now" when that class is `theoretical` (it needs, for example, an attacker-planted file in the data dir): recommend the phase end instead. Proportionality covers proposals, not only fix rounds.
 
-Never ask the owner in plain chat ("yes / no?") without going through `decisions.js ask`: a chat question skips the options and recommendation checks. A Stop hook checks the lead's final message: it ends with a question and has no recommendation, the lead is sent back once to ask it properly.
+When the owner defers a question on purpose ("ask me when we have a sale"), park it: `decisions.js park <Q-id> --until <text>`. A parked question stays in the log, but it is not pending: compaction does not wait for it and the hand-off lists it under "Parked owner questions" (`unpark` reopens it). Never close a question just to unblock compaction.
+
+A "go" question for an irreversible or spending step carries `--irreversible --task <id>`: `decisions.js ask` refuses it unless the task brief has a `Go-path test: <command>` line, the command exits 0 when `ask` runs it in the project, and the gate is green (g23). A file name instead of a command is refused. Dry runs never exercise the go path.
+
+Register before you send (g26): every question to the owner or the owner proxy is recorded with `ask` first, and the message carries the Q-id that `ask` printed, never one you made up. A D-id you report comes from the output of `decide` (or `record`), read after the call: `decide` on an unregistered Q-id throws and writes nothing. The Stop hook sends the lead back once when its message names a Q-id or D-id that team/decisions.md does not hold.
+
+Never ask the owner in plain chat ("yes / no?") without going through `decisions.js ask`: a chat question skips the options and recommendation checks. A Stop hook checks the lead's final message: it ends with a question and has no recommendation, the lead is sent back once to ask it properly. The same hook sends the lead back once when the final message holds a status report section together with a question, or names an open Q-id without its own question block (Source, Status, Impact, options, recommendation): report first, then the question alone.
 
 One question at a time. Each message holds exactly one question: no sub-questions, no bullet list of things to cover, and no preview of the questions still to come. A question asks about one thing: never join two questions with "and". Wait for the answer before the next one.
 

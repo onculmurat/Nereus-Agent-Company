@@ -10,12 +10,14 @@ import { planSetup, applySetup, planGlobalModelPointer, applyGlobalModelPointer,
 const pluginRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const usage = `Usage:
   node setup.js [--project <dir>] --dry-run
-  node setup.js [--project <dir>] --apply
+  node setup.js [--project <dir>] --apply   writes the setup, then commits exactly the files it created or changed as chore(nac)
+                                         (warns instead when outside git or when one of them had uncommitted edits)
   node setup.js [--project <dir>] --guard-block   writes only the NAC block into the project CLAUDE.md (projects set up earlier)
   node setup.js [--project <dir>] --guard-block --dry-run   prints the block that would be written; writes nothing
                                          The owner runs --guard-block, typed in the prompt as "! node <path>/scripts/setup.js --guard-block":
                                          the auto-mode classifier blocks the lead from writing CLAUDE.md ("Self-Modification").
-  node setup.js [--project <dir>] --compaction [--dry-run]   writes only autoCompactWindow and idleCompaction into .claude/settings.json (existing values stay)
+  node setup.js [--project <dir>] --compaction [--dry-run]   writes only autoCompactWindow and idleCompaction into .claude/settings.json (existing values stay),
+                                         keeps the file's line endings and indentation, and commits that one file as chore(nac) (warns instead when it cannot)
                                          The owner runs it as "! node <path>/scripts/setup.js --compaction" if the lead is blocked from editing settings.
   node setup.js --global-model-pointer [--claude-md <file>]
   node setup.js --apply-global-model-pointer [--claude-md <file>]
@@ -27,6 +29,7 @@ function describe(plan) {
   const s = plan.settings;
   if (s.conflicts.length) lines.push(`CONFLICT  ${rel(s.path)}: ${s.conflicts.join(', ')} already set to a different value`);
   else if (JSON.stringify(s.before) !== JSON.stringify(s.after)) lines.push(`${s.before ? 'merge ' : 'create'}  ${rel(s.path)} (agent teams env, enable nac plugin, autoCompactWindow, idleCompaction)`);
+  if (plan.gateCommands) lines.push(`write   team/config.json gateCommands: ${plan.gateCommands.map((c) => `${c.name} (${c.command})`).join(', ')}`);
   if (plan.claudeMd.before !== plan.claudeMd.after) lines.push(`${plan.claudeMd.before === null ? 'create' : 'merge '}  CLAUDE.md (NAC guard block)`);
   if (plan.gitignoreReplaces) lines.push(`change  .gitignore:\n- ${plan.gitignoreReplaces}\n+ ${plan.gitignoreLine}`);
   else if (plan.gitignoreLine) lines.push(`append  .gitignore:\n+ ${plan.gitignoreLine}`);
@@ -62,8 +65,10 @@ runCli(
       const keys = `autoCompactWindow=${plan.after.autoCompactWindow}, idleCompaction=${plan.after.idleCompaction}`;
       if (values['dry-run']) return `${changed ? 'would write' : 'already set, nothing would change in'} ${plan.path} (${keys}; nothing written)
 `;
-      applyCompaction(plan);
-      return `${changed ? 'Updated' : 'Unchanged'} ${plan.path} (${keys})
+      const done = applyCompaction(plan);
+      if (done.warning) process.stderr.write(`WARNING  ${done.warning}
+`);
+      return `${changed ? 'Updated' : 'Unchanged'} ${plan.path} (${keys})${done.committed ? '; committed as chore(nac)' : ''}
 `;
     }
     if (values['guard-block']) {
@@ -81,8 +86,9 @@ runCli(
     const root = path.resolve(values.project ?? process.cwd());
     const plan = planSetup(root, { pluginRoot, config: loadConfig({ pluginRoot, projectRoot: root }) });
     if (values['dry-run']) return describe(plan);
-    applySetup(plan);
-    return `Applied:\n${describe(plan)}\nNext: run /clear (or restart Claude Code) so this session loads the NAC lead instructions, then start phase 0.\n`;
+    const done = applySetup(plan);
+    if (done.warning) process.stderr.write(`WARNING  ${done.warning}\n`);
+    return `Applied${done.committed ? ' and committed as chore(nac)' : ''}:\n${describe(plan)}\nNext: run /clear (or restart Claude Code) so this session loads the NAC lead instructions, then start phase 0.\n`;
   },
   { requireProject: false },
 );

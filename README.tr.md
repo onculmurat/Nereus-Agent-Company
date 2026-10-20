@@ -14,7 +14,7 @@ Bir ürünü tek başına geliştirmek her rolü üstlenmek demektir: mimar, gel
 
 NAC'ın görsel bir arayüzü yoktur. Claude Code terminalinin içinde çalışır.
 
-**v1.2 kapsamı.** Bu sürüm çekirdek rolleri (ekip lideri, araştırmacı, finans analisti, mimar, planlayıcı, backend geliştirici, frontend geliştirici, veritabanı mühendisi, test mühendisi, kod incelemecisi, son incelemeci, güvenlik incelemecisi, doküman yazarı, asistan) ve 0, 1, 3, 4, 5 ve 6. aşamaları içerir. Sonraki adımlar: v2 ürün yöneticisi, UX ve UI tasarımcıları, DevOps mühendisi ile 2 ve 7. aşamaları; v3 pazarlama ve kalan iş rolleri ile 8 ve 9. aşamaları ekler.
+**v1.3 kapsamı.** Bu sürüm çekirdek rolleri (ekip lideri, araştırmacı, finans analisti, mimar, planlayıcı, backend geliştirici, frontend geliştirici, veritabanı mühendisi, test mühendisi, kod incelemecisi, son incelemeci, güvenlik incelemecisi, doküman yazarı, asistan) ve 0, 1, 3, 4, 5 ve 6. aşamaları içerir. Sonraki adımlar: v2 ürün yöneticisi, UX ve UI tasarımcıları, DevOps mühendisi ile 2 ve 7. aşamaları; v3 pazarlama ve kalan iş rolleri ile 8 ve 9. aşamaları ekler.
 
 ## Kurulum
 
@@ -76,7 +76,7 @@ Her aşama kısa bir aşama raporuyla (biten, karar verilen, açık kalan) biter
 Aynı kurallar her role uygulanır; hiçbir rol atlanmaz ve hiçbir rolün modeli düşürülmez.
 
 - **Bağlam paketi** (`pack.js`): her görevlendirmeden önce lider `team/work/packs/<id>-<role>.md` dosyasını hazırlar: görev özeti ile onun adını verdiği spec, sözleşme, tehdit ve karar metni. Her rol depoyu gezmek yerine bu dosyadan başlar.
-- **Paralel görevler** (`worktree.js`): ikinci bir görev kendi git worktree'sinde (`<repo>-wt/<id>`, dal `task/<id>`) başlar; `integrate` onu çalışma dalına yerelde cherry-pick ile alır. Push, ana dala birleştirme ve yayına alma yine sizin onayınızı ister.
+- **Paralel görevler** (`worktree.js`): ikinci bir görev kendi git worktree'sinde (`<repo>-wt/<id>`, dal `task/<id>`; `team/config.json` içindeki `worktreeRoot` bunları başka bir dizine, örneğin geniş bir sürücüye taşır) başlar. Aynı ağaçta başka bir kod görevi sürerken `board.js update <id> --status in-progress` reddedilir (g24); worktree `--worktree <yol>` ile kaydedilir; `integrate` onu çalışma dalına yerelde cherry-pick ile alır. Push, ana dala birleştirme ve yayına alma yine sizin onayınızı ister.
 - **Lider rotasyonu** (`board.js`): 5 görev bittikten sonra (ya da bir kilometre taşı sonunda) lider bir devir notu yazar ve sizden `/clear` çalıştırmanızı ister; sonraki oturum buradan devam eder.
 - **Atlanan test sayısı** (`gate.js`): test kapısı kaç testin atlandığını, yok sayıldığını ya da todo olduğunu bildirir; her atlama için devir notunda yazılı bir gerekçe gerekir.
 - **Tur bütçesi** (`turnBudget`, varsayılan 40; eski adı `callBudget` hâlâ çalışır): her görevlendirme 40 model turu kullanabilir, paralel araç çağrıları tek tur sayılır (paket başlığında yazar; ajan dosyalarındaki `maxTurns` 45'tir, raporu yazmak için 5 tur payı kalır). Bütçeye ulaşan rol neyin bittiğini ve neyin kaldığını bildirir; lider kalanı yeni bir paketle (aynı tur) yeniden görevlendirir ya da görevi böler.
@@ -145,6 +145,10 @@ Her eskalasyon `team/work/escalations/` altına kaydedilir. Eşikler ayarlanabil
 ## Ortak bellek ve posta kutusu
 
 - `team/work/board.md` görev panosudur: sahip rol, durum, turlar, model, commit'ler, devir notu. Yalnız lider yazar.
+
+`gateCommands` (g18), sıralı bir `{ "name", "command" }` kontrol listesidir (örneğin test, `cargo clippy -- -D warnings`, `cargo fmt --check`). Kapı hepsini çalıştırır, her birini raporlar ve biri kırmızıysa başarısız olur; `testCommand` tek kontrol için takma ad olarak kalır. Bir `pack-guard` hook'u (g22), bağlam paketi göstermeyen geliştirici, database-engineer, gözden geçirici, güvenlik, test-engineer veya final-reviewer görevlendirmesini reddeder; kayıtlı kaçış yolu görevlendirme metnine `--no-pack <gerekçe>` yazmaktır. `/nac:setup`, yapılandırmada ikisi de yoksa algılanan Rust veya Node projesi için varsayılan listeyi doldurur.
+
+Verimlilik kontrolleri, F bölümü (g19 sert): `board.js update --status done`, en çok bir kod commit'i olan M veya L bir görevde (boyutu olmayan görev M sayılır) reddedilir; `--single-commit <neden>` verilirse geçer (neden `team/decisions.md` dosyasına yazılır). S görevler ve `--code no` görevler denetlenmez. (g26) Lider mesajı `team/decisions.md` içinde olmayan bir Q-id ya da D-id anarsa Stop hook'u onu bir kez geri gönderir; sahip ve vekil soruları önce `decisions.js ask` ile kaydedilir, D-id'ler `decide` çıktısından alınır. (D-227) Takım durumu commit'leri yalnız `team/` yol belirtecini kullanır: `node scripts/team-commit.js --message <metin>` `git commit -- team/` çalıştırır; ortak indekste hazırlanmış geliştirici kodu hiçbir `chore(team)` commit'ine karışmaz. (g11) `setup --apply` oluşturduğu ya da değiştirdiği dosyaları, yalnız o dosyaların yol belirteciyle, tek bir `chore(nac)` commit'inde kaydeder; git dışında ya da zaten commit edilmemiş değişikliği olan bir dosyada dosyayı yazar ve uyarı verir. (g23) Brief satırı `Go-path test: <komut>` biçimindedir: `decisions.js ask --irreversible` bu komutu projede çalıştırır (10 dakika zaman aşımı) ve komut 0 ile çıkmaz ya da kapı yeşil değilse reddeder; yalnız dosya adı reddedilir.
 - `team/decisions.md` açık soruları ve kararları tutar. Yalnız lider yazar.
 - `team/contracts/` arayüz sözleşmelerini tutar; sahibi olan rol yazar.
 - Roller arasındaki her mesaj `team/work/mailbox/<thread>/` altında bir dosyadır. Bir hook her canlı mesajı oraya otomatik kopyalar; hiçbir şey bir ajanın hatırlamasına bağlı değildir. Roller gelen kutularını başlarken, her adımdan sonra ve bitirmeden önce kontrol eder.
@@ -190,10 +194,10 @@ Bilmeniz gereken sınırlar:
 
 ## Koşullu sıkıştırma
 
-Lider bağlamı Claude Code tarafından kendiliğinden sıkıştırılır; bu bir görevin ortasında olabilir. NAC, otomatik sıkıştırmanın yalnız temiz bir noktada çalışmasına izin verir (yalnız lider oturumunda çalışan `PreCompact` kancası): devam eden görev yok, git çalışma ağacı temiz, son biten görevin commit'i var, açık/ertelenmiş sahip sorusu yok. Aksi halde tek satır gerekçeyle ertelenir; bağlam `compaction.ceiling` (varsayılan 300000 token) eşiğini aşarsa yine de çalışır. Elle `/compact` asla engellenmez, kanca hatası sıkıştırmaya izin verir. Çalıştığında `team/work/handoffs/compact-<damga>.md` devir notu yazılır ve sonraki oturum başı lideri ona yönlendirir. `/nac:setup` proje `.claude/settings.json` dosyasına `autoCompactWindow` (varsayılan 200000) ve `idleCompaction: false` yazar; daha önce kurulmuş projede `! node <yol>/scripts/setup.js --compaction` yalnız bunları yazar. Varsayılanlar:
+Lider bağlamı Claude Code tarafından kendiliğinden sıkıştırılır; bu bir görevin ortasında olabilir. NAC, otomatik sıkıştırmanın yalnız temiz bir noktada çalışmasına izin verir (yalnız lider oturumunda çalışan `PreCompact` kancası): liderin kendi durumu güvenli olmalı (g25): `team/` commit'li (yalnız `team/` altı sayılır), son biten görevin commit'i var, bu turda yanıt bekleyen sahip sorusu yok (park edilmiş, ertelenmiş, kuyruktaki sorular engellemez), her `in-progress` görevin devir dosyası var. Süren görevler tek başına engellemez; devir notu her birini rolü, ajanı, worktree'si ve devir dosyasıyla listeler. Aksi halde tek satır gerekçeyle ertelenir; bağlam `compaction.ceiling` (varsayılan 220000 token) eşiğini aşarsa yine de çalışır. Elle `/compact` asla engellenmez, kanca hatası sıkıştırmaya izin verir. Çalıştığında `team/work/handoffs/compact-<damga>.md` devir notu yazılır ve sonraki oturum başı lideri ona yönlendirir. `/nac:setup` proje `.claude/settings.json` dosyasına `autoCompactWindow` (varsayılan 200000) ve `idleCompaction: false` yazar; daha önce kurulmuş projede `! node <yol>/scripts/setup.js --compaction` yalnız bunları yazar. Varsayılanlar:
 
 ```json
-{ "compaction": { "autoCompactWindow": 200000, "ceiling": 300000 } }
+{ "compaction": { "autoCompactWindow": 200000, "ceiling": 220000 } }
 ```
 
 Ayrıntılar İngilizce README'de.
@@ -224,6 +228,26 @@ Sonraki oturum bir devam özetiyle başlar: aşama, süren iş (`git status` ile
 ### Ekip durumu commit'lenir mi?
 
 `team/brief.md`, `decisions.md`, `contracts/`, `research/`, `glossary.md` ve `config.json` commit'lenmek içindir. `team/work/` (pano, görev özetleri, devir notları, eskalasyonlar, posta kutusu) de commit'lenir; yalnız `team/work/packs/` (üretilen bağlam paketleri) git dışındadır. Lider bunu kendi commit'lerinde, `chore(team): <ne>`, her görev bittiğinde ve her lider rotasyonunda, açık yolları ekleyerek commit'ler; kod commit'lerine karıştırmaz. Kurulum eski `.gitignore` satırını `team/work/` yerine `team/work/packs/` yapar ve önce farkı gösterir.
+
+## 1.3.0 değişiklikleri
+
+Her madde kapattığı açığı belirtir; ayrıntılar yukarıdaki bölümlerdedir.
+
+- **Gate her kontrolü koşar** (g18): `gateCommands` test, lint ve biçim kontrollerini koşar; kurulum yığına göre varsayılanları doldurur.
+- **Bağlam paketi zorunlu** (g22): kod rolleri, test mühendisi, son incelemeci ve veritabanı mühendisi paketsiz dispatch edilemez; `cost.js` paket oranı %100'ün altındaysa uyarır.
+- **Geri alınamaz adımdan önce go-path testi** (g23): `--irreversible` onay sorusu, çalıştırılıp 0 ile biten bir go-path test komutu ve yeşil gate ister.
+- **Bekletilen sorular** (g16): sahibin ertelediği sorular sıkıştırmayı artık engellemez.
+- **Her yeşil adım commit'lenir** (g19): görevlere boyut etiketi; `board.js`, en fazla bir kod commit'i olan M/L görevi (boyutsuz görev M sayılır) `--single-commit <gerekçe>` olmadan bitirmez; `--code no` görevler muaftır.
+- **Brief dışına çıkılmaz** (g21): geliştirici ek dalları soru olarak önerir; incelemeci brief dışı kodu bulgu yazar.
+- **Kurulum kendi değişikliğini commit'ler** (g11): `--compaction` satır sonlarını ve girintiyi korur; `--apply` yalnız oluşturduğu ya da değiştirdiği dosyaları commit'ler.
+- **Hand-off gerçek tetiği yazar** (g17): güvenli nokta mı tavan mı, hangi koşullar sağlanmadı ve gerçek sıradaki görev.
+- **Bitişte maliyet dosyası** (g20): `board.js done` eksikse görev maliyet dosyasını kendisi yazar.
+- **Hand-off soruları kayıttan** (g14), **gömülü sorular** (g13), **sıkıştırma açıkken hand-off ile rotasyon** (g15), **yalnız gerçek farkta sürüm kayması uyarısı** (g12).
+- **Bir çalışma ağacında tek kod görevi** (g24): aynı ağaçta ikinci süren kod görevi reddedilir; `worktreeRoot` worktree yerini belirler.
+- **Lider güvendeyken sıkıştırma** (g25): görevler sürerken de, `team/` commit'liyse, bekleyen soru yoksa ve her süren görevin hand-off'u varsa izinli; tavan 220000.
+- **Bilinmeyen Q/D numaraları** (g26): Stop hook, liderin mesajında `decisions.md`'de olmayan Q ya da D numarasını işaretler.
+- **Yalnız team/ commit'leri** (D-227): ekip durumu commit'leri `team-commit.js` ile yalnız `team/` yol kapsamını kullanır.
+- Testler: testlerdeki git zamanlaması deterministik (sabit tarih ve kimlik, açık saatli önbellek testi).
 
 ## Lisans
 

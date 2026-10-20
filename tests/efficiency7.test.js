@@ -51,12 +51,12 @@ test('board update --status done refuses while the task has deferred questions',
   const root = makeProject();
   addTask(root);
   ask(root, 'Later', '--defer', '--task', 'T-001');
-  const r = cli('board.js', root, 'update', 'T-001', '--status', 'done');
+  const r = cli('board.js', root, 'update', 'T-001', '--status', 'done', '--single-commit', 'x');
   assert.equal(r.status, 1);
   assert.match(r.err, /deferred question/);
   assert.match(r.err, /decisions\.js flush --task T-001/);
   cli('decisions.js', root, 'flush', '--task', 'T-001');
-  assert.equal(cli('board.js', root, 'update', 'T-001', '--status', 'done').status, 0);
+  assert.equal(cli('board.js', root, 'update', 'T-001', '--status', 'done', '--single-commit', 'x').status, 0);
 });
 
 test('question-protocol and task-loop describe defer, flush and the 4-question call', () => {
@@ -152,22 +152,22 @@ test('a security: contract task cannot be done without a security-reviewer pass;
   const root = makeProject();
   addTask(root, '--security', 'contract');
   assert.equal(entry(root).security, 'contract');
-  const refused = board(root, 'update', 'T-001', '--status', 'done');
+  const refused = board(root, 'update', 'T-001', '--status', 'done', '--single-commit', 'x');
   assert.equal(refused.status, 1);
   assert.match(refused.err, /security-reviewer/);
   assert.match(refused.err, /board\.js review T-001 --role security-reviewer --verdict pass/);
   assert.equal(board(root, 'review', 'T-001', '--role', 'security-reviewer', '--verdict', 'fail').status, 0);
-  assert.equal(board(root, 'update', 'T-001', '--status', 'done').status, 1, 'a failed review is not a pass');
+  assert.equal(board(root, 'update', 'T-001', '--status', 'done', '--single-commit', 'x').status, 1, 'a failed review is not a pass');
   assert.deepEqual(board(root, 'review', 'T-001', '--role', 'security-reviewer', '--verdict', 'pass').out.reviews, { 'security-reviewer': 'pass' });
-  assert.equal(board(root, 'update', 'T-001', '--status', 'done').status, 0);
+  assert.equal(board(root, 'update', 'T-001', '--status', 'done', '--single-commit', 'x').status, 0);
   addTask(root, '--security', 'yes');
-  assert.equal(board(root, 'update', 'T-002', '--status', 'done').status, 0, 'the module review covers a plain security: yes task');
+  assert.equal(board(root, 'update', 'T-002', '--status', 'done', '--single-commit', 'x').status, 0, 'the module review covers a plain security: yes task');
 });
 
 test('an untagged task needs no review; review rejects an unknown verdict, role or task', () => {
   const root = makeProject();
   addTask(root);
-  assert.equal(board(root, 'update', 'T-001', '--status', 'done').status, 0);
+  assert.equal(board(root, 'update', 'T-001', '--status', 'done', '--single-commit', 'x').status, 0);
   assert.equal(board(root, 'review', 'T-001', '--role', 'code-reviewer', '--verdict', 'meh').status, 1);
   assert.equal(board(root, 'review', 'T-404', '--role', 'code-reviewer', '--verdict', 'pass').status, 1);
   assert.equal(board(root, 'review', 'T-001', '--verdict', 'pass').status, 1);

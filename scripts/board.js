@@ -6,14 +6,19 @@ import { runCli, need, UsageError } from './lib/cli.js';
 import { readBoard, addEntry, updateEntry, recordReview, recordModuleReview, phaseCloseProblems, setPhase, incrementRound, verifyCommit, rotationDue, markRotated, countFoldIn } from './lib/board.js';
 import { loadConfig, validateConfig } from './lib/config.js';
 import { listFindings } from './lib/findings.js';
+import { ensureCostFile } from './lib/cost.js';
+import { hasCompactionSettings } from './lib/setup.js';
 
 const usage = `Usage:
   board.js show
-  board.js add --title <text> --owner <role> --model <haiku|sonnet|opus> [--id <id>] [--code <yes|no>] [--security <yes|no|contract>] [--module <m>] [--hardening yes [--decision <D-id>]]
+  board.js add --title <text> --owner <role> --model <haiku|sonnet|opus> [--id <id>] [--code <yes|no>] [--security <yes|no|contract>] [--module <m>] [--hardening yes [--decision <D-id>]] [--size <S|M|L>]
                                          --hardening yes: the module's hardening task (needs --module); a second one in the same module and phase is refused
                                          unless --decision names a decision recorded in decisions.md
                                          --code no: a task that produces no code (spike, research, docs only); gate.js --task checks its report file
-  board.js update <id> [--status <todo|in-progress|review|done|blocked>] [--owner <role>] [--model <m>] [--commit <sha>] [--handoff <path>] [--code <yes|no>] [--security <yes|no|contract>] [--module <m>]
+  board.js update <id> [--status <todo|in-progress|review|done|blocked>] [--owner <role>] [--model <m>] [--commit <sha>] [--handoff <path>] [--worktree <path>] [--agent <id-or-name>] [--code <yes|no>] [--security <yes|no|contract>] [--module <m>] [--size <S|M|L>] [--single-commit <reason>]
+                                         --status in-progress is refused while another code task is in progress in the same tree; parallel tasks each get a worktree (worktree.js add <id>) and record it with --worktree <path>
+                                         a task without a size counts as M: --status done on M/L (or no size) with at most one code commit is refused
+                                         unless --single-commit <reason> (recorded in decisions.md); S and --code no tasks are not checked
                                          a brief that cites threat-model IDs ("threat-model T12, M2") tags the task security: yes when it is added or started (--security no or an existing tag wins)
                                          --security yes: reviewed per module by security-reviewer; contract (task changes a security contract): done is refused until a pass is recorded (review)
                                          --commit checks that the sha exists and is reachable from HEAD; read it first: git log -1 --format=%h
@@ -28,7 +33,7 @@ const usage = `Usage:
   board.js foldin <id> [--reset]         before each spec fold-in round: prints action fold-in (rounds up to foldInRounds) or batch; --reset starts a new review cycle
   board.js phase <n>                     refused while a blocker finding is open or a module has security tasks done after its last
                                          security-reviewer pass (board.js review --module); the owner approves the phase first
-  board.js rotated                       after the lead hand-off: reset the done counter (update --status done prints rotate: true at 5)
+  board.js rotated                       after the lead hand-off: reset the done counter (update --status done prints rotate: true at 5, with rotateBy: compaction|clear)
   (all accept --project <dir>; default: nearest directory with team/config.json)
 `;
 
@@ -43,14 +48,14 @@ const commands = {
     checkYesNo('code', v.code);
     checkYesNo('security', v.security, ['yes', 'no', 'contract']);
     checkYesNo('hardening', v.hardening);
-    return addEntry(root, { id: v.id, title: v.title, owner: v.owner, model: v.model, code: v.code, security: v.security, module: v.module, hardening: v.hardening, decision: v.decision });
+    return addEntry(root, { id: v.id, title: v.title, owner: v.owner, model: v.model, code: v.code, security: v.security, module: v.module, hardening: v.hardening, decision: v.decision, size: v.size });
   },
   update: ({ values: v, positionals: [, id], root }) => {
     if (!id) throw new UsageError('Missing entry id');
     const patch = {};
     checkYesNo('code', v.code);
     checkYesNo('security', v.security, ['yes', 'no', 'contract']);
-    for (const k of ['status', 'owner', 'model', 'handoff', 'code', 'security', 'module']) if (v[k] !== undefined) patch[k] = v[k];
+    for (const k of ['status', 'owner', 'model', 'handoff', 'code', 'security', 'module', 'size', 'worktree', 'agent']) if (v[k] !== undefined) patch[k] = v[k];
     if (v.commit !== undefined) {
       verifyCommit(root, v.commit);
       const entry = readBoard(root).entries.find((e) => e.id === id);
@@ -59,8 +64,19 @@ const commands = {
       const seen = known.some((c) => c.startsWith(v.commit) || v.commit.startsWith(c));
       patch.commits = seen ? known : [...known, v.commit];
     }
-    const entry = updateEntry(root, id, patch);
-    return v.status === 'done' ? { ...entry, rotate: rotationDue(root) } : entry;
+    if (v['single-commit'] !== undefined && !v['single-commit'].trim()) throw new UsageError('--single-commit needs a reason');
+    const entry = updateEntry(root, id, patch, { singleCommit: v['single-commit'] });
+    if (v.status !== 'done') return entry;
+    // g20: a task does not close without its cost file; write it now. Fail-open: a problem here only warns.
+    let cost;
+    try {
+      cost = ensureCostFile(root, id);
+      for (const w of cost.warnings) process.stderr.write(`warning: ${w}\n`);
+    } catch (e) {
+      process.stderr.write(`warning: cost file not written for ${id} (${e.message}); run cost.js --save --task ${id}\n`);
+    }
+    const rotate = rotationDue(root);
+    return { ...entry, rotate, ...(rotate ? { rotateBy: rotationWay(root) } : {}), ...(cost ? { cost: { file: cost.file, created: cost.created } } : {}) };
   },
   review: ({ values: v, positionals: [, id], root }) => {
     need(v, 'role', 'verdict');
@@ -98,8 +114,17 @@ const commands = {
 
 const options = {
   title: { type: 'string' }, owner: { type: 'string' }, model: { type: 'string' }, id: { type: 'string' },
-  status: { type: 'string' }, code: { type: 'string' }, security: { type: 'string' }, module: { type: 'string' }, role: { type: 'string' }, verdict: { type: 'string' }, commit: { type: 'string' }, handoff: { type: 'string' }, reset: { type: 'boolean' }, approach: { type: 'string' }, hardening: { type: 'string' }, decision: { type: 'string' },
+  status: { type: 'string' }, code: { type: 'string' }, security: { type: 'string' }, module: { type: 'string' }, role: { type: 'string' }, verdict: { type: 'string' }, commit: { type: 'string' }, handoff: { type: 'string' }, reset: { type: 'boolean' }, approach: { type: 'string' }, hardening: { type: 'string' }, decision: { type: 'string' }, size: { type: 'string' }, worktree: { type: 'string' }, agent: { type: 'string' }, 'single-commit': { type: 'string' },
 };
+
+// g15: with compaction configured the lead rotates by hand-off and autocompact; /clear is for projects without it.
+function rotationWay(root) {
+  try {
+    return hasCompactionSettings(root) ? 'compaction' : 'clear';
+  } catch {
+    return 'clear';
+  }
+}
 
 runCli(usage, options, (ctx) => {
   const cmd = commands[ctx.positionals[0]];

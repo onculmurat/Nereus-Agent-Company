@@ -14,7 +14,7 @@ Building a product alone means playing every role: architect, developer, reviewe
 
 NAC has no graphical interface. It runs inside the Claude Code terminal.
 
-**v1.2 scope.** This release ships the core roles (team lead, researcher, finance analyst, architect, planner, backend developer, frontend developer, database engineer, test engineer, code reviewer, final reviewer, security reviewer, doc writer, assistant) and phases 0, 1, 3, 4, 5 and 6. Planned next: v2 adds product manager, UX and UI designers, DevOps engineer and phases 2 and 7; v3 adds marketing and the remaining business roles and phases 8 and 9.
+**v1.3 scope.** This release ships the core roles (team lead, researcher, finance analyst, architect, planner, backend developer, frontend developer, database engineer, test engineer, code reviewer, final reviewer, security reviewer, doc writer, assistant) and phases 0, 1, 3, 4, 5 and 6. Planned next: v2 adds product manager, UX and UI designers, DevOps engineer and phases 2 and 7; v3 adds marketing and the remaining business roles and phases 8 and 9.
 
 ## Install
 
@@ -76,8 +76,9 @@ Each phase ends with a short phase report (done, decided, open), and the next ph
 The same rules apply to every role; no role is skipped and no role's model is lowered.
 
 - **Context pack** (`pack.js`): before a dispatch the lead builds `team/work/packs/<id>-<role>.md`, the task brief plus the spec, contract, threat and decision text it names. Every role starts from it instead of exploring the repository.
-- **Parallel tasks** (`worktree.js`): a second task starts in its own git worktree (`<repo>-wt/<id>`, branch `task/<id>`); `integrate` cherry-picks it onto the working branch locally. Push, merge into the main branch and deploy still need your approval.
-- **Lead rotation** (`board.js`): after 5 tasks marked done (or a milestone end) the lead writes a hand-off note and asks you to run `/clear`; the next session resumes from it.
+- **Parallel tasks** (`worktree.js`): a second task starts in its own git worktree (`<repo>-wt/<id>`, branch `task/<id>`; `worktreeRoot` in `team/config.json` moves them to another directory, for example a drive with space). `board.js update <id> --status in-progress` is refused while another code task is in progress in the same tree (g24); record the worktree with `--worktree <path>`; `integrate` cherry-picks it onto the working branch locally. Push, merge into the main branch and deploy still need your approval.
+- **Hand-off questions** (g14): `decisions.js handoff-questions` prints the queued and parked question lists from the log; hand-offs use it, so a closed question never shows as open. **Buried questions** (g13): the Stop hook also sends the lead back once when a final message mixes a status report section with a question, or names an open Q-id without its own question block. **Drift warning** (g12): a stale `gitCommitSha` record alone is one line ("sha record stale, run /plugin update"); a version or file difference between the cache and the folder is the real drift warning, with both versions.
+- **Lead rotation** (`board.js`): after 5 tasks marked done (or a milestone end) the lead writes a hand-off note. With compaction configured (`autoCompactWindow`) it then just carries on and autocompact does the rest; only without compaction does it ask you to run `/clear` (the next session resumes from the hand-off).
 - **Skip count** (`gate.js`): the test gate reports how many tests were skipped, ignored or todo; each skip needs a written reason in the hand-off.
 - **Turn budget** (`turnBudget`, default 40; the old name `callBudget` still works): every dispatch may use 40 model turns, parallel tool calls sharing one turn (stated in the pack header; `maxTurns` in the agent files is 45, leaving 5 turns to write the report). A role that hits it reports what is done and what is left; the lead re-dispatches the rest with a fresh pack (same round) or splits the task.
 - **Review round cap** (`reviewRoundCap`, default 2): a task gets at most 2 fix rounds. `board.js round` then refuses another one; the lead sends the open findings and round history to the architect as one approach question, brings the decision to you as one question, and continues with `board.js round <id> --approach <decision-id>` (the cap applies again after that). Reviewers flag a finding that is the same class as an earlier round's.
@@ -152,6 +153,10 @@ Every escalation is recorded in `team/work/escalations/`. Thresholds are configu
 ## Shared memory and mailbox
 
 - `team/work/board.md` is the task board: owner role, status, rounds, model, commits, hand-off. Only the lead writes it.
+
+`gateCommands` (g18) is an ordered list of `{ "name", "command" }` checks, for example test, `cargo clippy -- -D warnings` and `cargo fmt --check`. The gate runs all of them, reports each and fails when any is red; `testCommand` stays as the alias for a single check. A `pack-guard` hook (g22) refuses a developer, database-engineer, reviewer, security, test-engineer or final-reviewer dispatch that names no context pack; `--no-pack <reason>` in the prompt is the recorded escape hatch. `/nac:setup` fills a default list for a detected Rust or Node project when the config has neither key.
+
+Efficiency checks, part F (g19 hard): `board.js update --status done` is refused on an M or L task — and on a task with no size, which counts as M — that has at most one code commit, unless `--single-commit <reason>` is given (the reason goes to `team/decisions.md`). S tasks and `--code no` tasks are not checked. (g26) The Stop hook sends the lead back once when its message names a Q-id or D-id that `team/decisions.md` does not hold; owner and proxy questions are registered with `decisions.js ask` first and D-ids are quoted from `decide` output. (D-227) Team-state commits use a `team/`-only pathspec: `node scripts/team-commit.js --message <text>` runs `git commit -- team/`, so a developer's staged code in the shared index is never swept into a `chore(team)` commit. (g11) `setup --apply` commits exactly the files it created or changed as one `chore(nac)` commit (a pathspec of those files only); outside git, or for a file that already had uncommitted edits, it writes the file and prints a warning. (g23) The brief line is `Go-path test: <command>`: `decisions.js ask --irreversible` runs that command in the project (10-minute timeout) and refuses unless it exits 0 and the gate is green; a bare file name is refused.
 - `team/decisions.md` holds open questions and decisions. Only the lead writes it.
 - `team/contracts/` holds interface contracts written by their owning role.
 - Every message between roles is a file in `team/work/mailbox/<thread>/`. A hook copies each live message there automatically, so nothing depends on an agent remembering. Roles check their inbox at start, after each step and before finishing.
@@ -185,17 +190,17 @@ Settings resolve in three layers, later wins: plugin defaults (`defaults/config.
 
 Claude Code compacts the lead's context by itself, which can happen in the middle of a task. NAC lets an automatic compaction run only at a clean point, through a `PreCompact` hook that acts in the lead session only:
 
-- Allowed when nothing is in flight: no task `in-progress` or `review`, the git working tree is clean (ignored files do not count), the last `done` task has its commit on HEAD, and no owner question is open or deferred. NAC then writes a short `team/work/handoffs/compact-<stamp>.md` (board state, next task, pointer to `team/decisions.md`), and the next session start (source `compact`) points the lead to it.
-- Otherwise the compaction is deferred with a one-line reason. Above the ceiling (`compaction.ceiling`, default 300000 tokens in context) it runs anyway, so a deferral can never overflow the context.
-- Manual `/compact` is never blocked. Any error in the hook allows the compaction.
+- Allowed when the lead's own state is safe (g25): `team/` is committed (only paths under `team/` count; developer files elsewhere in a shared tree do not), the last `done` task has its commit on HEAD, no owner question is waiting for an answer in this turn (parked, deferred and queued ones do not block), and every `in-progress` task has a hand-off file. Tasks in flight no longer block by themselves; the hand-off lists each one with its owner role, agent (`board.js update --agent`), worktree and hand-off file. NAC then writes a short `team/work/handoffs/compact-<stamp>.md` (board state, next task, pointer to `team/decisions.md`), and the next session start (source `compact`) points the lead to it.
+- Otherwise the compaction is deferred with a one-line reason. Above the ceiling (`compaction.ceiling`, default 220000 tokens in context) it runs anyway, so a deferral can never overflow the context.
+- Manual `/compact` is never blocked. Any error in the hook allows the compaction. The compact hand-off states the real trigger (safe point, ceiling or manual) and lists every condition that was not met; its next task is the one in progress first, then a todo whose brief exists, then any todo.
 
 Defaults, in `defaults/config.json` (override in `team/config.json`):
 
 ```json
-{ "compaction": { "autoCompactWindow": 200000, "ceiling": 300000 } }
+{ "compaction": { "autoCompactWindow": 200000, "ceiling": 220000 } }
 ```
 
-`/nac:setup` writes `autoCompactWindow` (minimum 100000) and `idleCompaction: false` into the project `.claude/settings.json` without touching values you already set; for a project set up earlier, `node <path>/scripts/setup.js --compaction` writes only these two keys (`--dry-run` prints them). The auto-mode classifier can block the lead from editing settings, so the session-start hint asks you to type it with `!`. The first automatic compaction fires somewhat below the window (about 72% in a spike with 100000), so do not rely on the exact point. If your shell sets `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE`, its interaction with `autoCompactWindow` is untested; NAC does not depend on it.
+`/nac:setup` writes `autoCompactWindow` (minimum 100000) and `idleCompaction: false` into the project `.claude/settings.json` without touching values you already set; for a project set up earlier, `node <path>/scripts/setup.js --compaction` writes only these two keys (`--dry-run` prints them). It keeps the file's line endings and indentation and commits that one file as `chore(nac): ...` so the clean-tree check is not blocked (it warns instead when it cannot, for example outside git or when you already have uncommitted edits in the file). The auto-mode classifier can block the lead from editing settings, so the session-start hint asks you to type it with `!`. The first automatic compaction fires somewhat below the window (about 72% in a spike with 100000), so do not rely on the exact point. If your shell sets `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE`, its interaction with `autoCompactWindow` is untested; NAC does not depend on it.
 
 ## Team mode vs subagent mode and limits
 
@@ -237,6 +242,26 @@ The next session starts with a resume summary: phase, work in progress (with `gi
 ### Is team state committed?
 
 `team/brief.md`, `decisions.md`, `contracts/`, `research/`, `glossary.md` and `config.json` are meant to be committed. `team/work/` (board, briefs, hand-offs, escalations, mailbox) is committed too; only `team/work/packs/` (generated context packs) is git-ignored. The lead commits it in its own commits, `chore(team): <what>`, after each task is marked done and at each lead rotation, staging explicit paths and never mixing it into a code commit. Setup changes an older `.gitignore` line `team/work/` to `team/work/packs/` and shows the diff first.
+
+## Changes in 1.3.0
+
+Each item names the gap it closes; details are in the sections above.
+
+- **Gate runs every check** (g18): `gateCommands` runs test, lint and format checks; setup fills defaults per stack.
+- **Context pack required** (g22): code-role, test-engineer, final-reviewer and database-engineer dispatches without a pack are refused; `cost.js` warns below 100% packed.
+- **Go-path test before an irreversible step** (g23): an `--irreversible` go question needs a named go-path test command that is run and exits 0, and a green gate.
+- **Parked questions** (g16): owner-deferred questions no longer block compaction.
+- **Commit each green step** (g19): size tag on tasks; `board.js` refuses done on an M/L task (no size counts as M) with at most one code commit unless `--single-commit <reason>`; `--code no` tasks are exempt.
+- **No behaviour beyond the brief** (g21): developers propose extra branches as questions; reviewers flag out-of-brief code.
+- **Setup commits its own changes** (g11): `--compaction` keeps line endings and indentation; `--apply` commits exactly the files it created or changed.
+- **True hand-off trigger** (g17): the hand-off states safe point or ceiling, the failed conditions and the real next task.
+- **Cost file on done** (g20): `board.js done` writes the task cost file when it is missing.
+- **Hand-off questions from the log** (g14), **buried questions** (g13), **rotation by hand-off when compaction is on** (g15), **drift warning only on a real difference** (g12).
+- **One code task per working tree** (g24): a second in-progress code task in the same tree is refused; `worktreeRoot` sets where worktrees go.
+- **Compaction when the lead is safe** (g25): allowed with tasks in flight when `team/` is committed, no question is pending and every in-progress task has a hand-off; ceiling 220000.
+- **Unknown Q/D-ids** (g26): the Stop hook flags a Q-id or D-id in the lead's message that `decisions.md` does not hold.
+- **Team-only commits** (D-227): team-state commits use a `team/`-only pathspec through `team-commit.js`.
+- Tests: git timing in tests is deterministic (pinned dates and identity, explicit-clock cache test).
 
 ## License
 

@@ -32,11 +32,39 @@ function writeDecisions(root, { open, decided }) {
 }
 
 // defer: the question waits (state deferred) until flushQuestions hands it to the owner; task and options are optional.
-export function addQuestion(root, { title, source, status, impact, blocking, thread, defer, task, options, recommend, 'finding-class': findingClass }) {
+export function addQuestion(root, { title, source, status, impact, blocking, thread, defer, task, options, recommend, 'finding-class': findingClass, irreversible }) {
   const all = readDecisions(root);
   const id = nextId('Q', [...all.open.map((x) => x.id), ...all.decided.map((x) => x.question)]);
-  const q = { id, title, source, status, impact, blocking, thread, ...(defer ? { state: 'deferred' } : {}), ...(task ? { task } : {}), ...(options ? { options } : {}), ...(recommend ? { recommend } : {}), ...(findingClass ? { 'finding-class': findingClass } : {}) };
+  const q = { id, title, source, status, impact, blocking, thread, ...(defer ? { state: 'deferred' } : {}), ...(task ? { task } : {}), ...(options ? { options } : {}), ...(recommend ? { recommend } : {}), ...(findingClass ? { 'finding-class': findingClass } : {}), ...(irreversible ? { irreversible: 'yes' } : {}) };
   all.open.push(q);
+  writeDecisions(root, all);
+  return q;
+}
+
+// g16: a parked question is owner-deferred on purpose (for example "until the first sale"). It stays open in the log
+// but is not pending: compaction and the resume summary do not wait for it.
+export const isParked = (q) => q.state === 'parked';
+export const pendingQuestions = (root) => readDecisions(root).open.filter((q) => !isParked(q));
+export const parkedQuestions = (root) => readDecisions(root).open.filter(isParked);
+
+export function parkQuestion(root, id, { until }) {
+  if (!String(until ?? '').trim()) throw new Error('park needs --until <text>: when or why the question waits for the owner');
+  const all = readDecisions(root);
+  const q = all.open.find((x) => x.id === id);
+  if (!q) throw new Error(`No open question ${id}`);
+  if (q.state === 'deferred') throw new Error(`${id} is deferred; flush it first (decisions.js flush), then park it`);
+  q.state = 'parked';
+  q['parked-until'] = String(until).trim();
+  writeDecisions(root, all);
+  return q;
+}
+
+export function unparkQuestion(root, id) {
+  const all = readDecisions(root);
+  const q = all.open.find((x) => x.id === id && isParked(x));
+  if (!q) throw new Error(`No parked question ${id}`);
+  delete q.state;
+  delete q['parked-until'];
   writeDecisions(root, all);
   return q;
 }

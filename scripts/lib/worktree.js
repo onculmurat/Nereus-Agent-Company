@@ -19,11 +19,15 @@ const checkId = (id) => {
   return id;
 };
 
-export const worktreePath = (root, id) => path.join(`${path.resolve(root)}-wt`, checkId(id));
+// worktreeRoot (config) puts the worktrees under another directory, for example a drive with space: <worktreeRoot>/<project>-wt/<id>.
+export const worktreePath = (root, id, { worktreeRoot } = {}) => {
+  const base = worktreeRoot ? path.join(path.resolve(worktreeRoot), `${path.basename(path.resolve(root))}-wt`) : `${path.resolve(root)}-wt`;
+  return path.join(base, checkId(id));
+};
 const branchOf = (id) => `task/${id}`;
 
-export function addWorktree(root, id) {
-  const dir = worktreePath(root, id);
+export function addWorktree(root, id, opts) {
+  const dir = worktreePath(root, id, opts);
   if (fs.existsSync(dir)) throw new Error(`Worktree for ${id} already exists at ${dir}`);
   const base = git(root, 'rev-parse', 'HEAD');
   fs.mkdirSync(path.dirname(dir), { recursive: true });
@@ -49,8 +53,8 @@ export function integrateWorktree(root, id) {
   return { id, branch, commits: added };
 }
 
-export function removeWorktree(root, id) {
-  const dir = worktreePath(root, id);
+export function removeWorktree(root, id, opts) {
+  const dir = worktreePath(root, id, opts);
   git(root, 'worktree', 'remove', dir);
   git(root, 'branch', '-D', branchOf(id));
   return { id, removed: dir };

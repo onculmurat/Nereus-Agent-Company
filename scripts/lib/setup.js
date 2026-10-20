@@ -2,6 +2,9 @@
 // and never replaces an existing settings value; conflicts stop the apply.
 import fs from 'node:fs';
 import path from 'node:path';
+import { execFileSync } from 'node:child_process';
+import { detectGateCommands } from './gate.js';
+import { commitPaths, dirtyPaths, notIgnored } from './commit.js';
 
 export const PLUGIN_KEY = 'nac@nereus-agent-company';
 const TEAMS_ENV = 'CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS';
@@ -75,11 +78,50 @@ export function hasCompactionSettings(projectRoot) {
   }
 }
 
+// Serialises a JSON value the way the original file was written: same indentation (tab or N spaces), same line
+// endings (CRLF or LF) and the same trailing-newline habit, so a two-key change is a two-line diff (g11).
+export function formatLike(value, original) {
+  const text = typeof original === 'string' ? original.replace(/^\uFEFF/, '') : '';
+  const eol = text.includes('\r\n') ? '\r\n' : '\n';
+  const indent = /\n([\t ]+)\S/.exec(text.replace(/\r\n/g, '\n'))?.[1] ?? '  ';
+  const trailing = text === '' || /\n$/.test(text) ? eol : '';
+  return JSON.stringify(value, null, indent).replace(/\n/g, eol) + trailing;
+}
+
+const originalText = (file) => (fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : null);
+
+// Writes the two keys and commits that one file as its own chore(nac) commit, so the PreCompact clean-tree check
+// is not blocked by NAC's own change. Fail-open: when it cannot commit (no git, ignored file, owner edits already
+// pending in the file) it leaves the file written and returns a warning. Returns { changed, committed, warning }.
 export function applyCompaction(plan) {
-  if (JSON.stringify(plan.before) === JSON.stringify(plan.after)) return;
-  fs.mkdirSync(path.dirname(plan.path), { recursive: true });
-  fs.writeFileSync(plan.path, `${JSON.stringify(plan.after, null, 2)}
-`);
+  if (JSON.stringify(plan.before) === JSON.stringify(plan.after)) return { changed: false, committed: false };
+  const dir = path.dirname(plan.path);
+  const git = (...args) => execFileSync('git', args, { cwd: dir, stdio: ['ignore', 'pipe', 'pipe'], encoding: 'utf8' }).trim();
+  let dirtyBefore = null;
+  try {
+    if (fs.existsSync(dir)) dirtyBefore = git('status', '--porcelain', '--', plan.path) !== '';
+  } catch {
+    dirtyBefore = null; // not a git repository
+  }
+  const original = originalText(plan.path);
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(plan.path, formatLike(plan.after, original));
+  if (dirtyBefore === null) {
+    try {
+      git('rev-parse', '--is-inside-work-tree');
+    } catch {
+      return { changed: true, committed: false, warning: 'not committed: the project is not a git repository' };
+    }
+    dirtyBefore = false;
+  }
+  if (dirtyBefore) return { changed: true, committed: false, warning: `${path.basename(plan.path)} had uncommitted edits already; the compaction keys are written but not committed. Commit it yourself, or the PreCompact clean-tree check waits for the ceiling.` };
+  try {
+    git('add', '--', plan.path);
+    git('commit', '-q', '-m', 'chore(nac): enable conditional compaction settings', '--', plan.path);
+    return { changed: true, committed: true };
+  } catch (e) {
+    return { changed: true, committed: false, warning: `not committed (${String(e.stderr || e.message).trim().split('\n')[0]}). Commit ${path.basename(plan.path)} yourself so the PreCompact clean-tree check passes.` };
+  }
 }
 
 // The project CLAUDE.md block that still works when the plugin is not loaded and no hook runs.
@@ -133,11 +175,22 @@ export function planSetup(projectRoot, { pluginRoot, config }) {
   const lines = fs.existsSync(gitignore) ? fs.readFileSync(gitignore, 'utf8').split(/\r?\n/).map((l) => l.trim()) : [];
   const ignored = lines.includes(GITIGNORE_LINE);
   const old = lines.find((l) => OLD_GITIGNORE_LINES.has(l)) ?? null;
+  // g18: default gate checks for the detected stack, only when the config has no gate choice yet.
+  let gateCommands = null;
+  try {
+    const cfgFile = path.join(root, 'team', 'config.json');
+    const existing = fs.existsSync(cfgFile) ? JSON.parse(fs.readFileSync(cfgFile, 'utf8').replace(/^﻿/, '')) : {};
+    const found = detectGateCommands(root);
+    if (existing.gateCommands === undefined && existing.testCommand === undefined && found.length) gateCommands = found;
+  } catch {
+    gateCommands = null;
+  }
   const major = Number(process.versions.node.split('.')[0]);
   return {
     projectRoot: root,
     files,
     settings: planSettings(root, config.compaction),
+    gateCommands,
     claudeMd: planClaudeMd(root, pluginRoot),
     // gitignoreLine: the line to write; gitignoreReplaces: the older whole-folder line it takes the place of.
     gitignoreLine: ignored && !old ? null : GITIGNORE_LINE,
@@ -146,10 +199,47 @@ export function planSetup(projectRoot, { pluginRoot, config }) {
   };
 }
 
+// Files the plan would create or change, for the setup commit (absolute paths).
+function plannedFiles(plan) {
+  const out = plan.files.filter((f) => f.action === 'create').map((f) => f.path);
+  if (JSON.stringify(plan.settings.before) !== JSON.stringify(plan.settings.after)) out.push(plan.settings.path);
+  const cfg = path.join(plan.projectRoot, 'team', 'config.json');
+  if (plan.gateCommands && !out.includes(cfg)) out.push(cfg);
+  if (plan.claudeMd.before !== plan.claudeMd.after) out.push(plan.claudeMd.path);
+  if (plan.gitignoreLine) out.push(path.join(plan.projectRoot, '.gitignore'));
+  return out;
+}
+
+// Applies the plan, then commits exactly the files it created or changed as one chore(nac) commit (g11 follow-up), so
+// the PreCompact and other clean-tree checks are not tripped by NAC's own scaffolding. Fail-open: outside git, or for a
+// file that already had uncommitted edits, it leaves the files written, commits what it safely can and returns a warning.
+// Returns { committed, sha?, warning? }.
 export function applySetup(plan) {
   if (plan.settings.conflicts.length) {
     throw new Error(`Settings conflict in ${plan.settings.path}: ${plan.settings.conflicts.join(', ')}. Resolve it, then run setup again.`);
   }
+  const touched = plannedFiles(plan);
+  let before = { git: false, dirty: [] };
+  try {
+    before = dirtyPaths(plan.projectRoot, touched.filter((f) => fs.existsSync(f)));
+  } catch { /* the commit is optional */ }
+  writeSetup(plan);
+  if (!touched.length) return { committed: false };
+  try {
+    const dirty = new Set(before.dirty);
+    const rel = (f) => path.relative(plan.projectRoot, f).split(path.sep).join('/');
+    const wanted = notIgnored(plan.projectRoot, touched.filter((f) => !dirty.has(f) && fs.existsSync(f))).map(rel);
+    // team/ files are listed individually: a directory pathspec would also take the owner's other team/ files.
+    const result = wanted.length || !before.git ? commitPaths(plan.projectRoot, wanted, 'chore(nac): set up NAC (team scaffolding, settings, guard block)') : { committed: false };
+    const skipped = before.dirty.map(rel);
+    if (skipped.length) return { ...result, warning: `${skipped.join(', ')} had uncommitted edits already; written but not committed. Commit ${skipped.length > 1 ? 'them' : 'it'} yourself so the clean-tree checks pass.${result.warning ? ` ${result.warning}` : ''}` };
+    return result;
+  } catch (e) {
+    return { committed: false, warning: `not committed (${e.message})` };
+  }
+}
+
+function writeSetup(plan) {
   for (const f of plan.files) {
     if (f.action !== 'create') continue;
     fs.mkdirSync(path.dirname(f.path), { recursive: true });
@@ -157,7 +247,14 @@ export function applySetup(plan) {
   }
   if (JSON.stringify(plan.settings.before) !== JSON.stringify(plan.settings.after)) {
     fs.mkdirSync(path.dirname(plan.settings.path), { recursive: true });
-    fs.writeFileSync(plan.settings.path, `${JSON.stringify(plan.settings.after, null, 2)}\n`);
+    fs.writeFileSync(plan.settings.path, formatLike(plan.settings.after, originalText(plan.settings.path)));
+  }
+  if (plan.gateCommands) {
+    const cfgFile = path.join(plan.projectRoot, 'team', 'config.json');
+    const cfg = JSON.parse(fs.readFileSync(cfgFile, 'utf8').replace(/^﻿/, ''));
+    cfg.gateCommands = plan.gateCommands;
+    fs.writeFileSync(cfgFile, `${JSON.stringify(cfg, null, 2)}
+`);
   }
   applyClaudeMd(plan.claudeMd);
   if (plan.gitignoreLine) {

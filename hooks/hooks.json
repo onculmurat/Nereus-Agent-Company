@@ -8,6 +8,7 @@
     ],
     "PreToolUse": [
       { "hooks": [{ "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/research-guard.js\"" }] },
+      { "matcher": "Agent|Task", "hooks": [{ "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/pack-guard.js\"" }] },
       { "matcher": "Bash|PowerShell", "hooks": [{ "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/destructive-guard.js\"" }] }
     ],
     "PostToolUse": [

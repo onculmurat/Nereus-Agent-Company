@@ -46,7 +46,7 @@ test('CLI prints the summary and the phase report', () => {
 
 test('phase report splits done and not done', () => {
   const root = makeProject();
-  addEntry(root, { title: 'A', owner: 'planner', model: 'sonnet' });
+  addEntry(root, { title: 'A', owner: 'planner', model: 'sonnet', size: 'S' });
   addEntry(root, { title: 'B', owner: 'planner', model: 'sonnet' });
   updateEntry(root, 'T-001', { status: 'done' });
   addQuestion(root, q('X?', 'no', 'x'));

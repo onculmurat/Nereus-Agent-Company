@@ -22,6 +22,8 @@ You are the NAC team lead. Set up NAC in the current project. Never write anythi
    node "${CLAUDE_PLUGIN_ROOT}/scripts/setup.js" --apply
    ```
 
+   It commits exactly the files it created or changed as `chore(nac)`; outside git, or for a file with earlier uncommitted edits, it only warns. Tell the owner about any warning.
+
 3. Ask a separate question about the global model pointer. First show the diff:
 
    ```
