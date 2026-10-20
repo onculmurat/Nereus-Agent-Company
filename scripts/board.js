@@ -3,11 +3,11 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { runCli, need, UsageError } from './lib/cli.js';
-import { readBoard, addEntry, updateEntry, recordReview, recordModuleReview, phaseCloseProblems, setPhase, incrementRound, verifyCommit, rotationDue, markRotated, countFoldIn } from './lib/board.js';
+import { readBoard, addEntry, updateEntry, recordReview, recordModuleReview, phaseCloseProblems, setPhase, incrementRound, commitsWith, rotationDue, markRotated, countFoldIn } from './lib/board.js';
 import { loadConfig, validateConfig } from './lib/config.js';
 import { listFindings } from './lib/findings.js';
 import { ensureCostFile } from './lib/cost.js';
-import { hasCompactionSettings } from './lib/setup.js';
+import { rotationWay, rotationEvery } from './lib/task.js';
 
 const usage = `Usage:
   board.js show
@@ -33,7 +33,8 @@ const usage = `Usage:
   board.js foldin <id> [--reset]         before each spec fold-in round: prints action fold-in (rounds up to foldInRounds) or batch; --reset starts a new review cycle
   board.js phase <n>                     refused while a blocker finding is open or a module has security tasks done after its last
                                          security-reviewer pass (board.js review --module); the owner approves the phase first
-  board.js rotated                       after the lead hand-off: reset the done counter (update --status done prints rotate: true at 5, with rotateBy: compaction|clear)
+  board.js rotated                       after the lead hand-off: reset the done counter (update --status done prints rotate: true at rotateEvery done tasks:
+                                         every task with compaction, 5 with /clear; with rotateBy: compaction|clear). task.js close does all of it itself
   (all accept --project <dir>; default: nearest directory with team/config.json)
 `;
 
@@ -56,14 +57,7 @@ const commands = {
     checkYesNo('code', v.code);
     checkYesNo('security', v.security, ['yes', 'no', 'contract']);
     for (const k of ['status', 'owner', 'model', 'handoff', 'code', 'security', 'module', 'size', 'worktree', 'agent']) if (v[k] !== undefined) patch[k] = v[k];
-    if (v.commit !== undefined) {
-      verifyCommit(root, v.commit);
-      const entry = readBoard(root).entries.find((e) => e.id === id);
-      const known = entry?.commits ?? [];
-      // a sha already recorded is not added again; a short form and its full form are the same commit
-      const seen = known.some((c) => c.startsWith(v.commit) || v.commit.startsWith(c));
-      patch.commits = seen ? known : [...known, v.commit];
-    }
+    if (v.commit !== undefined) patch.commits = commitsWith(root, id, v.commit);
     if (v['single-commit'] !== undefined && !v['single-commit'].trim()) throw new UsageError('--single-commit needs a reason');
     const entry = updateEntry(root, id, patch, { singleCommit: v['single-commit'] });
     if (v.status !== 'done') return entry;
@@ -75,7 +69,11 @@ const commands = {
     } catch (e) {
       process.stderr.write(`warning: cost file not written for ${id} (${e.message}); run cost.js --save --task ${id}\n`);
     }
-    const rotate = rotationDue(root);
+    let config = {};
+    try {
+      config = loadConfig({ pluginRoot: path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..'), projectRoot: root });
+    } catch { /* the default rotation then */ }
+    const rotate = rotationDue(root, rotationEvery(root, config));
     return { ...entry, rotate, ...(rotate ? { rotateBy: rotationWay(root) } : {}), ...(cost ? { cost: { file: cost.file, created: cost.created } } : {}) };
   },
   review: ({ values: v, positionals: [, id], root }) => {
@@ -116,15 +114,6 @@ const options = {
   title: { type: 'string' }, owner: { type: 'string' }, model: { type: 'string' }, id: { type: 'string' },
   status: { type: 'string' }, code: { type: 'string' }, security: { type: 'string' }, module: { type: 'string' }, role: { type: 'string' }, verdict: { type: 'string' }, commit: { type: 'string' }, handoff: { type: 'string' }, reset: { type: 'boolean' }, approach: { type: 'string' }, hardening: { type: 'string' }, decision: { type: 'string' }, size: { type: 'string' }, worktree: { type: 'string' }, agent: { type: 'string' }, 'single-commit': { type: 'string' },
 };
-
-// g15: with compaction configured the lead rotates by hand-off and autocompact; /clear is for projects without it.
-function rotationWay(root) {
-  try {
-    return hasCompactionSettings(root) ? 'compaction' : 'clear';
-  } catch {
-    return 'clear';
-  }
-}
 
 runCli(usage, options, (ctx) => {
   const cmd = commands[ctx.positionals[0]];

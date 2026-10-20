@@ -51,28 +51,37 @@ export function contextTokens(file) {
 // treats as "allow". g25: only the lead's own state counts. Tasks in flight do not block by themselves, and developer
 // files elsewhere in a shared tree are ignored: only uncommitted paths under team/ count.
 export function compactBlockers(root) {
-  const out = [];
+  const { soft, hard } = compactConditions(root);
+  return [...soft, ...hard];
+}
+
+// g32: soft conditions (a missing task hand-off, uncommitted team/ files, the last done task's commit) defer an auto
+// compaction only for a bounded number of tokens: the compact hand-off lists them and nothing on disk is lost. T-037
+// stayed in progress without a hand-off for hours and held every compaction back until the ceiling. An owner question
+// waiting for an answer is hard: it blocks up to the ceiling.
+export function compactConditions(root) {
+  const soft = [];
   const board = readBoard(root);
   const missing = board.entries.filter((e) => e.status === 'in-progress' && !handoffFileOf(root, e));
-  if (missing.length) out.push(`${missing.map((e) => e.id).join(', ')} in progress without a hand-off file (team/work/handoffs/<id>.md); write it so the task can resume after compaction.`);
+  if (missing.length) soft.push(`${missing.map((e) => e.id).join(', ')} in progress without a hand-off file (team/work/handoffs/<id>.md); write it so the task can resume after compaction.`);
   const dirty = execFileSync('git', ['status', '--porcelain', '--', 'team', `:(exclude)${HANDOFF_GLOB}`], { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], timeout: 5000 }).trim();
-  if (dirty) out.push('uncommitted changes under team/ (board, decisions, hand-offs); commit them first.');
+  if (dirty) soft.push('uncommitted changes under team/ (board, decisions, hand-offs); commit them first.');
   const last = board.entries.filter((e) => e.status === 'done').at(-1);
   if (last && last.code !== 'no') {
     const sha = last.commits.at(-1);
-    if (!sha) out.push(`${last.id} is done but has no commit recorded on the board.`);
+    if (!sha) soft.push(`${last.id} is done but has no commit recorded on the board.`);
     else {
       try {
         verifyCommit(root, sha);
       } catch {
-        out.push(`${last.id}: commit ${sha} is not reachable from HEAD.`);
+        soft.push(`${last.id}: commit ${sha} is not reachable from HEAD.`);
       }
     }
   }
   // waiting for an answer in this turn: parked, deferred and queued questions are not
   const open = pendingQuestions(root).filter((q) => q.state !== 'deferred' && q.state !== 'queued');
-  if (open.length) out.push(`${open.length} owner question(s) not answered yet (${open.map((q) => q.id).join(', ')}); ask or answer them first.`);
-  return out;
+  const hard = open.length ? [`${open.length} owner question(s) not answered yet (${open.map((q) => q.id).join(', ')}); ask or answer them first.`] : [];
+  return { soft, hard };
 }
 
 // The hand-off file of a task: the path recorded on the board, else team/work/handoffs/<id>.md. null when none exists.
@@ -90,18 +99,51 @@ export function compactBlocker(root) {
 const cacheFile = (sessionId) => path.join(os.tmpdir(), `nac-precompact-${String(sessionId).replace(/[^A-Za-z0-9_-]/g, '_')}.json`);
 
 export function cachedBlocker(sessionId, root, now = Date.now()) {
-  if (!sessionId) return compactBlocker(root);
+  const { soft, hard } = cachedConditions(sessionId, root, now);
+  return [...soft, ...hard][0] ?? null;
+}
+
+function cachedConditions(sessionId, root, now) {
+  if (!sessionId) return compactConditions(root);
   const file = cacheFile(sessionId);
   try {
     const c = JSON.parse(fs.readFileSync(file, 'utf8'));
-    if (c.root === root && now - c.time < CACHE_MS && typeof c.reason === 'string') return c.reason;
+    if (c.root === root && now - c.time < CACHE_MS && Array.isArray(c.soft) && Array.isArray(c.hard)) return { soft: c.soft, hard: c.hard };
   } catch { /* no usable cache */ }
-  const reason = compactBlocker(root);
+  const c = compactConditions(root);
   try {
-    if (reason) fs.writeFileSync(file, JSON.stringify({ root, time: now, reason }));
+    if (c.soft.length || c.hard.length) fs.writeFileSync(file, JSON.stringify({ root, time: now, ...c }));
     else fs.rmSync(file, { force: true });
   } catch { /* the cache is an optimisation */ }
-  return reason;
+  return c;
+}
+
+// g32: what the PreCompact hook does with an auto compaction below the ceiling. A hard condition blocks. Soft
+// conditions block until the context has grown softMargin tokens past the first deferral of this session; then the
+// compaction runs with trigger 'deferral limit'. Returns { block: reason } or { allow: trigger }.
+export const DEFAULT_SOFT_MARGIN = 20000;
+const deferFile = (sessionId) => path.join(os.tmpdir(), `nac-precompact-defer-${String(sessionId).replace(/[^A-Za-z0-9_-]/g, '_')}.json`);
+
+export function compactDecision(sessionId, root, tokens, { softMargin = DEFAULT_SOFT_MARGIN, now = Date.now() } = {}) {
+  const { soft, hard } = cachedConditions(sessionId, root, now);
+  const file = sessionId ? deferFile(sessionId) : null;
+  const clear = () => { try { if (file) fs.rmSync(file, { force: true }); } catch { /* best effort */ } };
+  if (hard.length) return { block: [...hard, ...soft].join(' ') };
+  if (!soft.length) {
+    clear();
+    return { allow: 'safe point' };
+  }
+  let since = tokens;
+  try {
+    const d = JSON.parse(fs.readFileSync(file, 'utf8'));
+    if (d.root === root && Number.isFinite(d.since) && d.since <= tokens) since = d.since;
+  } catch { /* first deferral */ }
+  if (tokens - since >= softMargin) {
+    clear();
+    return { allow: 'deferral limit' };
+  }
+  try { if (file) fs.writeFileSync(file, JSON.stringify({ root, since })); } catch { /* every call starts a new deferral then; the ceiling still holds */ }
+  return { block: `${soft.join(' ')} Deferred since ${since} tokens; compaction runs anyway at ${since + softMargin}.` };
 }
 
 // The task to resume: one in progress or in review first, then a todo whose brief exists, then any todo.
@@ -127,7 +169,8 @@ function inFlightLines(root) {
   });
 }
 
-// trigger: 'safe point' (the hook found every condition met), 'ceiling' (token ceiling reached) or 'manual'.
+// trigger: 'safe point' (the hook found every condition met), 'ceiling' (token ceiling reached), 'deferral limit'
+// (soft conditions deferred it as long as allowed, g32) or 'manual'.
 // The header states the real trigger and, unless it is a verified safe point, the conditions that were not met.
 export function writeCompactHandoff(root, now = new Date(), { trigger = 'safe point', tokens, ceiling } = {}) {
   const dir = teamPaths(root).handoffs;
@@ -142,7 +185,8 @@ export function writeCompactHandoff(root, now = new Date(), { trigger = 'safe po
   }
   const how = trigger === 'ceiling'
     ? `Written by the PreCompact hook because the context reached the token ceiling${tokens ? ` (${tokens} of ${ceiling} tokens)` : ''}, not because a safe point was reached.`
-    : trigger === 'manual' ? 'Written for a manual compaction (the owner asked for it); nothing checked that it is a safe point.'
+    : trigger === 'deferral limit' ? 'Written by the PreCompact hook after the soft conditions below deferred compaction as long as allowed (g32); settle them first.'
+      : trigger === 'manual' ? 'Written for a manual compaction (the owner asked for it); nothing checked that it is a safe point.'
       : 'Written by the PreCompact hook at a safe point.';
   const status = failed === null ? 'Conditions could not be checked; treat the state below as unverified.'
     : failed.length ? ['Conditions not met when this was written:', ...failed.map((f) => `- ${f}`)].join('\n')

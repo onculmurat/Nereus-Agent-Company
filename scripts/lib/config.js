@@ -91,7 +91,10 @@ export function validateConfig(cfg) {
   if (c !== undefined) {
     if (!Number.isInteger(c.autoCompactWindow) || c.autoCompactWindow < 100000) throw new Error(`compaction.autoCompactWindow must be a whole number of at least 100000 tokens; got ${JSON.stringify(c.autoCompactWindow)}`);
     if (!Number.isInteger(c.ceiling) || c.ceiling < 1) throw new Error(`compaction.ceiling must be a positive integer; got ${JSON.stringify(c.ceiling)}`);
+    if (c.softMargin !== undefined && (!Number.isInteger(c.softMargin) || c.softMargin < 1)) throw new Error(`compaction.softMargin must be a positive integer; got ${JSON.stringify(c.softMargin)}`);
   }
+  if (cfg.rotateEvery !== undefined && (!Number.isInteger(cfg.rotateEvery) || cfg.rotateEvery < 1)) throw new Error(`rotateEvery must be a positive integer; got ${JSON.stringify(cfg.rotateEvery)}`);
+  if (cfg.gateWaitSeconds !== undefined && (!Number.isInteger(cfg.gateWaitSeconds) || cfg.gateWaitSeconds < 0)) throw new Error(`gateWaitSeconds must be a whole number of seconds, 0 or more; got ${JSON.stringify(cfg.gateWaitSeconds)}`);
   const age = cfg.cleanup?.closedThreadMaxAgeDays;
   if (!Number.isInteger(age) || age < 0) throw new Error(`cleanup.closedThreadMaxAgeDays must be a whole number of days, 0 or more; got ${JSON.stringify(age)}`);
 }

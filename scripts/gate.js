@@ -4,7 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { runCli, UsageError } from './lib/cli.js';
 import { loadConfig, validateConfig } from './lib/config.js';
-import { runGate, gateChecks, isCodeless, checkDocGate } from './lib/gate.js';
+import { runGate, gateChecks, isCodeless, checkDocGate, waitForIdle, DEFAULT_GATE_WAIT_SECONDS } from './lib/gate.js';
 import { taskTree } from './lib/board.js';
 
 const usage = `Usage:
@@ -15,6 +15,8 @@ const usage = `Usage:
                       a task marked code: no (board entry or brief) is checked on its report file instead:
                       the file named by the brief's "Output: <path>" line exists, has a verdict line
                       (Verdict: GO | GO-WITH-CHANGES | NO-GO) and an acceptance criteria section
+                      before the checks run, the gate waits up to gateWaitSeconds (default 300) while another process runs one
+                      of the check programs (for example a cargo test left in the background); still running then: busy + note (g31)
 `;
 const pluginRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -31,7 +33,14 @@ runCli(usage, { task: { type: 'string' } }, ({ values, root }) => {
     throw new UsageError('No testCommand in team/config.json. The planner records it in phase 4; ask the owner if it is unknown.');
   }
   const tree = values.task === undefined ? root : taskTree(root, values.task);
+  // g31: wait while another run of a check program loads the machine; report it when it outlasts gateWaitSeconds
+  // (NAC_GATE_WAIT_SECONDS overrides it for one run; the test suite sets 0)
+  const env = process.env.NAC_GATE_WAIT_SECONDS;
+  const idle = waitForIdle(checks, { seconds: /^\d+$/.test(env ?? '') ? Number(env) : config.gateWaitSeconds ?? DEFAULT_GATE_WAIT_SECONDS });
   const result = runGate(tree, checks);
   if (!result.ok) process.exitCode = 1;
-  return { ...result, tree };
+  const busy = idle.busy.length
+    ? { busy: idle.busy, note: `other runs of the check programs were still running after ${idle.waited}s; a red check may come from the load. Find who started them, wait for them to end and run the gate again before you count a round.` }
+    : {};
+  return { ...result, tree, ...(idle.waited ? { waited: idle.waited } : {}), ...busy };
 });

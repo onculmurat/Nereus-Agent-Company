@@ -243,6 +243,13 @@ The next session starts with a resume summary: phase, work in progress (with `gi
 
 `team/brief.md`, `decisions.md`, `contracts/`, `research/`, `glossary.md` and `config.json` are meant to be committed. `team/work/` (board, briefs, hand-offs, escalations, mailbox) is committed too; only `team/work/packs/` (generated context packs) is git-ignored. The lead commits it in its own commits, `chore(team): <what>`, after each task is marked done and at each lead rotation, staging explicit paths and never mixing it into a code commit. Setup changes an older `.gitignore` line `team/work/` to `team/work/packs/` and shows the diff first.
 
+## Changes in 1.3.5
+
+- **Fewer lead calls for bookkeeping** (g33): about a third of the lead's calls went to the board, team commits, the hand-off and findings. `task.js start <id>` now does in-progress, the hand-off skeleton with the base commit, the worktree and the role's pack, then one commit; `task.js note <id>` appends to the hand-off; `task.js close <id> --commit <sha> [--findings <file>] --lead-note <text>` records the findings, done (same refusals as before), the cost file and, when due, the lead hand-off, then one commit. Setup's allow rule covers `task.js` too; for a project set up earlier run `! node <path>/scripts/setup.js --permissions` once.
+- **A fresh lead after every task** (g34): with compaction the lead rotates after every task (5 with `/clear`; `rotateEvery` in `team/config.json` overrides), and `task.js close` writes the lead hand-off itself. `! node <path>/scripts/setup.js --compaction --window 100000` sets a smaller `autoCompactWindow` (at least 100000) so compaction comes at about each task end.
+- **Compaction no longer stuck** (g32): soft conditions (a task without a hand-off, uncommitted `team/` files, a done commit that is missing) defer autocompact by `compaction.softMargin` tokens at most (20000 by default) and then let it run with a hand-off that names them; only an open owner question still blocks up to the ceiling.
+- **Gate waits for a running check** (g31): `gate.js` waits up to `gateWaitSeconds` (300 by default) while the same check program is already running, and says `busy` with a note when it still is; roles are told to run tests in the foreground and never leave one running.
+
 ## Changes in 1.3.4
 
 - **Worktree remove follows the board** (g30): `worktree.js remove` looked only under `<worktreeRoot>/<repo>-wt/<id>`, so a worktree the board recorded elsewhere was not found and had to be removed with git by hand. It now removes the worktree the board records and falls back to the computed path.

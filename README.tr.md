@@ -229,6 +229,13 @@ Sonraki oturum bir devam özetiyle başlar: aşama, süren iş (`git status` ile
 
 `team/brief.md`, `decisions.md`, `contracts/`, `research/`, `glossary.md` ve `config.json` commit'lenmek içindir. `team/work/` (pano, görev özetleri, devir notları, eskalasyonlar, posta kutusu) de commit'lenir; yalnız `team/work/packs/` (üretilen bağlam paketleri) git dışındadır. Lider bunu kendi commit'lerinde, `chore(team): <ne>`, her görev bittiğinde ve her lider rotasyonunda, açık yolları ekleyerek commit'ler; kod commit'lerine karıştırmaz. Kurulum eski `.gitignore` satırını `team/work/` yerine `team/work/packs/` yapar ve önce farkı gösterir.
 
+## 1.3.5 değişiklikleri
+
+- **Liderin kayıt çağrıları azaldı** (g33): liderin çağrılarının yaklaşık üçte biri pano, ekip commit'i, devir notu ve bulgulara gidiyordu. `task.js start <id>` artık in-progress, taban commit'li devir notu iskeleti, worktree ve rolün paketini yapıp tek commit atar; `task.js note <id>` devir notuna ekler; `task.js close <id> --commit <sha> [--findings <dosya>] --lead-note <metin>` bulguları, done'ı (aynı retlerle), maliyet dosyasını ve sırası geldiyse lider devir notunu yazıp tek commit atar. Kurulumun izin kuralı `task.js`'i de kapsar; önceden kurulmuş projede bir kez `! node <yol>/scripts/setup.js --permissions` çalıştır.
+- **Her görevden sonra taze lider** (g34): sıkıştırma ayarlıysa lider her görevden sonra döner (`/clear` ile 5'te bir; `team/config.json` içindeki `rotateEvery` ezer), lider devir notunu `task.js close` yazar. `! node <yol>/scripts/setup.js --compaction --window 100000` daha küçük bir `autoCompactWindow` (en az 100000) yazar; sıkıştırma yaklaşık her görev sonunda gelir.
+- **Sıkıştırma artık takılmıyor** (g32): yumuşak koşullar (devir notu olmayan görev, commit edilmemiş `team/` dosyaları, bulunamayan done commit'i) otomatik sıkıştırmayı en çok `compaction.softMargin` token (varsayılan 20000) erteler, sonra bunları anan bir devir notuyla çalıştırır; yalnız açık sahip sorusu tavana kadar engeller.
+- **Kapı çalışan kontrolü bekler** (g31): aynı kontrol programı zaten çalışıyorsa `gate.js` en çok `gateWaitSeconds` (varsayılan 300) bekler, hâlâ çalışıyorsa `busy` ve not verir; rollere testleri ön planda koşmaları, arka planda bırakmamaları söylenir.
+
 ## 1.3.4 değişiklikleri
 
 - **Worktree silme board'u izler** (g30): `worktree.js remove` yalnız `<worktreeRoot>/<repo>-wt/<id>` altına bakıyordu; board'da başka yerde kayıtlı worktree bulunamıyor, git ile elle siliniyordu. Artık board'daki worktree'yi siler, kayıt yoksa hesaplanan yola düşer.

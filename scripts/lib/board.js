@@ -271,8 +271,8 @@ export function phaseCloseProblems(root) {
   return problems;
 }
 
-export function rotationDue(root) {
-  return (readBoard(root).doneSinceRotation ?? 0) >= ROTATE_EVERY;
+export function rotationDue(root, every = ROTATE_EVERY) {
+  return (readBoard(root).doneSinceRotation ?? 0) >= every;
 }
 
 // The lead calls this after writing its hand-off, so the next rotation counts from zero.
@@ -349,6 +349,14 @@ export function incrementRound(root, id, config, { now = new Date(), approach } 
     fs.writeFileSync(path.join(dir, `${entry.id}-r${entry.rounds}.md`), text);
   }
   return { entry, next };
+}
+
+// The entry's commit list with `sha` added after verifyCommit; a sha already recorded is not added again (a short
+// form and its full form are the same commit).
+export function commitsWith(root, id, sha) {
+  verifyCommit(root, sha);
+  const known = readBoard(root).entries.find((e) => e.id === id)?.commits ?? [];
+  return known.some((c) => c.startsWith(sha) || sha.startsWith(c)) ? known : [...known, sha];
 }
 
 // A commit recorded on the board must exist and be part of the history of HEAD, so a hash written from memory
