@@ -1041,3 +1041,64 @@ test('D-227: the lead skill says team commits use the team/ pathspec', () => {
   assert.match(s, /team-commit\.js/);
   assert.match(s, /git commit[^\n]*-- team\//);
 });
+
+// ---- F5 (g11 follow-up) setup --apply commits what it creates ----
+function gitProjectForSetup() {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'nac setup git '));
+  const git = (...a) => execFileSync('git', ['-c', 'core.autocrlf=false', ...a], { cwd: dir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
+  git('init', '-q', '-b', 'main');
+  git('config', 'user.email', 't@t');
+  git('config', 'user.name', 't');
+  fs.writeFileSync(path.join(dir, 'seed.txt'), 'seed');
+  git('add', 'seed.txt');
+  git('commit', '-q', '-m', 'seed');
+  return { dir, git };
+}
+const setupPlan = (dir) => planSetup(dir, { pluginRoot, config: loadConfig({ pluginRoot, userConfigPath: null, projectRoot: null }) });
+
+test('g11: setup --apply commits exactly the files it created or changed, as chore(nac), and leaves staged developer code alone', () => {
+  const { dir, git } = gitProjectForSetup();
+  fs.mkdirSync(path.join(dir, 'src'));
+  fs.writeFileSync(path.join(dir, 'src', 'a.rs'), 'fn a() {}');
+  git('add', 'src/a.rs');
+  const r = applySetup(setupPlan(dir));
+  assert.equal(r.committed, true, r.warning);
+  assert.match(git('log', '-1', '--format=%s'), /^chore\(nac\): /);
+  const files = git('show', '--name-only', '--format=', 'HEAD').split(/\r?\n/);
+  assert.ok(files.includes('team/config.json') && files.includes('.claude/settings.json') && files.includes('CLAUDE.md') && files.includes('.gitignore'), files.join(','));
+  assert.ok(!files.includes('src/a.rs'));
+  assert.equal(git('diff', '--cached', '--name-only'), 'src/a.rs', 'the staged developer file is still staged');
+  assert.equal(git('status', '--porcelain', '--', 'team', '.claude', 'CLAUDE.md', '.gitignore'), '', 'nothing NAC wrote is left uncommitted');
+});
+
+test('g11: a second setup run changes nothing and commits nothing', () => {
+  const { dir, git } = gitProjectForSetup();
+  applySetup(setupPlan(dir));
+  const head = git('rev-parse', 'HEAD');
+  const r = applySetup(setupPlan(dir));
+  assert.equal(r.committed, false);
+  assert.equal(git('rev-parse', 'HEAD'), head);
+});
+
+test('g11: a file with earlier uncommitted edits is written but not committed, with a warning; the rest is committed', () => {
+  const { dir, git } = gitProjectForSetup();
+  fs.writeFileSync(path.join(dir, '.gitignore'), 'node_modules/\n');
+  git('add', '.gitignore');
+  git('commit', '-q', '-m', 'ignore');
+  fs.writeFileSync(path.join(dir, '.gitignore'), 'node_modules/\ndist/\n');
+  const r = applySetup(setupPlan(dir));
+  assert.equal(r.committed, true, r.warning);
+  assert.match(r.warning, /\.gitignore/);
+  assert.match(fs.readFileSync(path.join(dir, '.gitignore'), 'utf8'), /team\/work\/packs\//, 'the line is still written');
+  const files = git('show', '--name-only', '--format=', 'HEAD').split(/\r?\n/);
+  assert.ok(!files.includes('.gitignore'));
+  assert.match(git('status', '--porcelain', '--', '.gitignore'), /\.gitignore/, 'the owner edit stays pending');
+});
+
+test('g11: outside a git repository setup applies and only warns', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'nac setup plain '));
+  const r = applySetup(setupPlan(dir));
+  assert.equal(r.committed, false);
+  assert.match(r.warning, /not a git repository/);
+  assert.ok(fs.existsSync(path.join(dir, 'team', 'config.json')));
+});

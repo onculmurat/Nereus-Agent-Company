@@ -10,7 +10,8 @@ import { planSetup, applySetup, planGlobalModelPointer, applyGlobalModelPointer,
 const pluginRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const usage = `Usage:
   node setup.js [--project <dir>] --dry-run
-  node setup.js [--project <dir>] --apply
+  node setup.js [--project <dir>] --apply   writes the setup, then commits exactly the files it created or changed as chore(nac)
+                                         (warns instead when outside git or when one of them had uncommitted edits)
   node setup.js [--project <dir>] --guard-block   writes only the NAC block into the project CLAUDE.md (projects set up earlier)
   node setup.js [--project <dir>] --guard-block --dry-run   prints the block that would be written; writes nothing
                                          The owner runs --guard-block, typed in the prompt as "! node <path>/scripts/setup.js --guard-block":
@@ -85,8 +86,9 @@ runCli(
     const root = path.resolve(values.project ?? process.cwd());
     const plan = planSetup(root, { pluginRoot, config: loadConfig({ pluginRoot, projectRoot: root }) });
     if (values['dry-run']) return describe(plan);
-    applySetup(plan);
-    return `Applied:\n${describe(plan)}\nNext: run /clear (or restart Claude Code) so this session loads the NAC lead instructions, then start phase 0.\n`;
+    const done = applySetup(plan);
+    if (done.warning) process.stderr.write(`WARNING  ${done.warning}\n`);
+    return `Applied${done.committed ? ' and committed as chore(nac)' : ''}:\n${describe(plan)}\nNext: run /clear (or restart Claude Code) so this session loads the NAC lead instructions, then start phase 0.\n`;
   },
   { requireProject: false },
 );

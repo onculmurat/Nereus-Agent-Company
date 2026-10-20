@@ -20,3 +20,34 @@ export function commitPaths(root, paths, message) {
     return { committed: false, warning: `not committed (${String(e.stderr || e.message).trim().split('\n')[0]})` };
   }
 }
+
+// The subset of `paths` (absolute or relative to root) that git reports as modified or staged right now, and whether
+// root is a git work tree at all: { git: boolean, dirty: string[] }.
+export function dirtyPaths(root, paths) {
+  const git = (...args) => execFileSync('git', args, { cwd: root, stdio: ['ignore', 'pipe', 'pipe'], encoding: 'utf8' }).trim();
+  try {
+    git('rev-parse', '--is-inside-work-tree');
+  } catch {
+    return { git: false, dirty: [] };
+  }
+  const dirty = paths.filter((p) => {
+    try {
+      return git('status', '--porcelain', '--', p) !== '';
+    } catch {
+      return false;
+    }
+  });
+  return { git: true, dirty };
+}
+
+// Keeps only the paths git would accept for `git add` (drops files matched by .gitignore).
+export function notIgnored(root, paths) {
+  return paths.filter((p) => {
+    try {
+      execFileSync('git', ['check-ignore', '-q', '--', p], { cwd: root, stdio: 'ignore' });
+      return false;
+    } catch {
+      return true;
+    }
+  });
+}

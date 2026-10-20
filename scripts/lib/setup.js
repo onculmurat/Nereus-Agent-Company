@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { detectGateCommands } from './gate.js';
+import { commitPaths, dirtyPaths, notIgnored } from './commit.js';
 
 export const PLUGIN_KEY = 'nac@nereus-agent-company';
 const TEAMS_ENV = 'CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS';
@@ -198,10 +199,47 @@ export function planSetup(projectRoot, { pluginRoot, config }) {
   };
 }
 
+// Files the plan would create or change, for the setup commit (absolute paths).
+function plannedFiles(plan) {
+  const out = plan.files.filter((f) => f.action === 'create').map((f) => f.path);
+  if (JSON.stringify(plan.settings.before) !== JSON.stringify(plan.settings.after)) out.push(plan.settings.path);
+  const cfg = path.join(plan.projectRoot, 'team', 'config.json');
+  if (plan.gateCommands && !out.includes(cfg)) out.push(cfg);
+  if (plan.claudeMd.before !== plan.claudeMd.after) out.push(plan.claudeMd.path);
+  if (plan.gitignoreLine) out.push(path.join(plan.projectRoot, '.gitignore'));
+  return out;
+}
+
+// Applies the plan, then commits exactly the files it created or changed as one chore(nac) commit (g11 follow-up), so
+// the PreCompact and other clean-tree checks are not tripped by NAC's own scaffolding. Fail-open: outside git, or for a
+// file that already had uncommitted edits, it leaves the files written, commits what it safely can and returns a warning.
+// Returns { committed, sha?, warning? }.
 export function applySetup(plan) {
   if (plan.settings.conflicts.length) {
     throw new Error(`Settings conflict in ${plan.settings.path}: ${plan.settings.conflicts.join(', ')}. Resolve it, then run setup again.`);
   }
+  const touched = plannedFiles(plan);
+  let before = { git: false, dirty: [] };
+  try {
+    before = dirtyPaths(plan.projectRoot, touched.filter((f) => fs.existsSync(f)));
+  } catch { /* the commit is optional */ }
+  writeSetup(plan);
+  if (!touched.length) return { committed: false };
+  try {
+    const dirty = new Set(before.dirty);
+    const rel = (f) => path.relative(plan.projectRoot, f).split(path.sep).join('/');
+    const wanted = notIgnored(plan.projectRoot, touched.filter((f) => !dirty.has(f) && fs.existsSync(f))).map(rel);
+    // team/ files are listed individually: a directory pathspec would also take the owner's other team/ files.
+    const result = wanted.length || !before.git ? commitPaths(plan.projectRoot, wanted, 'chore(nac): set up NAC (team scaffolding, settings, guard block)') : { committed: false };
+    const skipped = before.dirty.map(rel);
+    if (skipped.length) return { ...result, warning: `${skipped.join(', ')} had uncommitted edits already; written but not committed. Commit ${skipped.length > 1 ? 'them' : 'it'} yourself so the clean-tree checks pass.${result.warning ? ` ${result.warning}` : ''}` };
+    return result;
+  } catch (e) {
+    return { committed: false, warning: `not committed (${e.message})` };
+  }
+}
+
+function writeSetup(plan) {
   for (const f of plan.files) {
     if (f.action !== 'create') continue;
     fs.mkdirSync(path.dirname(f.path), { recursive: true });
