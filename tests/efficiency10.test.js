@@ -671,3 +671,57 @@ test('g15: the rotation skill rotates by hand-off plus autocompact when compacti
   assert.doesNotMatch(section, /Tell the owner: run `\/clear`, then say "devam" \(or "continue"\)\.\s/, 'the unconditional /clear step is gone');
   assert.match(section, /devam/, 'the /clear path still resumes with "devam"');
 });
+
+// ---- C4 (g12) drift warning only on a real difference ----
+import { pluginSourceDrift } from '../scripts/lib/drift.js';
+
+function driftCase({ cacheVersion = '1.2.0', srcVersion = '1.2.0', cacheScript = 'export const a = 1;\n', srcScript = 'export const a = 1;\n', installPath = true } = {}) {
+  const src = makeGitProject();
+  const put = (dir, version, script) => {
+    fs.mkdirSync(path.join(dir, '.claude-plugin'), { recursive: true });
+    fs.mkdirSync(path.join(dir, 'scripts'), { recursive: true });
+    fs.writeFileSync(path.join(dir, '.claude-plugin', 'plugin.json'), JSON.stringify({ name: 'nac', version }));
+    fs.writeFileSync(path.join(dir, 'scripts', 's.js'), script);
+  };
+  put(src.root, srcVersion, srcScript);
+  src.git('add', '-A');
+  src.git('commit', '-q', '-m', 'plugin');
+  const cache = fs.mkdtempSync(path.join(os.tmpdir(), 'nac cache '));
+  put(cache, cacheVersion, cacheScript);
+  const plugins = fs.mkdtempSync(path.join(os.tmpdir(), 'nac plugins '));
+  fs.writeFileSync(path.join(plugins, 'installed_plugins.json'), JSON.stringify({ version: 2, plugins: { 'nac@nereus-agent-company': [{ ...(installPath ? { installPath: cache } : {}), version: cacheVersion, gitCommitSha: '7713ae5'.padEnd(40, '0') }] } }));
+  fs.writeFileSync(path.join(plugins, 'known_marketplaces.json'), JSON.stringify({ 'nereus-agent-company': { source: { source: 'directory', path: src.root }, installLocation: src.root } }));
+  return { plugins };
+}
+
+test('g12: a stale sha record with identical cache and source gives one "sha record stale" line, no drift alarm', () => {
+  const w = pluginSourceDrift({ pluginsDir: driftCase().plugins });
+  assert.ok(w && !w.includes('\n'), 'one line');
+  assert.match(w, /sha record stale/i);
+  assert.match(w, /\/plugin update/);
+  assert.doesNotMatch(w, /drift/i);
+});
+
+test('g12: a version difference is a real drift and prints both versions and both shas', () => {
+  const w = pluginSourceDrift({ pluginsDir: driftCase({ srcVersion: '1.3.0' }).plugins });
+  assert.match(w, /NAC plugin drift/);
+  assert.match(w, /1\.2\.0/);
+  assert.match(w, /1\.3\.0/);
+  assert.match(w, /7713ae5/);
+});
+
+test('g12: the same version with different code is a real drift', () => {
+  const w = pluginSourceDrift({ pluginsDir: driftCase({ srcScript: 'export const a = 2;\n' }).plugins });
+  assert.match(w, /NAC plugin drift/);
+  assert.match(w, /1\.2\.0/);
+});
+
+test('g12: an unreadable cache path falls back to the sha-only warning; nothing throws', () => {
+  const w = pluginSourceDrift({ pluginsDir: driftCase({ installPath: false }).plugins });
+  assert.match(w, /NAC plugin drift/);
+  const c = driftCase();
+  const rec = JSON.parse(fs.readFileSync(path.join(c.plugins, 'installed_plugins.json'), 'utf8'));
+  rec.plugins['nac@nereus-agent-company'][0].installPath = path.join(os.tmpdir(), 'nac-gone-cache');
+  fs.writeFileSync(path.join(c.plugins, 'installed_plugins.json'), JSON.stringify(rec));
+  assert.match(pluginSourceDrift({ pluginsDir: c.plugins }), /NAC plugin drift/);
+});
