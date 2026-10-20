@@ -123,6 +123,50 @@ export function runGate(root, checks) {
   return { ok: red.length === 0, exitCode: shown.exitCode, skipped: checks_.reduce((n, c) => n + c.skipped, 0), output, checks: checks_ };
 }
 
+// g44: a gate red on format alone cost a full round (T-081, T-084: the developer dispatched again for whitespace).
+// A check can carry `fix`, the command that repairs what it reports; the common format checks get one without it.
+const FIX_RULES = [
+  [/^(cargo\s+fmt\b.*?)\s+--check\b(.*)$/, (m) => `${m[1]}${m[2]}`],
+  [/^(ruff\s+format\b.*?)\s+--check\b(.*)$/, (m) => `${m[1]}${m[2]}`],
+  [/^(black\b.*?)\s+--check\b(.*)$/, (m) => `${m[1]}${m[2]}`],
+  [/^((?:npx\s+)?prettier\b.*?)\s+(?:--check|-c)\b(.*)$/, (m) => `${m[1]} --write${m[2]}`],
+];
+export function fixCommand(check) {
+  if (typeof check.fix === 'string' && check.fix.trim()) return check.fix;
+  const command = check.command.trim();
+  for (const [re, to] of FIX_RULES) {
+    const m = re.exec(command);
+    if (m) return to(m).trim();
+  }
+  return null;
+}
+
+// True when the gate is red and every red check has a fix command: the lead runs `gate.js --fix`, not a round.
+export const fixable = (result, checks) => !result.ok && result.checks.filter((c) => !c.ok).every((c) => fixCommand(checks.find((k) => k.name === c.name)) !== null);
+
+// Runs the fix commands of the red checks in `tree`, commits what they changed as style(<id>) and runs the gate
+// again. Refused when a red check has no fix or the tree holds uncommitted changes outside team/ (they would be swept
+// into the style commit).
+export function fixGate(tree, checks, first, { id }) {
+  const git = (...args) => execFileSync('git', args, { cwd: tree, stdio: ['ignore', 'pipe', 'pipe'], encoding: 'utf8' }).trim();
+  if (first.ok) return { ...first, fixed: [] };
+  if (!fixable(first, checks)) throw new Error(`gate --fix: red checks without a fix command: ${first.checks.filter((c) => !c.ok && !fixCommand(checks.find((k) => k.name === c.name))).map((c) => c.name).join(', ')}; this is a round for the implementer`);
+  const dirty = git('status', '--porcelain', '--', '.', ':(exclude)team');
+  if (dirty) throw new Error(`gate --fix: uncommitted changes outside team/ in ${tree}; the implementer commits them first:\n${dirty}`);
+  const red = first.checks.filter((c) => !c.ok).map((c) => checks.find((k) => k.name === c.name));
+  const fixes = red.map((c) => ({ name: c.name, command: fixCommand(c), ...runTestGate(tree, fixCommand(c)) }));
+  const failed = fixes.filter((f) => !f.ok);
+  if (failed.length) throw new Error(`gate --fix: the fix command failed: ${failed.map((f) => `[${f.name}] ${f.command}\n${f.output}`).join('\n')}`);
+  let commit = null;
+  if (git('status', '--porcelain', '--', '.', ':(exclude)team')) {
+    git('add', '-u', '--', '.', ':(exclude)team');
+    git('commit', '-q', '-m', `style(${id}): ${red.map((c) => c.name).join(', ')} (gate --fix)`);
+    commit = git('rev-parse', '--short', 'HEAD');
+  }
+  const again = runGate(tree, checks);
+  return { ...again, fixed: red.map((c) => c.name), fixCommit: commit };
+}
+
 // Default checks per detected stack, for setup. Fails open: an unreadable manifest just means no suggestion.
 export function detectGateCommands(root) {
   const out = [];

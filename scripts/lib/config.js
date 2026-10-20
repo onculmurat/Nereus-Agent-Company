@@ -83,6 +83,7 @@ export function validateConfig(cfg) {
     for (const e of g) {
       const ok = e && typeof e === 'object' && typeof e.name === 'string' && e.name.trim() && typeof e.command === 'string' && e.command.trim();
       if (!ok) throw new Error(`gateCommands entries need a non-empty name and command; got ${JSON.stringify(e)}`);
+      if (e.fix !== undefined && !(typeof e.fix === 'string' && e.fix.trim())) throw new Error(`gateCommands "${e.name}": fix must be a non-empty command; got ${JSON.stringify(e.fix)}`);
       if (names.has(e.name)) throw new Error(`gateCommands has the name "${e.name}" twice`);
       names.add(e.name);
     }

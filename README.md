@@ -243,6 +243,10 @@ The next session starts with a resume summary: phase, work in progress (with `gi
 
 `team/brief.md`, `decisions.md`, `contracts/`, `research/`, `glossary.md` and `config.json` are meant to be committed. `team/work/` (board, briefs, hand-offs, escalations, mailbox) is committed too; only `team/work/packs/` (generated context packs) is git-ignored. The lead commits it in its own commits, `chore(team): <what>`, after each task is marked done and at each lead rotation, staging explicit paths and never mixing it into a code commit. Setup changes an older `.gitignore` line `team/work/` to `team/work/packs/` and shows the diff first.
 
+## Changes in 1.3.10
+
+- **Format-only red gate is not a round** (g44): in T-081 and T-084 the gate was red on `cargo fmt --check` alone and the developer was dispatched again for whitespace. The gate now says `fixable: true` when only checks with a fix command are red (a check's `fix` field, or the write form of `cargo fmt`, `ruff format`, `black` and `prettier --check`); `gate.js --task <id> --fix` runs the fixes, commits them as `style(<id>)` and runs the gate again. The developer rules also say to run the formatter before each commit.
+
 ## Changes in 1.3.9
 
 - **Files: line notes** (g43): a note in parentheses after a path (`store.rs (read only, unless ...)`) split the path at its comma, so the code map called existing files new. Commas inside parentheses no longer split, notes and a leading "new" are dropped, and the planner writes notes on their own line.
