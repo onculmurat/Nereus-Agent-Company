@@ -243,6 +243,10 @@ The next session starts with a resume summary: phase, work in progress (with `gi
 
 `team/brief.md`, `decisions.md`, `contracts/`, `research/`, `glossary.md` and `config.json` are meant to be committed. `team/work/` (board, briefs, hand-offs, escalations, mailbox) is committed too; only `team/work/packs/` (generated context packs) is git-ignored. The lead commits it in its own commits, `chore(team): <what>`, after each task is marked done and at each lead rotation, staging explicit paths and never mixing it into a code commit. Setup changes an older `.gitignore` line `team/work/` to `team/work/packs/` and shows the diff first.
 
+## Changes in 1.3.7
+
+- **Findings need a file address** (g35): a finding recorded at a directory (`crates/bench/src:1`) made `findings.js pack` fail with EISDIR, so the hardening pack could not be built. `findings.js add` and `task.js close --findings` now refuse a directory address (close before anything is recorded), and `pack` notes an old directory address in the pack instead of failing.
+
 ## Changes in 1.3.6
 
 - **Permissions commit names both scripts**: `setup.js --permissions` committed as `allow team-commit.js for the lead (g27)` although it also adds the `task.js` rule (g33); the message is now `chore(nac): allow team-commit.js and task.js for the lead (g27, g33)`.

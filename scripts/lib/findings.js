@@ -67,14 +67,24 @@ function inside(root, file) {
   return rel !== '' && !rel.startsWith('..') && !path.isAbsolute(rel) ? abs : null;
 }
 
-export function addFinding(root, { module, file, line, symbol = '', severity, class: cls, task, text, origin = '', migrated = false, pluginRoot }) {
+const isDirectory = (abs) => Boolean(abs) && fs.statSync(abs, { throwIfNoEntry: false })?.isDirectory() === true;
+
+// The checks addFinding makes before it writes; task.js close runs them on every finding before it marks the task done.
+export function validateFinding(root, { module, file, line, severity, class: cls, text, origin = '' }) {
   checkModule(module);
   if (!SEVERITIES.includes(severity)) throw new Error(`--severity must be one of ${SEVERITIES.join(', ')}; got "${severity}"`);
   if (!CLASSES.includes(cls)) throw new Error(`--class must be one of ${CLASSES.join(', ')}; got "${cls}"`);
   if (origin && !ORIGINS.includes(origin)) throw new Error(`--origin must be ${ORIGINS.join(' or ')}; got "${origin}"`);
   if (!/^\d+$/.test(String(line)) || Number(line) < 1) throw new Error(`--line must be a positive number; got "${line}"`);
-  if (!inside(root, file)) throw new Error(`--file "${file}" must be a path inside the project`);
+  const abs = inside(root, file);
+  if (!abs) throw new Error(`--file "${file}" must be a path inside the project`);
+  // g35: a directory address broke the hardening pack (EISDIR).
+  if (isDirectory(abs)) throw new Error(`--file "${file}" is a directory; give the file the finding is in`);
   if (!String(text ?? '').trim()) throw new Error('--text must not be empty');
+}
+
+export function addFinding(root, { module, file, line, symbol = '', severity, class: cls, task, text, origin = '', migrated = false, pluginRoot }) {
+  validateFinding(root, { module, file, line, severity, class: cls, text, origin });
   const all = listFindings(root);
   const f = { id: nextId('F', all.map((x) => x.id)), module, status: 'open', severity, class: cls, task, file: file.replace(/\\/g, '/'), line: Number(line), symbol, text: String(text).replace(/\r?\n/g, ' ').trim(), commit: '', origin, migrated: Boolean(migrated) };
   writeModule(root, module, [...readModule(root, module), f]);
@@ -128,10 +138,13 @@ function sitesOf(root, symbol) {
 
 function section(root, f, n) {
   const abs = inside(root, f.file);
-  const lines = abs && fs.existsSync(abs) ? fs.readFileSync(abs, 'utf8').split(/\r?\n/) : null;
+  const directory = isDirectory(abs);
+  const lines = abs && !directory && fs.existsSync(abs) ? fs.readFileSync(abs, 'utf8').split(/\r?\n/) : null;
   const out = [`## ${f.id} (${f.severity}, ${f.class}, task ${f.task})`, '', f.text, '', `Address: \`${f.file}:${f.line}\`${f.symbol ? ` symbol \`${f.symbol}\`` : ''}`, ''];
   let symbol = f.symbol;
-  if (!lines) {
+  if (directory) {
+    out.push(`(${f.file} is a directory, not a file; correct the finding's address)`, '');
+  } else if (!lines) {
     out.push(`(file ${f.file} not found)`, '');
   } else {
     const from = Math.max(1, f.line - n);
