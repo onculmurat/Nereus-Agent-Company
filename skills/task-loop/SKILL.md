@@ -34,6 +34,10 @@ Hardening loop. Add the task with `board.js add --module <m> --hardening yes`: a
 
 You never Edit `team/decisions.md` by hand. Record several outcomes in one call with `decisions.js record --file <json>`, fix a field with `decisions.js amend D-xxx --<field> <value>` and replace an earlier decision with `record --supersedes D-xxx` (also per item in the file). The lead does not run builds or tests itself: read the gate script result (step 4) or the developer's report summary line.
 
+## Resuming a task
+
+When you resume a task after a restart, quota stop or new session, read its hand-off first (`team/work/handoffs/<id>.md`) and `git log` for its commits, then dispatch only the remaining steps. Mark a task you expect to be large with `board.js add ... --size M|L`: `done` then warns when it has a single code commit.
+
 ## Session rotation
 
 The lead session grows with every task. Rotate it at each milestone end and after every 5 tasks marked done since the last rotation, whichever comes first. `board.js update <id> --status done` prints `rotate: true` when the fifth done is reached; a milestone end is your own call.

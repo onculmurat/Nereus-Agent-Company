@@ -333,3 +333,39 @@ test('g16: decisions.js park and unpark on the command line; open lists only unp
   assert.equal(run('unpark', 'Q-001').status, 0);
   assert.equal(JSON.parse(run('open').stdout).length, 1);
 });
+
+// ---- Part B ----
+import { readBoard } from '../scripts/lib/board.js';
+import { parseFrontmatter } from '../scripts/lib/frontmatter.js';
+
+const agentBody = (role) => parseFrontmatter(fs.readFileSync(path.join(pluginRoot, 'agents', `${role}.md`), 'utf8')).body;
+const rulesOf = (role) => agentBody(role).split('## Working rules')[1].split('\n## ')[0];
+const DEV_ROLES = ['backend-developer', 'frontend-developer', 'database-engineer', 'test-engineer'];
+
+// ---- B1 (g19) intermediate commits ----
+test('g19: board entries carry a size and done warns on a single code commit for M/L tasks', () => {
+  const root = makeProject();
+  const big = addEntry(root, { title: 'big', owner: 'backend-developer', model: 'sonnet', size: 'L' });
+  assert.equal(big.size, 'L');
+  assert.equal(readBoard(root).entries.find((e) => e.id === big.id).size, 'L', 'size survives a write/read round trip');
+  assert.throws(() => addEntry(root, { title: 'x', owner: 'backend-developer', model: 'sonnet', size: 'XL' }), /size/);
+  updateEntry(root, big.id, { status: 'in-progress', commits: ['abc1234'] });
+  const one = updateEntry(root, big.id, { status: 'done' });
+  assert.match(String(one.warnings), /single code commit/, 'one commit on an L task warns');
+  const many = addEntry(root, { title: 'big2', owner: 'backend-developer', model: 'sonnet', size: 'M' });
+  const ok = updateEntry(root, many.id, { status: 'done', commits: ['abc1234', 'def5678'] });
+  assert.equal(ok.warnings, undefined, 'two commits do not warn');
+  const small = addEntry(root, { title: 'small', owner: 'backend-developer', model: 'sonnet', size: 'S' });
+  assert.equal(updateEntry(root, small.id, { status: 'done', commits: ['abc1234'] }).warnings, undefined);
+  const none = addEntry(root, { title: 'nosize', owner: 'backend-developer', model: 'sonnet' });
+  assert.equal(updateEntry(root, none.id, { status: 'done', commits: ['abc1234'] }).warnings, undefined);
+});
+
+test('g19: developer roles commit each green step and keep the hand-off current; task-loop reads the hand-off on resume', () => {
+  for (const role of DEV_ROLES) {
+    assert.match(rulesOf(role), /commit each green step/i, role);
+    assert.match(rulesOf(role), /wip/i, role);
+    assert.match(rulesOf(role), /hand-off.*every commit/i, role);
+  }
+  assert.match(fs.readFileSync(path.join(pluginRoot, 'skills', 'task-loop', 'SKILL.md'), 'utf8'), /resum\w+[^\n]*hand-off first/i);
+});

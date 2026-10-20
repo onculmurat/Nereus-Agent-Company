@@ -38,6 +38,11 @@ function checkCodeOwner(owner, code) {
 // reviews are stored as "role:verdict, role:verdict" and read as { role: verdict }.
 // security: yes marks a task for the module-level security review; contract (a changed security contract) also needs a pass before done.
 const SECURITY_TAGS = ['yes', 'contract'];
+export const SIZES = ['S', 'M', 'L'];
+const checkSize = (size) => {
+  if (size !== undefined && !SIZES.includes(size)) throw new Error(`Invalid size "${size}" (allowed: ${SIZES.join(', ')})`);
+  return size;
+};
 const parseReviews = (s) => Object.fromEntries(s.split(',').map((p) => p.trim().split(':')).filter(([r, v]) => r && v));
 const formatReviews = (r) => Object.entries(r).map(([role, verdict]) => `${role}:${verdict}`).join(', ');
 
@@ -58,6 +63,7 @@ export function readBoard(root) {
     ...(Number(f.foldins) > 0 ? { foldins: Number(f.foldins) } : {}),
     ...(f.approach ? { approach: f.approach, roundsBase: Number(f.roundsbase ?? 0) } : {}),
     ...(f.code === 'no' ? { code: 'no' } : {}),
+    ...(SIZES.includes(f.size) ? { size: f.size } : {}),
     ...(SECURITY_TAGS.includes(f.security) ? { security: f.security } : {}),
     ...(f.module ? { module: f.module } : {}),
     ...(f.hardening === 'yes' ? { hardening: 'yes', hphase: Number(f.hphase ?? 0), ...(f.hdecision ? { hdecision: f.hdecision } : {}) } : {}),
@@ -77,6 +83,7 @@ export function writeBoard(root, board) {
     ...(e.foldins > 0 ? { foldins: e.foldins } : {}),
     ...(e.approach ? { approach: e.approach, roundsbase: e.roundsBase ?? 0 } : {}),
     ...(e.code === 'no' ? { code: 'no' } : {}),
+    ...(SIZES.includes(e.size) ? { size: e.size } : {}),
     ...(SECURITY_TAGS.includes(e.security) ? { security: e.security } : {}),
     ...(e.module ? { module: e.module } : {}),
     ...(e.hardening === 'yes' ? { hardening: 'yes', hphase: e.hphase ?? 0, ...(e.hdecision ? { hdecision: e.hdecision } : {}) } : {}),
@@ -102,7 +109,8 @@ function planHardening(root, board, { module, decision }) {
   return { hardening: 'yes', hphase: board.phase, ...(decision === undefined ? {} : { hdecision: decision }) };
 }
 
-export function addEntry(root, { id, title, owner, model, code, security, module, hardening, decision }) {
+export function addEntry(root, { id, title, owner, model, code, security, module, hardening, decision, size }) {
+  checkSize(size);
   const board = readBoard(root);
   checkOwner(board, owner);
   checkCodeOwner(owner, code);
@@ -110,7 +118,7 @@ export function addEntry(root, { id, title, owner, model, code, security, module
   if (!ID_RE.test(entryId)) throw new Error(`Invalid board id "${entryId}"`);
   if (board.entries.some((e) => e.id === entryId)) throw new Error(`Board entry ${entryId} already exists`);
   const hard = hardening === 'yes' ? planHardening(root, board, { module, decision }) : {};
-  const entry = { id: entryId, title, owner, status: 'todo', rounds: 0, model, commits: [], handoff: '', ...(code === 'no' ? { code: 'no' } : {}), ...(SECURITY_TAGS.includes(security) ? { security } : {}), ...(module ? { module: checkModuleName(module) } : {}), ...hard };
+  const entry = { id: entryId, title, owner, status: 'todo', rounds: 0, model, commits: [], handoff: '', ...(code === 'no' ? { code: 'no' } : {}), ...(size ? { size } : {}), ...(SECURITY_TAGS.includes(security) ? { security } : {}), ...(module ? { module: checkModuleName(module) } : {}), ...hard };
   const note = autoTagSecurity(root, entry, { explicit: security });
   board.entries.push(entry);
   writeBoard(root, board);
@@ -149,6 +157,7 @@ export function updateEntry(root, id, patch) {
   if (patch.status !== undefined && !STATUSES.includes(patch.status)) {
     throw new Error(`Invalid status "${patch.status}" (allowed: ${STATUSES.join(', ')})`);
   }
+  checkSize(patch.size);
   const board = readBoard(root);
   const entry = board.entries.find((e) => e.id === id);
   if (!entry) throw new Error(`No board entry ${id}`);
@@ -163,7 +172,17 @@ export function updateEntry(root, id, patch) {
   if (entry.code !== 'no') delete entry.code;
   if (!SECURITY_TAGS.includes(entry.security)) delete entry.security;
   writeBoard(root, board);
-  return note ? { ...entry, securityNote: note } : entry;
+  const warnings = patch.status === 'done' ? doneWarnings(entry) : [];
+  return { ...entry, ...(note ? { securityNote: note } : {}), ...(warnings.length ? { warnings } : {}) };
+}
+
+// Advisory only (never blocks done): a medium or large task with at most one code commit lost its work once at a quota stop.
+function doneWarnings(entry) {
+  const out = [];
+  if ((entry.size === 'M' || entry.size === 'L') && entry.commits.length <= 1) {
+    out.push(`${entry.id} is size ${entry.size} but has a single code commit: developers commit each green step (wip allowed) so a quota stop or a restart loses nothing. Check the hand-off lists the steps.`);
+  }
+  return out;
 }
 
 const MODULE_RE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
