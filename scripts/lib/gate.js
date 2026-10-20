@@ -30,6 +30,41 @@ export function runTestGate(root, command) {
   return { ok: r.status === 0, exitCode: r.status, skipped: parseSkipped(all), output: all.split('\n').slice(-TAIL_LINES).join('\n') };
 }
 
+// g18: the gate runs every configured check, not only the tests. gateCommands is an ordered list of
+// { name, command }; testCommand stays as an alias for a single "test" entry.
+export function gateChecks(config) {
+  if (config.gateCommands !== undefined) return config.gateCommands;
+  return config.testCommand === undefined ? [] : [{ name: 'test', command: config.testCommand }];
+}
+
+// Runs all checks in order (a red one does not stop the later ones) and reports each. The top-level fields keep
+// the single-command shape: exitCode and output come from the first red check, or from the last one when all pass.
+export function runGate(root, checks) {
+  const checks_ = checks.map((c) => ({ name: c.name, ...runTestGate(root, c.command) }));
+  const red = checks_.filter((c) => !c.ok);
+  const shown = red[0] ?? checks_[checks_.length - 1];
+  const output = checks_.length === 1 ? shown.output : (red.length ? red : [shown]).map((c) => `[${c.name}]\n${c.output}`).join('\n');
+  return { ok: red.length === 0, exitCode: shown.exitCode, skipped: checks_.reduce((n, c) => n + c.skipped, 0), output, checks: checks_ };
+}
+
+// Default checks per detected stack, for setup. Fails open: an unreadable manifest just means no suggestion.
+export function detectGateCommands(root) {
+  const out = [];
+  try {
+    if (fs.existsSync(path.join(root, 'Cargo.toml'))) {
+      out.push({ name: 'test', command: 'cargo test' }, { name: 'clippy', command: 'cargo clippy --all-targets -- -D warnings' }, { name: 'fmt', command: 'cargo fmt --check' });
+      if (fs.existsSync(path.join(root, 'deny.toml'))) out.push({ name: 'deny', command: 'cargo deny check' });
+    } else if (fs.existsSync(path.join(root, 'package.json'))) {
+      const scripts = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8').replace(/^﻿/, '')).scripts ?? {};
+      if (scripts.test) out.push({ name: 'test', command: 'npm test' });
+      if (scripts.lint) out.push({ name: 'lint', command: 'npm run lint' });
+    }
+  } catch {
+    return [];
+  }
+  return out;
+}
+
 // Tasks that produce no code (spikes, research, docs only) have no tests to run. The board entry or the brief marks
 // them `code: no`; the brief names the report with an `Output: <path>` line, and the gate checks that file instead.
 const ID_RE = /^[A-Za-z0-9-]{1,64}$/;

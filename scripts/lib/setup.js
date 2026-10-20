@@ -2,6 +2,7 @@
 // and never replaces an existing settings value; conflicts stop the apply.
 import fs from 'node:fs';
 import path from 'node:path';
+import { detectGateCommands } from './gate.js';
 
 export const PLUGIN_KEY = 'nac@nereus-agent-company';
 const TEAMS_ENV = 'CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS';
@@ -133,11 +134,22 @@ export function planSetup(projectRoot, { pluginRoot, config }) {
   const lines = fs.existsSync(gitignore) ? fs.readFileSync(gitignore, 'utf8').split(/\r?\n/).map((l) => l.trim()) : [];
   const ignored = lines.includes(GITIGNORE_LINE);
   const old = lines.find((l) => OLD_GITIGNORE_LINES.has(l)) ?? null;
+  // g18: default gate checks for the detected stack, only when the config has no gate choice yet.
+  let gateCommands = null;
+  try {
+    const cfgFile = path.join(root, 'team', 'config.json');
+    const existing = fs.existsSync(cfgFile) ? JSON.parse(fs.readFileSync(cfgFile, 'utf8').replace(/^﻿/, '')) : {};
+    const found = detectGateCommands(root);
+    if (existing.gateCommands === undefined && existing.testCommand === undefined && found.length) gateCommands = found;
+  } catch {
+    gateCommands = null;
+  }
   const major = Number(process.versions.node.split('.')[0]);
   return {
     projectRoot: root,
     files,
     settings: planSettings(root, config.compaction),
+    gateCommands,
     claudeMd: planClaudeMd(root, pluginRoot),
     // gitignoreLine: the line to write; gitignoreReplaces: the older whole-folder line it takes the place of.
     gitignoreLine: ignored && !old ? null : GITIGNORE_LINE,
@@ -158,6 +170,13 @@ export function applySetup(plan) {
   if (JSON.stringify(plan.settings.before) !== JSON.stringify(plan.settings.after)) {
     fs.mkdirSync(path.dirname(plan.settings.path), { recursive: true });
     fs.writeFileSync(plan.settings.path, `${JSON.stringify(plan.settings.after, null, 2)}\n`);
+  }
+  if (plan.gateCommands) {
+    const cfgFile = path.join(plan.projectRoot, 'team', 'config.json');
+    const cfg = JSON.parse(fs.readFileSync(cfgFile, 'utf8').replace(/^﻿/, ''));
+    cfg.gateCommands = plan.gateCommands;
+    fs.writeFileSync(cfgFile, `${JSON.stringify(cfg, null, 2)}
+`);
   }
   applyClaudeMd(plan.claudeMd);
   if (plan.gitignoreLine) {

@@ -27,6 +27,7 @@ function describe(plan) {
   const s = plan.settings;
   if (s.conflicts.length) lines.push(`CONFLICT  ${rel(s.path)}: ${s.conflicts.join(', ')} already set to a different value`);
   else if (JSON.stringify(s.before) !== JSON.stringify(s.after)) lines.push(`${s.before ? 'merge ' : 'create'}  ${rel(s.path)} (agent teams env, enable nac plugin, autoCompactWindow, idleCompaction)`);
+  if (plan.gateCommands) lines.push(`write   team/config.json gateCommands: ${plan.gateCommands.map((c) => `${c.name} (${c.command})`).join(', ')}`);
   if (plan.claudeMd.before !== plan.claudeMd.after) lines.push(`${plan.claudeMd.before === null ? 'create' : 'merge '}  CLAUDE.md (NAC guard block)`);
   if (plan.gitignoreReplaces) lines.push(`change  .gitignore:\n- ${plan.gitignoreReplaces}\n+ ${plan.gitignoreLine}`);
   else if (plan.gitignoreLine) lines.push(`append  .gitignore:\n+ ${plan.gitignoreLine}`);

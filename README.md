@@ -152,6 +152,8 @@ Every escalation is recorded in `team/work/escalations/`. Thresholds are configu
 ## Shared memory and mailbox
 
 - `team/work/board.md` is the task board: owner role, status, rounds, model, commits, hand-off. Only the lead writes it.
+
+`gateCommands` (g18) is an ordered list of `{ "name", "command" }` checks, for example test, `cargo clippy -- -D warnings` and `cargo fmt --check`. The gate runs all of them, reports each and fails when any is red; `testCommand` stays as the alias for a single check. `/nac:setup` fills a default list for a detected Rust or Node project when the config has neither key.
 - `team/decisions.md` holds open questions and decisions. Only the lead writes it.
 - `team/contracts/` holds interface contracts written by their owning role.
 - Every message between roles is a file in `team/work/mailbox/<thread>/`. A hook copies each live message there automatically, so nothing depends on an agent remembering. Roles check their inbox at start, after each step and before finishing.

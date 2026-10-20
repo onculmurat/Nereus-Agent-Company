@@ -145,6 +145,8 @@ Her eskalasyon `team/work/escalations/` altına kaydedilir. Eşikler ayarlanabil
 ## Ortak bellek ve posta kutusu
 
 - `team/work/board.md` görev panosudur: sahip rol, durum, turlar, model, commit'ler, devir notu. Yalnız lider yazar.
+
+`gateCommands` (g18), sıralı bir `{ "name", "command" }` kontrol listesidir (örneğin test, `cargo clippy -- -D warnings`, `cargo fmt --check`). Kapı hepsini çalıştırır, her birini raporlar ve biri kırmızıysa başarısız olur; `testCommand` tek kontrol için takma ad olarak kalır. `/nac:setup`, yapılandırmada ikisi de yoksa algılanan Rust veya Node projesi için varsayılan listeyi doldurur.
 - `team/decisions.md` açık soruları ve kararları tutar. Yalnız lider yazar.
 - `team/contracts/` arayüz sözleşmelerini tutar; sahibi olan rol yazar.
 - Roller arasındaki her mesaj `team/work/mailbox/<thread>/` altında bir dosyadır. Bir hook her canlı mesajı oraya otomatik kopyalar; hiçbir şey bir ajanın hatırlamasına bağlı değildir. Roller gelen kutularını başlarken, her adımdan sonra ve bitirmeden önce kontrol eder.

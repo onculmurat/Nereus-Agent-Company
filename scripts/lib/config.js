@@ -67,6 +67,17 @@ export function validateConfig(cfg) {
   if (cfg.testCommand !== undefined && (typeof cfg.testCommand !== 'string' || !cfg.testCommand.trim())) {
     throw new Error(`testCommand must be a non-empty command string; got ${JSON.stringify(cfg.testCommand)}`);
   }
+  const g = cfg.gateCommands;
+  if (g !== undefined) {
+    if (!Array.isArray(g) || g.length === 0) throw new Error(`gateCommands must be a non-empty list of { name, command }; got ${JSON.stringify(g)}`);
+    const names = new Set();
+    for (const e of g) {
+      const ok = e && typeof e === 'object' && typeof e.name === 'string' && e.name.trim() && typeof e.command === 'string' && e.command.trim();
+      if (!ok) throw new Error(`gateCommands entries need a non-empty name and command; got ${JSON.stringify(e)}`);
+      if (names.has(e.name)) throw new Error(`gateCommands has the name "${e.name}" twice`);
+      names.add(e.name);
+    }
+  }
   const c = cfg.compaction;
   if (c !== undefined) {
     if (!Number.isInteger(c.autoCompactWindow) || c.autoCompactWindow < 100000) throw new Error(`compaction.autoCompactWindow must be a whole number of at least 100000 tokens; got ${JSON.stringify(c.autoCompactWindow)}`);
