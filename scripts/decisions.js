@@ -19,7 +19,7 @@ const usage = `Usage:
                                          --finding-class: required in spirit when the question proposes a new task; a theoretical-only proposal
                                          cannot recommend "now" (recommend the phase end)
                                          --irreversible --task <id>: the question asks the owner for "go" on an irreversible or spending step;
-                                         refused unless the task brief has a line "Go-path test: <file>" (stub-runner test of the go path)
+                                         refused unless the task brief has a line "Go-path test: <command>" (stub-runner test of the go path) and that command exits 0
                                          and the gate is green
                                          --defer: not blocking, asked later in a batch; board.js refuses done for the --task until flushed
   decisions.js park <Q-id> --until <text>   owner-deferred question (for example "until the first sale"): stays open in the log but no longer

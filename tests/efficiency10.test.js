@@ -186,6 +186,7 @@ import { execFileSync } from 'node:child_process';
 const decisionsCli = path.join(pluginRoot, 'scripts', 'decisions.js');
 const ask = (root, ...extra) => spawnSync(process.execPath, [decisionsCli, 'ask', '--title', 'Run the paid bench?', '--source', 's', '--status', 'st', '--impact', 'i', '--blocking', 'yes', '--thread', 'bench', '--options', 'go|no', '--recommend', 'go', '--project', root, ...extra], { encoding: 'utf8' });
 
+const goBrief = (cmd) => `# T-037\n- Go-path test: \`${cmd}\` (stub runner, --yes reaches the executor)\n`;
 function irreversibleProject({ brief, gate = exit(0), testFile = true } = {}) {
   const root = projectWith({ gateCommands: [{ name: 'test', command: gate }] });
   fs.mkdirSync(path.join(root, 'team', 'work', 'tasks'), { recursive: true });
@@ -206,26 +207,26 @@ test('g23: refused when the brief names no go-path test', () => {
   assert.match(r.stderr, /Go-path test/);
 });
 
-test('g23: refused when the named test file does not exist', () => {
+test('g23: refused when the named go-path command cannot run', () => {
   const r = ask(irreversibleProject({ brief: '# T-037\nGo-path test: tests/missing.rs\n' }), '--irreversible', '--task', 'T-037');
   assert.equal(r.status, 1);
   assert.match(r.stderr, /tests\/missing\.rs/);
 });
 
 test('g23: refused when the gate is red', () => {
-  const r = ask(irreversibleProject({ brief: '# T-037\nGo-path test: tests/go_path.rs\n', gate: exit(1) }), '--irreversible', '--task', 'T-037');
+  const r = ask(irreversibleProject({ brief: goBrief(exit(0)), gate: exit(1) }), '--irreversible', '--task', 'T-037');
   assert.equal(r.status, 1);
   assert.match(r.stderr, /gate is not green/);
 });
 
 test('g23: refused (closed) when no gate command is configured', () => {
-  const root = irreversibleProject({ brief: '# T-037\nGo-path test: tests/go_path.rs\n' });
+  const root = irreversibleProject({ brief: goBrief(exit(0)) });
   fs.writeFileSync(path.join(root, 'team', 'config.json'), '{}');
   assert.equal(ask(root, '--irreversible', '--task', 'T-037').status, 1);
 });
 
 test('g23: allowed when the brief names an existing test and the gate is green; the question carries the tag', () => {
-  const root = irreversibleProject({ brief: '# T-037\n- Go-path test: `tests/go_path.rs` (stub runner, --yes reaches the executor)\n' });
+  const root = irreversibleProject({ brief: goBrief(exit(0)) });
   const r = ask(root, '--irreversible', '--task', 'T-037');
   assert.equal(r.status, 0, r.stderr);
   assert.equal(JSON.parse(r.stdout).irreversible, 'yes');
@@ -1101,4 +1102,50 @@ test('g11: outside a git repository setup applies and only warns', () => {
   assert.equal(r.committed, false);
   assert.match(r.warning, /not a git repository/);
   assert.ok(fs.existsSync(path.join(dir, 'team', 'config.json')));
+});
+
+// ---- F6 (g23 follow-up) the go-path command is run ----
+import { irreversibleProblems } from '../scripts/lib/irreversible.js';
+
+const markerCommand = `${node} -e "require('fs').writeFileSync('go-ran.txt', process.cwd())"`;
+
+test('g23 run: the Go-path command is executed in the project and the question is allowed on exit 0', () => {
+  const root = irreversibleProject({ brief: goBrief(markerCommand) });
+  const r = ask(root, '--irreversible', '--task', 'T-037');
+  assert.equal(r.status, 0, r.stderr);
+  assert.ok(fs.existsSync(path.join(root, 'go-ran.txt')), 'the command ran');
+  assert.equal(fs.realpathSync(fs.readFileSync(path.join(root, 'go-ran.txt'), 'utf8')), fs.realpathSync(root), 'it ran inside the project');
+});
+
+test('g23 run: a Go-path command that exits non-zero refuses the question and shows its output', () => {
+  const failing = `${node} -e "console.log('stub runner never saw --yes'); process.exit(3)"`;
+  const root = irreversibleProject({ brief: goBrief(failing) });
+  const r = ask(root, '--irreversible', '--task', 'T-037');
+  assert.equal(r.status, 1);
+  assert.match(r.stderr, /exited with code 3/);
+  assert.match(r.stderr, /stub runner never saw --yes/);
+  assert.equal(readDecisions(root).open.length, 0);
+});
+
+test('g23 run: a Go-path command that outlives the timeout refuses the question', () => {
+  const root = irreversibleProject({ brief: goBrief(`${node} -e "setTimeout(() => {}, 20000)"`) });
+  const problems = irreversibleProblems(root, 'T-037', { pluginRoot, timeoutMs: 500 });
+  assert.match(problems.join(' '), /timed out/i);
+});
+
+test('g23 run: the old file form is refused with a message that asks for a command', () => {
+  const root = irreversibleProject({ brief: '# T-037\nGo-path test: tests/go_path.rs\n' });
+  const r = ask(root, '--irreversible', '--task', 'T-037');
+  assert.equal(r.status, 1);
+  assert.match(r.stderr, /command/i);
+  assert.match(r.stderr, /tests\/go_path\.rs/);
+  assert.equal(readDecisions(root).open.length, 0);
+});
+
+test('g23 run: planner and question-protocol say Go-path test takes a command that is run', () => {
+  const planner = fs.readFileSync(path.join(pluginRoot, 'agents', 'planner.md'), 'utf8');
+  assert.match(planner, /Go-path test: <command>/);
+  const qp = fs.readFileSync(path.join(pluginRoot, 'skills', 'question-protocol', 'SKILL.md'), 'utf8');
+  assert.match(qp, /Go-path test: <command>/);
+  assert.match(qp, /exits? 0/);
 });

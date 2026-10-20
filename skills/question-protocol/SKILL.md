@@ -27,7 +27,7 @@ A question that proposes a new task (for example a hardening task) states the cl
 
 When the owner defers a question on purpose ("ask me when we have a sale"), park it: `decisions.js park <Q-id> --until <text>`. A parked question stays in the log, but it is not pending: compaction does not wait for it and the hand-off lists it under "Parked owner questions" (`unpark` reopens it). Never close a question just to unblock compaction.
 
-A "go" question for an irreversible or spending step carries `--irreversible --task <id>`: `decisions.js ask` refuses it unless the task brief has a `Go-path test: <file>` line naming an existing test and the gate is green (g23). Dry runs never exercise the go path.
+A "go" question for an irreversible or spending step carries `--irreversible --task <id>`: `decisions.js ask` refuses it unless the task brief has a `Go-path test: <command>` line, the command exits 0 when `ask` runs it in the project, and the gate is green (g23). A file name instead of a command is refused. Dry runs never exercise the go path.
 
 Register before you send (g26): every question to the owner or the owner proxy is recorded with `ask` first, and the message carries the Q-id that `ask` printed, never one you made up. A D-id you report comes from the output of `decide` (or `record`), read after the call: `decide` on an unregistered Q-id throws and writes nothing. The Stop hook sends the lead back once when its message names a Q-id or D-id that team/decisions.md does not hold.
 
