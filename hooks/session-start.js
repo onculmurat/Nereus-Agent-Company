@@ -9,6 +9,7 @@ import { buildResumeSummary } from '../scripts/lib/summary.js';
 import { hasGuardBlock, hasCompactionSettings } from '../scripts/lib/setup.js';
 import { pluginSourceDrift } from '../scripts/lib/drift.js';
 import { latestCompactHandoff } from '../scripts/lib/compact.js';
+import { proxyContext } from '../scripts/lib/proxy.js';
 
 const contextOutput = (additionalContext) => ({ output: { hookSpecificOutput: { hookEventName: 'SessionStart', additionalContext } } });
 
@@ -43,7 +44,8 @@ No autoCompactWindow set. Owner, type once: ! node "${path.join(pluginRoot, 'scr
     lead.trim(),
     `NAC-LEAD-ACTIVE${guardHint}${compactHint}${drift ? `\n${drift}` : ''}`,
     `## Resolved rules\n\nPlugin scripts: ${path.join(pluginRoot, 'scripts')}\n\n\`\`\`json\n${JSON.stringify(rules)}\n\`\`\``,
+    proxyContext(config),
     `## Resume (session ${payload.source ?? 'startup'})\n\n${compacted ? `Compact hand-off: ${compacted}. Context was just compacted; read it first and carry on.\n\n` : ''}${buildResumeSummary(root)}`,
-  ].join('\n\n');
+  ].filter(Boolean).join('\n\n');
   return contextOutput(additionalContext);
 });

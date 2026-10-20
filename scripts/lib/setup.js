@@ -112,6 +112,22 @@ export function applyPermissions(plan) {
   return writeAndCommit(plan, 'chore(nac): allow team-commit.js for the lead (g27)', 'the allow rule');
 }
 
+// g29: only the owner sets the proxy (the classifier refuses a standing delegation the lead writes itself).
+// session 'off' removes it.
+export function planProxy(projectRoot, { session, until } = {}) {
+  const file = path.join(path.resolve(projectRoot), 'team', 'config.json');
+  const before = readJsonOrNull(file);
+  const after = structuredClone(before ?? {});
+  if (session === 'off') delete after.ownerProxy;
+  else after.ownerProxy = { session, ...(until === undefined ? {} : { until }) };
+  return { path: file, before, after };
+}
+
+export function applyProxy(plan) {
+  const p = plan.after.ownerProxy;
+  return writeAndCommit(plan, p ? `chore(nac): owner proxy ${p.session}${p.until ? ` until ${p.until}` : ''} (g29)` : 'chore(nac): owner proxy off (g29)', 'the owner proxy');
+}
+
 export function hasCompactionSettings(projectRoot) {
   try {
     return readJsonOrNull(path.join(projectRoot, '.claude', 'settings.json'))?.autoCompactWindow !== undefined;

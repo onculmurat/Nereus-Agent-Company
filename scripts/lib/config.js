@@ -2,6 +2,7 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { PROXY_SESSION_RE, PROXY_UNTIL_RE } from './proxy.js';
 
 const MODELS = ['haiku', 'sonnet', 'opus'];
 const CLEANUP_MODES = ['archive', 'delete'];
@@ -69,6 +70,11 @@ export function validateConfig(cfg) {
   }
   if (cfg.worktreeRoot !== undefined && (typeof cfg.worktreeRoot !== 'string' || !cfg.worktreeRoot.trim())) {
     throw new Error(`worktreeRoot must be a non-empty directory path; got ${JSON.stringify(cfg.worktreeRoot)}`);
+  }
+  const op = cfg.ownerProxy;
+  if (op !== undefined) {
+    if (!op || typeof op !== 'object' || typeof op.session !== 'string' || !PROXY_SESSION_RE.test(op.session)) throw new Error(`ownerProxy.session must be the proxy session name (letters, digits, . _ - and spaces); got ${JSON.stringify(op?.session)}`);
+    if (op.until !== undefined && (typeof op.until !== 'string' || !PROXY_UNTIL_RE.test(op.until))) throw new Error(`ownerProxy.until must be a date YYYY-MM-DD; got ${JSON.stringify(op.until)}`);
   }
   const g = cfg.gateCommands;
   if (g !== undefined) {
