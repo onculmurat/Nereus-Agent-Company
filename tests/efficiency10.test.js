@@ -991,3 +991,53 @@ test('g26: question-protocol says register first, quote the Q-id from ask, repor
   assert.match(qp, /Q-id[^\n]*`ask`|`ask`[^\n]*Q-id/);
   assert.match(qp, /D-id[^\n]*`decide`|`decide`[^\n]*D-id/);
 });
+
+// ---- F4 (D-227) team commits use a team/-only pathspec ----
+import { commitPaths } from '../scripts/lib/commit.js';
+
+function stagedDeveloperProject() {
+  const p = makeGitProject();
+  p.commit('seed.txt');
+  fs.mkdirSync(path.join(p.root, 'src'));
+  fs.writeFileSync(path.join(p.root, 'src', 'refs.rs'), 'fn staged() {}');
+  p.git('add', 'src/refs.rs');
+  fs.writeFileSync(path.join(p.root, 'team', 'work', 'board.md'), '# Board\nphase: 1\n');
+  return p;
+}
+
+test('D-227: commitPaths commits only the given paths; a staged developer file stays staged and uncommitted', () => {
+  const p = stagedDeveloperProject();
+  const r = commitPaths(p.root, ['team'], 'chore(team): T-001 done');
+  assert.equal(r.committed, true, r.warning);
+  const files = p.git('show', '--name-only', '--format=', 'HEAD').split(String.fromCharCode(10));
+  assert.ok(files.includes('team/work/board.md') && files.every((f) => f.startsWith('team/')), `the commit holds team/ files only: ${files}`);
+  assert.equal(p.git('diff', '--cached', '--name-only'), 'src/refs.rs', 'the developer file is still staged');
+  assert.equal(p.git('log', '-1', '--format=%s'), 'chore(team): T-001 done');
+});
+
+test('D-227: commitPaths with nothing changed in the paths commits nothing; outside git it warns instead of throwing', () => {
+  const p = stagedDeveloperProject();
+  commitPaths(p.root, ['team'], 'first');
+  const again = commitPaths(p.root, ['team'], 'second');
+  assert.equal(again.committed, false);
+  assert.equal(p.git('log', '-1', '--format=%s'), 'first');
+  const plain = makeProject();
+  const r = commitPaths(plain, ['team'], 'x');
+  assert.equal(r.committed, false);
+  assert.match(r.warning, /not a git repository/);
+});
+
+test('D-227: team-commit.js commits team/ with a pathspec and leaves a staged developer file alone', () => {
+  const p = stagedDeveloperProject();
+  const r = spawnSync(process.execPath, [path.join(pluginRoot, 'scripts', 'team-commit.js'), '--message', 'chore(team): lead hand-off', '--project', p.root], { encoding: 'utf8' });
+  assert.equal(r.status, 0, r.stderr);
+  assert.equal(JSON.parse(r.stdout).committed, true);
+  assert.equal(p.git('diff', '--cached', '--name-only'), 'src/refs.rs');
+  assert.equal(spawnSync(process.execPath, [path.join(pluginRoot, 'scripts', 'team-commit.js'), '--project', p.root], { encoding: 'utf8' }).status, 1, 'a message is required');
+});
+
+test('D-227: the lead skill says team commits use the team/ pathspec', () => {
+  const s = fs.readFileSync(path.join(pluginRoot, 'skills', 'task-loop', 'SKILL.md'), 'utf8');
+  assert.match(s, /team-commit\.js/);
+  assert.match(s, /git commit[^\n]*-- team\//);
+});
