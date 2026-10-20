@@ -931,3 +931,16 @@ test('g19 hard: board.js update --single-commit works on the command line and an
   const ok = run('update', 'T-1', '--status', 'done', '--commit', sha, '--single-commit', 'tiny change');
   assert.equal(ok.status, 0, ok.stderr);
 });
+
+// ---- F2 (g22 wider) pack guard covers test-engineer and final-reviewer ----
+test('g22 wider: test-engineer and final-reviewer dispatches without a pack are refused, with or without the nac: prefix', () => {
+  const root = makeProject();
+  for (const role of ['test-engineer', 'nac:test-engineer', 'final-reviewer', 'nac:final-reviewer']) {
+    const r = dispatch(root, role, 'Verify T-001');
+    assert.equal(r.status, 2, role);
+    assert.match(r.stderr, /pack\.js/);
+  }
+  assert.equal(dispatch(root, 'test-engineer', 'Read team/work/packs/T-001-test-engineer.md first.').status, 0);
+  assert.equal(dispatch(root, 'final-reviewer', 'x --no-pack whole-project review').status, 0, 'the escape hatch is unchanged');
+  assert.equal(dispatch(root, 'my-test-engineer-helper', 'x').status, 0, 'only the exact role names are covered');
+});

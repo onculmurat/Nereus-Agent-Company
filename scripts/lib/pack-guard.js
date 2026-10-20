@@ -1,9 +1,9 @@
-// g22: code-role dispatches (developer, reviewer, security) must name a context pack. Seen live: after a lead
+// g22: code-role dispatches (developer, reviewer, security, test-engineer, final-reviewer) must name a context pack. Seen live: after a lead
 // rotation three tasks were dispatched with 0% packed and the roles explored the project from scratch.
 import { namesPack } from './cost.js';
 import { recordOutcomes, threadFromText } from './decisions.js';
 
-const CODE_ROLE = /(?:^|:)(?:[a-z]+-developer|code-reviewer|security-reviewer)$/;
+const CODE_ROLE = /(?:^|:)(?:[a-z]+-developer|code-reviewer|security-reviewer|test-engineer|final-reviewer)$/;
 const NO_PACK = /--no-pack\s+(\S[^\n]*)/;
 const PACK_COMMAND = 'node "<scripts>/pack.js" <task> --role <role>';
 
