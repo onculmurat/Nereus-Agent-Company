@@ -10,6 +10,7 @@ import { toLines } from './sections.js';
 import { readBoard, taskTree } from './board.js';
 import { TEST_RE } from './findings.js';
 import { parseRefs } from './refs.js';
+import { codeMap } from './scope.js';
 
 const ID_RE = /^[A-Za-z0-9-]{1,64}$/;
 const ROLE_RE = /^[a-z][a-z0-9-]{0,63}$/;
@@ -213,6 +214,9 @@ export function buildPack(root, { id, role, base, gate, round, findings, paths, 
   }
   if (found.length) parts.push(`## Decisions\n\n${found.join('\n\n')}`);
   if (notFound.length) parts.push(`## Not found\n\n${notFound.map((n) => `- ${n}`).join('\n')}`);
+  // g37: the role spent turns finding its way around the files it was to change; the map gives their outline.
+  const map = codeMap(taskTree(root, id), brief);
+  if (map) parts.push(map);
   if (base !== undefined) {
     const diff = gitDiff(taskTree(root, id), base, paths, leaveOut).trimEnd();
     const fence = fenceFor(diff);

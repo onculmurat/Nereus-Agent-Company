@@ -108,6 +108,22 @@ export function closeFinding(root, id, { commit }) {
   return row;
 }
 
+// g40: a recorded address was wrong (F-254 pointed at a directory) and the lead edited the ledger by hand.
+// Only the address fields change; the same checks as add apply. A closed finding is history and stays as it is.
+export function amendFinding(root, id, { file, line, symbol }) {
+  if (!ID_RE.test(id ?? '')) throw new Error(`Invalid finding id "${id}"`);
+  if (file === undefined && line === undefined && symbol === undefined) throw new Error('Nothing to amend: give --file, --line or --symbol');
+  const f = listFindings(root).find((x) => x.id === id);
+  if (!f) throw new Error(`No finding ${id}`);
+  if (f.status !== 'open') throw new Error(`${id} is ${f.status}; only an open finding is amended`);
+  const next = { ...f, ...(file !== undefined ? { file: file.replace(/\\/g, '/') } : {}), ...(line !== undefined ? { line: Number(line) } : {}), ...(symbol !== undefined ? { symbol } : {}) };
+  validateFinding(root, { ...next, line: line ?? f.line });
+  const rows = readModule(root, f.module);
+  rows[rows.findIndex((x) => x.id === id)] = next;
+  writeModule(root, f.module, rows);
+  return { id, before: `${f.file}:${f.line}${f.symbol ? ` ${f.symbol}` : ''}`, after: `${next.file}:${next.line}${next.symbol ? ` ${next.symbol}` : ''}` };
+}
+
 // ---- Hardening pack: the open findings of one module with the lines around them and what else uses the symbol. ----
 
 export const TEST_RE = /(^|\/)(tests?|__tests__|spec)\/|\.(test|spec)\.|_test\./;
@@ -162,10 +178,16 @@ function section(root, f, n) {
   return out.join('\n');
 }
 
-export function packFindings(root, module, { context = 15 } = {}) {
+// ids (g40): only these open findings of the module, for a hardening task that takes part of the batch.
+export function packFindings(root, module, { context = 15, ids } = {}) {
   checkModule(module);
   if (!Number.isInteger(context) || context < 0) throw new Error(`--context must be a whole number of lines, 0 or more; got ${context}`);
-  const open = listFindings(root, { module, open: true });
+  let open = listFindings(root, { module, open: true });
+  if (ids !== undefined) {
+    const missing = ids.filter((id) => !open.some((f) => f.id === id));
+    if (missing.length) throw new Error(`Not open findings of module ${module}: ${missing.join(', ')}`);
+    open = open.filter((f) => ids.includes(f.id));
+  }
   if (!open.length) throw new Error(`Module ${module} has no open findings`);
   const bad = open.find((f) => !inside(root, f.file));
   if (bad) throw new Error(`${bad.id}: file "${bad.file}" is outside the project`);

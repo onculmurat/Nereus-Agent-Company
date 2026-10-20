@@ -14,6 +14,7 @@ import { buildResumeSummary, questionListsMarkdown } from './summary.js';
 import { hasCompactionSettings } from './setup.js';
 import { teamPaths } from './paths.js';
 import { localDate } from './dates.js';
+import { scopeRecord } from './scope.js';
 
 // g34: with compaction configured the lead rotates after every task, so each task starts on a small context.
 export const COMPACTION_ROTATE_EVERY = 1;
@@ -119,6 +120,21 @@ export function closeTask(root, id, { commit, singleCommit, findings = [], leadN
     cost = { file: c.file, created: c.created };
   } catch (err) {
     warnings.push(`cost file not written for ${id} (${err.message}); run cost.js --save --task ${id}`);
+  }
+  // 1.3.8: scope record (no check yet; g39 waits for these numbers) and team/ files in a code commit (a rule break).
+  if (entry.code !== 'no' && entry.commits?.length) {
+    try {
+      const briefFile = path.join(teamPaths(root).tasks, `${id}.md`);
+      const brief = fs.existsSync(briefFile) ? fs.readFileSync(briefFile, 'utf8') : '';
+      const scope = scopeRecord(root, { id, commits: entry.commits, brief });
+      const dir = path.join(teamPaths(root).team, 'metrics');
+      fs.mkdirSync(dir, { recursive: true });
+      fs.writeFileSync(path.join(dir, `scope-${id}.json`), `${JSON.stringify(scope, null, 1)}
+`);
+      if (scope.teamFiles.length) warnings.push(`team/ files in ${id}'s code commits (${scope.teamFiles.join(', ')}): roles stage only their code paths; team/ is committed with chore(team). Tell the role; history is not rewritten.`);
+    } catch (err) {
+      warnings.push(`scope record not written for ${id} (${err.message})`);
+    }
   }
   const rotate = rotationDue(root, rotationEvery(root, config));
   let leadHandoff = null;

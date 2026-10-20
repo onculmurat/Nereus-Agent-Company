@@ -173,6 +173,9 @@ export function updateEntry(root, id, patch, { singleCommit } = {}) {
     throw new Error(`Invalid status "${patch.status}" (allowed: ${STATUSES.join(', ')})`);
   }
   checkSize(patch.size);
+  // g42: a rewritten brief needs a new title; the lead edited the heading with sed.
+  if (patch.title !== undefined && (!patch.title.trim() || /[\r\n]/.test(patch.title))) throw new Error('--title must be one non-empty line');
+  if (patch.title !== undefined) patch.title = patch.title.trim();
   const board = readBoard(root);
   const entry = board.entries.find((e) => e.id === id);
   if (!entry) throw new Error(`No board entry ${id}`);

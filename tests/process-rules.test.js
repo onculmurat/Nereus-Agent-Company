@@ -22,9 +22,10 @@ const ROLE_RULES = {
   reread: 'Do not re-read a file that is in the pack or that you already read in this dispatch, unless it changed.',
   hardening: "On a hardening task read only the pack's addresses and impact sites; do not scan the rest of the module. A review of it covers only the pack items and the diff.",
   rounds: "The board's `rounds` field is the only round count. Do not keep or report your own count.",
+  obstacle: 'Obstacles: when something the brief did not foresee blocks you (the environment, a tool, a test failing outside your change), spend at most 3 turns on it. Then stop, write in the hand-off what you saw and tried, and report it as a blocker; never weaken a test to get past it (g38).',
 };
 
-test('every agent carries the ten shared working rules, word for word', () => {
+test('every agent carries the eleven shared working rules, word for word', () => {
   assert.equal(agents.length, 14);
   for (const file of agents) {
     const text = read('agents', file);

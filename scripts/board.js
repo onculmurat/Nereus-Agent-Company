@@ -15,7 +15,7 @@ const usage = `Usage:
                                          --hardening yes: the module's hardening task (needs --module); a second one in the same module and phase is refused
                                          unless --decision names a decision recorded in decisions.md
                                          --code no: a task that produces no code (spike, research, docs only); gate.js --task checks its report file
-  board.js update <id> [--status <todo|in-progress|review|done|blocked>] [--owner <role>] [--model <m>] [--commit <sha>] [--handoff <path>] [--worktree <path>] [--agent <id-or-name>] [--code <yes|no>] [--security <yes|no|contract>] [--module <m>] [--size <S|M|L>] [--single-commit <reason>]
+  board.js update <id> [--title <text>] [--status <todo|in-progress|review|done|blocked>] [--owner <role>] [--model <m>] [--commit <sha>] [--handoff <path>] [--worktree <path>] [--agent <id-or-name>] [--code <yes|no>] [--security <yes|no|contract>] [--module <m>] [--size <S|M|L>] [--single-commit <reason>]
                                          --status in-progress is refused while another code task is in progress in the same tree; parallel tasks each get a worktree (worktree.js add <id>) and record it with --worktree <path>
                                          a task without a size counts as M: --status done on M/L (or no size) with at most one code commit is refused
                                          unless --single-commit <reason> (recorded in decisions.md); S and --code no tasks are not checked
@@ -56,7 +56,7 @@ const commands = {
     const patch = {};
     checkYesNo('code', v.code);
     checkYesNo('security', v.security, ['yes', 'no', 'contract']);
-    for (const k of ['status', 'owner', 'model', 'handoff', 'code', 'security', 'module', 'size', 'worktree', 'agent']) if (v[k] !== undefined) patch[k] = v[k];
+    for (const k of ['title', 'status', 'owner', 'model', 'handoff', 'code', 'security', 'module', 'size', 'worktree', 'agent']) if (v[k] !== undefined) patch[k] = v[k];
     if (v.commit !== undefined) patch.commits = commitsWith(root, id, v.commit);
     if (v['single-commit'] !== undefined && !v['single-commit'].trim()) throw new UsageError('--single-commit needs a reason');
     const entry = updateEntry(root, id, patch, { singleCommit: v['single-commit'] });

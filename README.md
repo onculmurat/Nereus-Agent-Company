@@ -243,6 +243,15 @@ The next session starts with a resume summary: phase, work in progress (with `gi
 
 `team/brief.md`, `decisions.md`, `contracts/`, `research/`, `glossary.md` and `config.json` are meant to be committed. `team/work/` (board, briefs, hand-offs, escalations, mailbox) is committed too; only `team/work/packs/` (generated context packs) is git-ignored. The lead commits it in its own commits, `chore(team): <what>`, after each task is marked done and at each lead rotation, staging explicit paths and never mixing it into a code commit. Setup changes an older `.gitignore` line `team/work/` to `team/work/packs/` and shows the diff first.
 
+## Changes in 1.3.8
+
+- **Turn budget is enforced** (g36): a role cannot count its own turns, so the pack's budget line alone let a developer run into the `maxTurns` hard stop with no report and no commit. A new PostToolUse hook (`turn-budget.js`) counts the role's turns from its transcript, tells it in its last 5 turns to finish the step it is on, and at `turnBudget` to stop, commit only green work and report. Keep `turnBudget` below `maxTurns`.
+- **Code map in the pack** (g37): the pack lists the declarations (with line numbers) of the files the brief names, so a role does not spend turns finding its way around them. The planner now writes one `Files:` line per code brief; an older brief without it gives its backticked paths that exist.
+- **Obstacle rule** (g38): every role spends at most 3 turns on a blocker the brief did not foresee, then reports it; a test is never weakened to get past it.
+- **Scope record and team/ files**: `task.js close` writes `team/metrics/scope-<id>.json` (how many changed files the `Files:` line names, the others by kind), a record for a later scope check, and warns when a code commit holds `team/` files. The developer rules now say the hand-off stays outside the code commit.
+- **Findings amend and pack --ids** (g40): `findings.js amend <F-id> --file --line --symbol` corrects an open finding's address with the same checks as add; `findings.js pack --ids` packs part of a module's findings.
+- **Board retitle** (g42): `board.js update <id> --title <text>`.
+
 ## Changes in 1.3.7
 
 - **Findings need a file address** (g35): a finding recorded at a directory (`crates/bench/src:1`) made `findings.js pack` fail with EISDIR, so the hardening pack could not be built. `findings.js add` and `task.js close --findings` now refuse a directory address (close before anything is recorded), and `pack` notes an old directory address in the pack instead of failing.

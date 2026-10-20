@@ -21,6 +21,7 @@ test('registers the seven events with quoted plugin-root commands', () => {
   assert.deepEqual(Object.keys(hooksJson.hooks).sort(), ['PostToolUse', 'PreCompact', 'PreToolUse', 'SessionStart', 'Stop', 'TaskCompleted', 'TeammateIdle']);
   assert.equal(hooksJson.hooks.SessionStart[0].matcher, 'startup|resume|clear|compact');
   assert.equal(hooksJson.hooks.PostToolUse[0].matcher, 'SendMessage');
+  assert.match(hooksJson.hooks.PostToolUse[1].hooks[0].command, /turn-budget.js/);
   for (const event of Object.keys(hooksJson.hooks)) {
     for (const cmd of commandsFor(event)) {
       assert.match(cmd, /^node "\$\{CLAUDE_PLUGIN_ROOT\}\/hooks\/[a-z-]+\.js"$/);
