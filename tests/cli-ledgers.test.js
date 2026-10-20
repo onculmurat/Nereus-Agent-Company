@@ -44,7 +44,7 @@ test('board CLI reports rotate: true on the fifth done and rotated resets it', (
   const { root, commit } = makeGitProject();
   const sha = commit('a.txt');
   for (let i = 1; i <= 5; i += 1) run('board.js', root, 'add', '--title', `T${i}`, '--owner', 'backend-developer', '--model', 'sonnet');
-  const flags = [1, 2, 3, 4, 5].map((n) => run('board.js', root, 'update', `T-00${n}`, '--status', 'done').rotate);
+  const flags = [1, 2, 3, 4, 5].map((n) => run('board.js', root, 'update', `T-00${n}`, '--status', 'done', '--single-commit', 'x').rotate);
   assert.deepEqual(flags, [false, false, false, false, true]);
   assert.deepEqual(run('board.js', root, 'rotated'), { rotated: true });
   assert.equal(run('board.js', root, 'update', 'T-001', '--commit', sha).rotate, undefined);

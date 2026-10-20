@@ -147,6 +147,8 @@ Her eskalasyon `team/work/escalations/` altına kaydedilir. Eşikler ayarlanabil
 - `team/work/board.md` görev panosudur: sahip rol, durum, turlar, model, commit'ler, devir notu. Yalnız lider yazar.
 
 `gateCommands` (g18), sıralı bir `{ "name", "command" }` kontrol listesidir (örneğin test, `cargo clippy -- -D warnings`, `cargo fmt --check`). Kapı hepsini çalıştırır, her birini raporlar ve biri kırmızıysa başarısız olur; `testCommand` tek kontrol için takma ad olarak kalır. Bir `pack-guard` hook'u (g22), bağlam paketi göstermeyen geliştirici, gözden geçirici veya güvenlik görevlendirmesini reddeder; kayıtlı kaçış yolu görevlendirme metnine `--no-pack <gerekçe>` yazmaktır. `/nac:setup`, yapılandırmada ikisi de yoksa algılanan Rust veya Node projesi için varsayılan listeyi doldurur.
+
+Verimlilik kontrolleri, F bölümü (g19 sert): `board.js update --status done`, en çok bir kod commit'i olan M veya L bir görevde (boyutu olmayan görev M sayılır) reddedilir; `--single-commit <neden>` verilirse geçer (neden `team/decisions.md` dosyasına yazılır). S görevler ve `--code no` görevler denetlenmez.
 - `team/decisions.md` açık soruları ve kararları tutar. Yalnız lider yazar.
 - `team/contracts/` arayüz sözleşmelerini tutar; sahibi olan rol yazar.
 - Roller arasındaki her mesaj `team/work/mailbox/<thread>/` altında bir dosyadır. Bir hook her canlı mesajı oraya otomatik kopyalar; hiçbir şey bir ajanın hatırlamasına bağlı değildir. Roller gelen kutularını başlarken, her adımdan sonra ve bitirmeden önce kontrol eder.

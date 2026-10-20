@@ -34,8 +34,8 @@ test('board phase refuses while a module has security tasks done after its last 
   const root = makeProject();
   board(root, 'add', '--title', 'Login', '--owner', 'backend-developer', '--model', 'sonnet', '--module', 'auth', '--security', 'yes');
   board(root, 'add', '--title', 'Docs', '--owner', 'doc-writer', '--model', 'sonnet', '--module', 'docs');
-  board(root, 'update', 'T-001', '--status', 'done');
-  board(root, 'update', 'T-002', '--status', 'done');
+  board(root, 'update', 'T-001', '--status', 'done', '--single-commit', 'x');
+  board(root, 'update', 'T-002', '--status', 'done', '--single-commit', 'x');
   const r = board(root, 'phase', '5');
   assert.equal(r.status, 1);
   assert.match(r.err, /auth/);
@@ -45,7 +45,7 @@ test('board phase refuses while a module has security tasks done after its last 
   assert.equal(board(root, 'phase', '5').status, 0);
   // a later security task in the same module is not covered by the earlier pass
   board(root, 'add', '--title', 'Reset', '--owner', 'backend-developer', '--model', 'sonnet', '--module', 'auth', '--security', 'yes');
-  board(root, 'update', 'T-003', '--status', 'done');
+  board(root, 'update', 'T-003', '--status', 'done', '--single-commit', 'x');
   assert.equal(board(root, 'phase', '6').status, 1);
 });
 
@@ -53,7 +53,7 @@ test('review --module needs a module with a task; a fail verdict does not pass t
   const root = makeProject();
   assert.equal(board(root, 'review', '--module', 'nope', '--role', 'security-reviewer', '--verdict', 'pass').status, 1);
   board(root, 'add', '--title', 'Login', '--owner', 'backend-developer', '--model', 'sonnet', '--module', 'auth', '--security', 'yes');
-  board(root, 'update', 'T-001', '--status', 'done');
+  board(root, 'update', 'T-001', '--status', 'done', '--single-commit', 'x');
   board(root, 'review', '--module', 'auth', '--role', 'security-reviewer', '--verdict', 'fail');
   assert.equal(board(root, 'phase', '5').status, 1);
 });

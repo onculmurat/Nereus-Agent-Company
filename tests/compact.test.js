@@ -11,6 +11,7 @@ import { addQuestion } from '../scripts/lib/decisions.js';
 import { contextTokens } from '../scripts/lib/compact.js';
 import { planSetup } from '../scripts/lib/setup.js';
 import { loadConfig, validateConfig } from '../scripts/lib/config.js';
+const SC = { singleCommit: 'test fixture' };
 
 let n = 0;
 const NO_PLUGINS = { NAC_PLUGINS_DIR: path.join(os.tmpdir(), 'nac-no-plugins') };
@@ -21,7 +22,7 @@ function cleanProject() {
   p.commit('seed.txt');
   const e = addEntry(p.root, { title: 'done task', owner: 'backend-developer', model: 'sonnet' });
   const sha = p.commit('work.txt');
-  updateEntry(p.root, e.id, { status: 'done', commits: [sha] });
+  updateEntry(p.root, e.id, { status: 'done', commits: [sha] }, SC);
   p.git('add', '-A');
   p.git('commit', '-q', '-m', 'board');
   return p;
@@ -90,7 +91,7 @@ test('a dirty team/ state blocks; an ignored file and a developer file elsewhere
 test('the last done task without a reachable commit blocks', () => {
   const p = cleanProject();
   const e = addEntry(p.root, { title: 'nocommit', owner: 'backend-developer', model: 'sonnet' });
-  updateEntry(p.root, e.id, { status: 'done' });
+  updateEntry(p.root, e.id, { status: 'done' }, SC);
   commitAll(p);
   const r = pre(p, 150000);
   assert.equal(r.status, 2);

@@ -6,7 +6,7 @@ import { teamPaths } from './paths.js';
 import { parseEntries, formatEntry, toLines, nextId } from './sections.js';
 import { nextAction } from './escalation.js';
 import { execFileSync } from 'node:child_process';
-import { readDecisions, deferredFor } from './decisions.js';
+import { readDecisions, deferredFor, recordOutcomes, threadFromText } from './decisions.js';
 import { listFindings } from './findings.js';
 import { parseRefs } from './refs.js';
 
@@ -157,7 +157,7 @@ function checkDone(root, entry) {
   }
 }
 
-export function updateEntry(root, id, patch) {
+export function updateEntry(root, id, patch, { singleCommit } = {}) {
   if (patch.status !== undefined && !STATUSES.includes(patch.status)) {
     throw new Error(`Invalid status "${patch.status}" (allowed: ${STATUSES.join(', ')})`);
   }
@@ -168,6 +168,7 @@ export function updateEntry(root, id, patch) {
   checkOwner(board, patch.owner);
   checkCodeOwner(patch.owner ?? entry.owner, patch.code ?? entry.code);
   if (patch.status === 'done') checkDone(root, { ...entry, ...(patch.security === undefined ? {} : { security: patch.security }) });
+  if (patch.status === 'done') checkCommits(root, { ...entry, ...patch }, singleCommit);
   if (patch.status === 'done' && entry.status !== 'done') board.doneSinceRotation = (board.doneSinceRotation ?? 0) + 1;
   if (patch.module !== undefined && patch.module !== '') checkModuleName(patch.module);
   if (patch.status === 'in-progress') checkTreeFree(board, entry, patch.worktree ?? entry.worktree);
@@ -179,8 +180,7 @@ export function updateEntry(root, id, patch) {
   if (entry.code !== 'no') delete entry.code;
   if (!SECURITY_TAGS.includes(entry.security)) delete entry.security;
   writeBoard(root, board);
-  const warnings = patch.status === 'done' ? doneWarnings(entry) : [];
-  return { ...entry, ...(note ? { securityNote: note } : {}), ...(warnings.length ? { warnings } : {}) };
+  return { ...entry, ...(note ? { securityNote: note } : {}) };
 }
 
 // g24: two implementers in one working tree share the git index (a formatter or `git add` of one pulls the other's
@@ -196,13 +196,17 @@ function checkTreeFree(board, entry, worktree) {
     : `${entry.id} cannot start in the main working tree: ${other.id} is in progress there, and two implementers in one tree share the git index (one's formatter or commit pulls in the other's files). Run it in its own worktree: node "<scripts>/worktree.js" add ${entry.id}, then board.js update ${entry.id} --status in-progress --worktree <printed path>.`);
 }
 
-// Advisory only (never blocks done): a medium or large task with at most one code commit lost its work once at a quota stop.
-function doneWarnings(entry) {
-  const out = [];
-  if ((entry.size === 'M' || entry.size === 'L') && entry.commits.length <= 1) {
-    out.push(`${entry.id} is size ${entry.size} but has a single code commit: developers commit each green step (wip allowed) so a quota stop or a restart loses nothing. Check the hand-off lists the steps.`);
+// g19: a task without a size counts as M. A medium or large code task with at most one code commit lost its work once
+// at a quota stop, so done is refused unless the lead names a reason (--single-commit <reason>, recorded in the
+// decisions log). S tasks and tasks that produce no code (code: no) are not checked.
+function checkCommits(root, entry, singleCommit) {
+  if (entry.code === 'no' || entry.size === 'S' || entry.commits.length > 1) return;
+  const size = entry.size ?? 'M (no size set counts as M)';
+  const reason = typeof singleCommit === 'string' ? singleCommit.trim() : '';
+  if (!reason) {
+    throw new Error(`${entry.id} is size ${size} but has at most one code commit: developers commit each green step (wip allowed) so a quota stop or a restart loses nothing. Check the hand-off lists the steps. If one commit is right for this task, repeat the command with --single-commit "<reason>" (recorded in team/decisions.md); for a small task use board.js update ${entry.id} --size S.`);
   }
-  return out;
+  recordOutcomes(root, [{ thread: threadFromText(`single commit ${entry.id}`), title: `Single code commit: ${entry.id}`, outcome: `${entry.id} (size ${entry.size ?? 'M'}) closed with ${entry.commits.length} code commit(s) (--single-commit): ${reason}` }]);
 }
 
 const MODULE_RE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;

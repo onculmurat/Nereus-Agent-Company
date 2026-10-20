@@ -256,7 +256,7 @@ function cleanGitProject() {
   const p = makeGitProject();
   p.commit('seed.txt');
   const e = addEntry(p.root, { title: 'done task', owner: 'backend-developer', model: 'sonnet' });
-  updateEntry(p.root, e.id, { status: 'done', commits: [p.commit('work.txt')] });
+  updateEntry(p.root, e.id, { status: 'done', commits: [p.commit('work.txt')] }, { singleCommit: 'test' });
   p.git('add', '-A');
   p.git('commit', '-q', '-m', 'board');
   return p;
@@ -343,22 +343,12 @@ const rulesOf = (role) => agentBody(role).split('## Working rules')[1].split('\n
 const DEV_ROLES = ['backend-developer', 'frontend-developer', 'database-engineer', 'test-engineer'];
 
 // ---- B1 (g19) intermediate commits ----
-test('g19: board entries carry a size and done warns on a single code commit for M/L tasks', () => {
+test('g19: board entries carry a size and it survives a write/read round trip', () => {
   const root = makeProject();
   const big = addEntry(root, { title: 'big', owner: 'backend-developer', model: 'sonnet', size: 'L' });
   assert.equal(big.size, 'L');
   assert.equal(readBoard(root).entries.find((e) => e.id === big.id).size, 'L', 'size survives a write/read round trip');
   assert.throws(() => addEntry(root, { title: 'x', owner: 'backend-developer', model: 'sonnet', size: 'XL' }), /size/);
-  updateEntry(root, big.id, { status: 'in-progress', commits: ['abc1234'] });
-  const one = updateEntry(root, big.id, { status: 'done' });
-  assert.match(String(one.warnings), /single code commit/, 'one commit on an L task warns');
-  const many = addEntry(root, { title: 'big2', owner: 'backend-developer', model: 'sonnet', size: 'M' });
-  const ok = updateEntry(root, many.id, { status: 'done', commits: ['abc1234', 'def5678'] });
-  assert.equal(ok.warnings, undefined, 'two commits do not warn');
-  const small = addEntry(root, { title: 'small', owner: 'backend-developer', model: 'sonnet', size: 'S' });
-  assert.equal(updateEntry(root, small.id, { status: 'done', commits: ['abc1234'] }).warnings, undefined);
-  const none = addEntry(root, { title: 'nosize', owner: 'backend-developer', model: 'sonnet' });
-  assert.equal(updateEntry(root, none.id, { status: 'done', commits: ['abc1234'] }).warnings, undefined);
 });
 
 test('g19: developer roles commit each green step and keep the hand-off current; task-loop reads the hand-off on resume', () => {
@@ -487,8 +477,8 @@ test('g17: next task is the in-progress one first, then a brief-ready todo, then
   const going = addEntry(p.root, { title: 'going', owner: 'backend-developer', model: 'sonnet' });
   updateEntry(p.root, going.id, { status: 'in-progress' });
   assert.match(next(new Date(2026, 0, 1, 1, 0, 2)), new RegExp(`^${going.id}`), 'in-progress wins');
-  updateEntry(p.root, going.id, { status: 'done', commits: ['abc1234'] });
-  updateEntry(p.root, todoBrief.id, { status: 'done', commits: ['abc1234'] });
+  updateEntry(p.root, going.id, { status: 'done', commits: ['abc1234'] }, { singleCommit: 'test' });
+  updateEntry(p.root, todoBrief.id, { status: 'done', commits: ['abc1234'] }, { singleCommit: 'test' });
   assert.match(next(new Date(2026, 0, 1, 1, 0, 3)), new RegExp(`^${todoPlain.id}`));
 });
 
@@ -532,12 +522,12 @@ test('g20: board.js update --status done writes the cost file itself when it is 
   const run = (...a) => spawnSync(process.execPath, [boardCli, ...a, '--project', root], { encoding: 'utf8' });
   assert.equal(run('add', '--title', 'x', '--owner', 'backend-developer', '--model', 'sonnet').status, 0);
   assert.equal(costFiles(root).length, 0);
-  const r = run('update', 'T-001', '--status', 'done');
+  const r = run('update', 'T-001', '--status', 'done', '--single-commit', 'x');
   assert.equal(r.status, 0, r.stderr);
   assert.equal(costFiles(root).length, 1);
   assert.match(costFiles(root)[0], /^cost-T-001-/);
   assert.match(JSON.parse(r.stdout).cost.file, /cost-T-001-/);
-  assert.equal(run('update', 'T-001', '--status', 'done').status, 0);
+  assert.equal(run('update', 'T-001', '--status', 'done', '--single-commit', 'x').status, 0);
   assert.equal(costFiles(root).length, 1, 'a second done does not write another file');
   run('update', 'T-001', '--status', 'in-progress');
   assert.equal(costFiles(root).length, 1, 'only done triggers it');
@@ -547,11 +537,11 @@ test('g20: a refused done writes no cost file; a cost.js failure only warns', ()
   const root = makeProject();
   const run = (...a) => spawnSync(process.execPath, [boardCli, ...a, '--project', root], { encoding: 'utf8' });
   run('add', '--title', 'x', '--owner', 'backend-developer', '--model', 'sonnet', '--security', 'contract');
-  assert.equal(run('update', 'T-001', '--status', 'done').status, 1);
+  assert.equal(run('update', 'T-001', '--status', 'done', '--single-commit', 'x').status, 1);
   assert.equal(costFiles(root).length, 0);
   run('review', 'T-001', '--role', 'security-reviewer', '--verdict', 'pass');
   fs.writeFileSync(path.join(root, 'team', 'metrics'), 'a file where the folder should be');
-  const r = run('update', 'T-001', '--status', 'done');
+  const r = run('update', 'T-001', '--status', 'done', '--single-commit', 'x');
   assert.equal(r.status, 0, 'fail-open: the board update still succeeds');
   assert.match(r.stderr, /cost file not written/i);
   assert.equal(JSON.parse(r.stdout).status, 'done');
@@ -646,7 +636,7 @@ function fifthDone(root) {
   const run = (...a) => spawnSync(process.execPath, [boardCli, ...a, '--project', root], { encoding: 'utf8' });
   for (let i = 1; i <= 5; i += 1) run('add', '--title', `T${i}`, '--owner', 'backend-developer', '--model', 'sonnet');
   let last;
-  for (let i = 1; i <= 5; i += 1) last = run('update', `T-00${i}`, '--status', 'done');
+  for (let i = 1; i <= 5; i += 1) last = run('update', `T-00${i}`, '--status', 'done', '--single-commit', 'x');
   return JSON.parse(last.stdout);
 }
 
@@ -899,4 +889,45 @@ test('g25: board.js update --agent records the agent on the entry', () => {
   const r = spawnSync(process.execPath, [path.join(pluginRoot, 'scripts', 'board.js'), 'update', 'T-1', '--status', 'in-progress', '--agent', 'dev-1', '--project', root], { encoding: 'utf8' });
   assert.equal(r.status, 0, r.stderr);
   assert.equal(readBoard(root).entries[0].agent, 'dev-1');
+});
+
+// ---- F1 (g19 hard) single-commit M/L tasks are refused at done ----
+test('g19 hard: a task without a size counts as M; done with at most one code commit is refused', () => {
+  const root = makeProject();
+  const t = addEntry(root, { title: 'nosize', owner: 'backend-developer', model: 'sonnet' });
+  assert.throws(() => updateEntry(root, t.id, { status: 'done', commits: ['abc1234'] }), /at most one code commit.*--single-commit/s);
+  assert.equal(readBoard(root).entries[0].status, 'todo', 'the refusal leaves the entry untouched');
+  const l = addEntry(root, { title: 'big', owner: 'backend-developer', model: 'sonnet', size: 'L' });
+  assert.throws(() => updateEntry(root, l.id, { status: 'done' }), /at most one code commit/);
+  assert.equal(updateEntry(root, t.id, { status: 'done', commits: ['abc1234', 'def5678'] }).status, 'done');
+});
+
+test('g19 hard: S tasks and code: no tasks are unaffected', () => {
+  const root = makeProject();
+  const s = addEntry(root, { title: 's', owner: 'backend-developer', model: 'sonnet', size: 'S' });
+  assert.equal(updateEntry(root, s.id, { status: 'done', commits: ['abc1234'] }).status, 'done');
+  const d = addEntry(root, { title: 'docs', owner: 'planner', model: 'sonnet', code: 'no' });
+  assert.equal(updateEntry(root, d.id, { status: 'done' }).status, 'done');
+});
+
+test('g19 hard: --single-commit <reason> lets done through and records the reason in the decisions log', () => {
+  const root = makeProject();
+  const t = addEntry(root, { title: 'one-shot', owner: 'backend-developer', model: 'sonnet', size: 'M' });
+  const r = updateEntry(root, t.id, { status: 'done', commits: ['abc1234'] }, { singleCommit: 'one-line config fix' });
+  assert.equal(r.status, 'done');
+  assert.match(fs.readFileSync(path.join(root, 'team', 'decisions.md'), 'utf8'), /one-line config fix/);
+});
+
+test('g19 hard: board.js update --single-commit works on the command line and an empty reason is refused', () => {
+  const { root, commit } = makeGitProject();
+  const sha = commit('a.txt');
+  const boardCli = path.join(pluginRoot, 'scripts', 'board.js');
+  const run = (...a) => spawnSync(process.execPath, [boardCli, ...a, '--project', root], { encoding: 'utf8' });
+  addEntry(root, { id: 'T-1', title: 'x', owner: 'backend-developer', model: 'sonnet' });
+  const refused = run('update', 'T-1', '--status', 'done', '--commit', sha);
+  assert.equal(refused.status, 1);
+  assert.match(refused.stderr, /--single-commit/);
+  assert.equal(run('update', 'T-1', '--status', 'done', '--commit', sha, '--single-commit', '').status, 1);
+  const ok = run('update', 'T-1', '--status', 'done', '--commit', sha, '--single-commit', 'tiny change');
+  assert.equal(ok.status, 0, ok.stderr);
 });

@@ -10,7 +10,7 @@ import { teamPaths } from '../../scripts/lib/paths.js';
 function projectWithTask(status) {
   const root = makeProject();
   addEntry(root, { title: 'Build the API', owner: 'backend-developer', model: 'sonnet' });
-  updateEntry(root, 'T-001', { status });
+  updateEntry(root, 'T-001', { status }, { singleCommit: 'test fixture' });
   return root;
 }
 

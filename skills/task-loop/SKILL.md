@@ -36,7 +36,7 @@ You never Edit `team/decisions.md` by hand. Record several outcomes in one call 
 
 ## Resuming a task
 
-When you resume a task after a restart, quota stop or new session, read its hand-off first (`team/work/handoffs/<id>.md`) and `git log` for its commits, then dispatch only the remaining steps. Mark a task you expect to be large with `board.js add ... --size M|L`: `done` then warns when it has a single code commit.
+When you resume a task after a restart, quota stop or new session, read its hand-off first (`team/work/handoffs/<id>.md`) and `git log` for its commits, then dispatch only the remaining steps. A task without a size counts as M: `board.js update --status done` is refused on an M or L task with at most one code commit unless `--single-commit "<reason>"` is given (recorded in the decisions log). Mark a small task `--size S`; a task that produces no code is `--code no`.
 
 ## Session rotation
 
