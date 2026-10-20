@@ -243,6 +243,10 @@ The next session starts with a resume summary: phase, work in progress (with `gi
 
 `team/brief.md`, `decisions.md`, `contracts/`, `research/`, `glossary.md` and `config.json` are meant to be committed. `team/work/` (board, briefs, hand-offs, escalations, mailbox) is committed too; only `team/work/packs/` (generated context packs) is git-ignored. The lead commits it in its own commits, `chore(team): <what>`, after each task is marked done and at each lead rotation, staging explicit paths and never mixing it into a code commit. Setup changes an older `.gitignore` line `team/work/` to `team/work/packs/` and shows the diff first.
 
+## Changes in 1.3.3
+
+- **Owner proxy in config** (g29): a proxy session agreed in chat only was unknown to the next lead session, which opened a question box the proxy cannot answer, and the classifier refused the lead recording a standing delegation itself. You now set it once with `! node <path>/scripts/setup.js --proxy <session> [--until YYYY-MM-DD]` (`--proxy off` removes it); it lands in `team/config.json` as `ownerProxy`, and every lead session sends owner questions to that session by SendMessage. Push, merge into the main branch, deploy, publish and deleting your data still come to you.
+
 ## Changes in 1.3.2
 
 - **Pack and gate follow the task worktree** (g28): `pack.js --base` took the diff and `gate.js --task` ran the checks in the main tree while the task worked in its own worktree, so the pack came out empty and the gate checked the wrong code. Both now use the worktree the board records; a recorded worktree that is missing is an error.

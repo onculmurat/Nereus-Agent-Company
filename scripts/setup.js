@@ -4,8 +4,8 @@ import path from 'node:path';
 import os from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { runCli, UsageError } from './lib/cli.js';
-import { loadConfig } from './lib/config.js';
-import { planSetup, applySetup, planGlobalModelPointer, applyGlobalModelPointer, planClaudeMd, applyClaudeMd, planCompaction, applyCompaction, planPermissions, applyPermissions, GUARD_START, GUARD_END } from './lib/setup.js';
+import { loadConfig, validateConfig } from './lib/config.js';
+import { planSetup, applySetup, planGlobalModelPointer, applyGlobalModelPointer, planClaudeMd, applyClaudeMd, planCompaction, applyCompaction, planPermissions, applyPermissions, planProxy, applyProxy, GUARD_START, GUARD_END } from './lib/setup.js';
 
 const pluginRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const usage = `Usage:
@@ -22,6 +22,9 @@ const usage = `Usage:
   node setup.js [--project <dir>] --permissions [--dry-run]   adds only the allow rule for team-commit.js to .claude/settings.json (g27),
                                          keeps formatting and commits that one file as chore(nac). The owner runs it as
                                          "! node <path>/scripts/setup.js --permissions": the classifier blocks the lead from editing its permissions.
+  node setup.js [--project <dir>] --proxy <session> [--until YYYY-MM-DD] [--dry-run]   sets the owner proxy in team/config.json (g29)
+                                         and commits that one file; --proxy off removes it. Every lead session then sends owner
+                                         questions to that session by SendMessage instead of AskUserQuestion. The owner runs it with "!".
   node setup.js --global-model-pointer [--claude-md <file>]
   node setup.js --apply-global-model-pointer [--claude-md <file>]
 `;
@@ -51,6 +54,8 @@ runCli(
     'guard-block': { type: 'boolean' },
     compaction: { type: 'boolean' },
     permissions: { type: 'boolean' },
+    proxy: { type: 'string' },
+    until: { type: 'string' },
   },
   ({ values }) => {
     const claudeMd = values['claude-md'] ?? path.join(os.homedir(), '.claude', 'CLAUDE.md');
@@ -73,6 +78,21 @@ runCli(
       if (done.warning) process.stderr.write(`WARNING  ${done.warning}
 `);
       return `${changed ? 'Updated' : 'Unchanged'} ${plan.path} (${keys})${done.committed ? '; committed as chore(nac)' : ''}
+`;
+    }
+    if (values.proxy !== undefined) {
+      const root = path.resolve(values.project ?? process.cwd());
+      if (values.proxy === 'off' && values.until !== undefined) throw new UsageError('--until goes with a proxy session, not with off.');
+      const plan = planProxy(root, { session: values.proxy, until: values.until });
+      validateConfig({ ...loadConfig({ pluginRoot, projectRoot: root }), ownerProxy: plan.after.ownerProxy });
+      const changed = JSON.stringify(plan.before) !== JSON.stringify(plan.after);
+      const what = plan.after.ownerProxy ? `ownerProxy ${JSON.stringify(plan.after.ownerProxy)}` : 'no ownerProxy';
+      if (values['dry-run']) return `${changed ? 'would write' : 'already set, nothing would change in'} ${plan.path} (${what}; nothing written)
+`;
+      const done = applyProxy(plan);
+      if (done.warning) process.stderr.write(`WARNING  ${done.warning}
+`);
+      return `${changed ? 'Updated' : 'Unchanged'} ${plan.path} (${what})${done.committed ? '; committed as chore(nac)' : ''}
 `;
     }
     if (values.permissions) {

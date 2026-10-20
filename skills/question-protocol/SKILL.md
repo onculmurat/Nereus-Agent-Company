@@ -37,6 +37,10 @@ One question at a time. Each message holds exactly one question: no sub-question
 
 A question gets its own message: no status report, summary or news in it; send those in a message before it. Ask a question in full every time, re-asks included: never refer to it only by its id ("waiting for your answer to Q-010"), so the owner never has to search earlier messages for it. When several questions are queued, ask them one after another, each after the previous answer, except as allowed under Batching below.
 
+## Owner proxy
+
+When team/config.json has `ownerProxy` (the owner sets it with `setup.js --proxy <session>`, g29), the session start names the proxy session. Owner questions then go to that session by SendMessage instead of `AskUserQuestion`, in the same shape and after the same `decisions.js ask`; its answer is the owner's decision. Push, merge into the main branch, deploy, publish and deleting the owner's data still go to the owner. A proxy in chat only (no `ownerProxy`) is not a proxy: ask the owner.
+
 ## Timing
 
 - **Blocking** (work cannot continue): ask immediately.
