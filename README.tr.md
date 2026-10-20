@@ -229,6 +229,10 @@ Sonraki oturum bir devam özetiyle başlar: aşama, süren iş (`git status` ile
 
 `team/brief.md`, `decisions.md`, `contracts/`, `research/`, `glossary.md` ve `config.json` commit'lenmek içindir. `team/work/` (pano, görev özetleri, devir notları, eskalasyonlar, posta kutusu) de commit'lenir; yalnız `team/work/packs/` (üretilen bağlam paketleri) git dışındadır. Lider bunu kendi commit'lerinde, `chore(team): <ne>`, her görev bittiğinde ve her lider rotasyonunda, açık yolları ekleyerek commit'ler; kod commit'lerine karıştırmaz. Kurulum eski `.gitignore` satırını `team/work/` yerine `team/work/packs/` yapar ve önce farkı gösterir.
 
+## 1.3.6 değişiklikleri
+
+- **İzin commit mesajı iki script’i de anar**: `setup.js --permissions` `task.js` kuralını da eklediği halde `allow team-commit.js for the lead (g27)` diye commit ediyordu; mesaj artık `chore(nac): allow team-commit.js and task.js for the lead (g27, g33)`.
+
 ## 1.3.5 değişiklikleri
 
 - **Liderin kayıt çağrıları azaldı** (g33): liderin çağrılarının yaklaşık üçte biri pano, ekip commit'i, devir notu ve bulgulara gidiyordu. `task.js start <id>` artık in-progress, taban commit'li devir notu iskeleti, worktree ve rolün paketini yapıp tek commit atar; `task.js note <id>` devir notuna ekler; `task.js close <id> --commit <sha> [--findings <dosya>] --lead-note <metin>` bulguları, done'ı (aynı retlerle), maliyet dosyasını ve sırası geldiyse lider devir notunu yazıp tek commit atar. Kurulumun izin kuralı `task.js`'i de kapsar; önceden kurulmuş projede bir kez `! node <yol>/scripts/setup.js --permissions` çalıştır.
