@@ -55,8 +55,8 @@ test('setup requirements name the web tools the research roles use', () => {
 
 test('plugin and package versions match the release the READMEs describe', () => {
   const version = (...p) => JSON.parse(fs.readFileSync(path.join(pluginRoot, ...p), 'utf8')).version;
-  assert.equal(version('.claude-plugin', 'plugin.json'), '1.3.0');
-  assert.equal(version('package.json'), '1.3.0');
+  assert.equal(version('.claude-plugin', 'plugin.json'), '1.3.1');
+  assert.equal(version('package.json'), '1.3.1');
   assert.match(en, /\*\*v1\.3 scope\.\*\*/);
 });
 
@@ -73,4 +73,6 @@ test('both READMEs list every 1.3.0 change with its g-number', () => {
     const body = section(text, heading);
     for (const id of ids) assert.ok(body.includes(`(${id}`), `${heading} lacks ${id}`);
   }
+  assert.match(en, /## Changes in 1\.3\.1[\s\S]*\(g27\)[\s\S]*--permissions/);
+  assert.match(tr, /## 1\.3\.1 değişiklikleri[\s\S]*\(g27\)[\s\S]*--permissions/);
 });

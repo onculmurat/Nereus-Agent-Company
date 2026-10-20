@@ -5,7 +5,7 @@ import os from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { runCli, UsageError } from './lib/cli.js';
 import { loadConfig } from './lib/config.js';
-import { planSetup, applySetup, planGlobalModelPointer, applyGlobalModelPointer, planClaudeMd, applyClaudeMd, planCompaction, applyCompaction, GUARD_START, GUARD_END } from './lib/setup.js';
+import { planSetup, applySetup, planGlobalModelPointer, applyGlobalModelPointer, planClaudeMd, applyClaudeMd, planCompaction, applyCompaction, planPermissions, applyPermissions, GUARD_START, GUARD_END } from './lib/setup.js';
 
 const pluginRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const usage = `Usage:
@@ -19,6 +19,9 @@ const usage = `Usage:
   node setup.js [--project <dir>] --compaction [--dry-run]   writes only autoCompactWindow and idleCompaction into .claude/settings.json (existing values stay),
                                          keeps the file's line endings and indentation, and commits that one file as chore(nac) (warns instead when it cannot)
                                          The owner runs it as "! node <path>/scripts/setup.js --compaction" if the lead is blocked from editing settings.
+  node setup.js [--project <dir>] --permissions [--dry-run]   adds only the allow rule for team-commit.js to .claude/settings.json (g27),
+                                         keeps formatting and commits that one file as chore(nac). The owner runs it as
+                                         "! node <path>/scripts/setup.js --permissions": the classifier blocks the lead from editing its permissions.
   node setup.js --global-model-pointer [--claude-md <file>]
   node setup.js --apply-global-model-pointer [--claude-md <file>]
 `;
@@ -28,7 +31,7 @@ function describe(plan) {
   const lines = [`Project: ${plan.projectRoot}`, ...plan.files.map((f) => `${f.action === 'create' ? 'create' : 'skip  '}  ${rel(f.path)}${f.action === 'create' ? '' : ' (exists)'}`)];
   const s = plan.settings;
   if (s.conflicts.length) lines.push(`CONFLICT  ${rel(s.path)}: ${s.conflicts.join(', ')} already set to a different value`);
-  else if (JSON.stringify(s.before) !== JSON.stringify(s.after)) lines.push(`${s.before ? 'merge ' : 'create'}  ${rel(s.path)} (agent teams env, enable nac plugin, autoCompactWindow, idleCompaction)`);
+  else if (JSON.stringify(s.before) !== JSON.stringify(s.after)) lines.push(`${s.before ? 'merge ' : 'create'}  ${rel(s.path)} (agent teams env, enable nac plugin, autoCompactWindow, idleCompaction, team-commit.js allow rule)`);
   if (plan.gateCommands) lines.push(`write   team/config.json gateCommands: ${plan.gateCommands.map((c) => `${c.name} (${c.command})`).join(', ')}`);
   if (plan.claudeMd.before !== plan.claudeMd.after) lines.push(`${plan.claudeMd.before === null ? 'create' : 'merge '}  CLAUDE.md (NAC guard block)`);
   if (plan.gitignoreReplaces) lines.push(`change  .gitignore:\n- ${plan.gitignoreReplaces}\n+ ${plan.gitignoreLine}`);
@@ -47,6 +50,7 @@ runCli(
     'claude-md': { type: 'string' },
     'guard-block': { type: 'boolean' },
     compaction: { type: 'boolean' },
+    permissions: { type: 'boolean' },
   },
   ({ values }) => {
     const claudeMd = values['claude-md'] ?? path.join(os.homedir(), '.claude', 'CLAUDE.md');
@@ -70,6 +74,15 @@ runCli(
 `);
       return `${changed ? 'Updated' : 'Unchanged'} ${plan.path} (${keys})${done.committed ? '; committed as chore(nac)' : ''}
 `;
+    }
+    if (values.permissions) {
+      const plan = planPermissions(path.resolve(values.project ?? process.cwd()), { pluginRoot });
+      const changed = JSON.stringify(plan.before) !== JSON.stringify(plan.after);
+      const rules = plan.after.permissions.allow.filter((r) => r.includes('team-commit.js')).join(', ');
+      if (values['dry-run']) return `${changed ? 'would write' : 'already set, nothing would change in'} ${plan.path} (${rules}; nothing written)\n`;
+      const done = applyPermissions(plan);
+      if (done.warning) process.stderr.write(`WARNING  ${done.warning}\n`);
+      return `${changed ? 'Updated' : 'Unchanged'} ${plan.path} (${rules})${done.committed ? '; committed as chore(nac)' : ''}\n`;
     }
     if (values['guard-block']) {
       const plan = planClaudeMd(path.resolve(values.project ?? process.cwd()), pluginRoot);
