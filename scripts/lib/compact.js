@@ -6,7 +6,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { readBoard, verifyCommit } from './board.js';
-import { readDecisions } from './decisions.js';
+import { pendingQuestions } from './decisions.js';
 import { buildResumeSummary } from './summary.js';
 import { teamPaths } from './paths.js';
 import { localDate } from './dates.js';
@@ -63,7 +63,7 @@ export function compactBlocker(root) {
       return `${last.id}: commit ${sha} is not reachable from HEAD.`;
     }
   }
-  const open = readDecisions(root).open;
+  const open = pendingQuestions(root);
   if (open.length) return `${open.length} owner question(s) not answered yet (${open.map((q) => q.id).join(', ')}); ask or answer them first.`;
   return null;
 }
@@ -95,7 +95,7 @@ export function writeCompactHandoff(root, now = new Date()) {
   const next = board.entries.find((e) => e.status === 'todo');
   const text = [
     '# Compact hand-off',
-    'Written by the PreCompact hook at a clean point: nothing in flight, tree committed, last done task committed, no open owner question.',
+    'Written by the PreCompact hook at a clean point: nothing in flight, tree committed, last done task committed, no pending owner question (parked ones are listed below).',
     `Next task: ${next ? `${next.id}: ${next.title}` : 'none on the board; ask the owner or plan the next step'}`,
     'Owner questions: team/decisions.md (open and decided).',
     '',

@@ -1,8 +1,8 @@
 #!/usr/bin/env node
-// Decision log CLI (lead only): show | open | ask | flush | decide | record | amend.
+// Decision log CLI (lead only): show | open | park | unpark | parked | ask | flush | decide | record | amend.
 import { runCli, need, UsageError } from './lib/cli.js';
 import fs from 'node:fs';
-import { readDecisions, addQuestion, flushQuestions, decide, recordOutcomes, amendDecision, threadFromText } from './lib/decisions.js';
+import { readDecisions, pendingQuestions, parkedQuestions, parkQuestion, unparkQuestion, addQuestion, flushQuestions, decide, recordOutcomes, amendDecision, threadFromText } from './lib/decisions.js';
 import { isValidThread } from './lib/mailbox.js';
 import { irreversibleProblems } from './lib/irreversible.js';
 import path from 'node:path';
@@ -21,6 +21,10 @@ const usage = `Usage:
                                          refused unless the task brief has a line "Go-path test: <file>" (stub-runner test of the go path)
                                          and the gate is green
                                          --defer: not blocking, asked later in a batch; board.js refuses done for the --task until flushed
+  decisions.js park <Q-id> --until <text>   owner-deferred question (for example "until the first sale"): stays open in the log but no longer
+                                         blocks compaction or counts as pending; the hand-off lists it separately
+  decisions.js unpark <Q-id>
+  decisions.js parked                    parked questions
   decisions.js flush [--task <id>]       prints deferred questions as JSON groups of at most 4 (one AskUserQuestion call each), marks them open
   decisions.js decide <Q-id> --answer <text> [--link <path or url>]
   decisions.js record --outcome <text> [--thread <id>] [--title <t>] [--link <path or url>]
@@ -73,13 +77,22 @@ function normalize(item, i) {
 runCli(usage, {
   title: { type: 'string' }, source: { type: 'string' }, status: { type: 'string' }, impact: { type: 'string' },
   blocking: { type: 'string' }, thread: { type: 'string' }, answer: { type: 'string' }, link: { type: 'string' },
-  outcome: { type: 'string' }, file: { type: 'string' }, supersedes: { type: 'string' }, date: { type: 'string' }, defer: { type: 'boolean' }, task: { type: 'string' }, options: { type: 'string' }, recommend: { type: 'string' }, 'finding-class': { type: 'string' }, irreversible: { type: 'boolean' },
+  outcome: { type: 'string' }, file: { type: 'string' }, supersedes: { type: 'string' }, date: { type: 'string' }, defer: { type: 'boolean' }, task: { type: 'string' }, options: { type: 'string' }, recommend: { type: 'string' }, 'finding-class': { type: 'string' }, irreversible: { type: 'boolean' }, until: { type: 'string' },
 }, ({ values: v, positionals: [cmd, id], root }) => {
   switch (cmd) {
     case 'show':
       return readDecisions(root);
+    case 'park':
+      if (!id) throw new UsageError('Missing question id');
+      need(v, 'until');
+      return parkQuestion(root, id, { until: v.until });
+    case 'unpark':
+      if (!id) throw new UsageError('Missing question id');
+      return unparkQuestion(root, id);
+    case 'parked':
+      return parkedQuestions(root);
     case 'open':
-      return readDecisions(root).open.sort((a, b) => (a.blocking === 'yes' ? 0 : 1) - (b.blocking === 'yes' ? 0 : 1));
+      return pendingQuestions(root).sort((a, b) => (a.blocking === 'yes' ? 0 : 1) - (b.blocking === 'yes' ? 0 : 1));
     case 'ask':
       need(v, 'title', 'source', 'status', 'impact', 'blocking', 'thread');
       if (!['yes', 'no'].includes(v.blocking)) throw new UsageError('--blocking must be yes or no');

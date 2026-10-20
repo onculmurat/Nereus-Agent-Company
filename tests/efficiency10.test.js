@@ -243,3 +243,93 @@ test('g23: planner and question-protocol text carry the rule', () => {
   const qp = fs.readFileSync(path.join(pluginRoot, 'skills', 'question-protocol', 'SKILL.md'), 'utf8');
   assert.match(qp, /--irreversible/);
 });
+
+// ---- A4 (g16) parked owner questions ----
+import { makeGitProject } from './helpers.js';
+import { runHook as runHookNamed } from './hooks/run-hook.js';
+import { addEntry, updateEntry } from '../scripts/lib/board.js';
+import { addQuestion, parkQuestion, unparkQuestion } from '../scripts/lib/decisions.js';
+import { compactBlocker } from '../scripts/lib/compact.js';
+import { buildResumeSummary } from '../scripts/lib/summary.js';
+
+function cleanGitProject() {
+  const p = makeGitProject();
+  p.commit('seed.txt');
+  const e = addEntry(p.root, { title: 'done task', owner: 'backend-developer', model: 'sonnet' });
+  updateEntry(p.root, e.id, { status: 'done', commits: [p.commit('work.txt')] });
+  p.git('add', '-A');
+  p.git('commit', '-q', '-m', 'board');
+  return p;
+}
+const q = { title: 'License?', source: 's', status: 'st', impact: 'i', blocking: 'no' };
+const commitAll = (p) => { p.git('add', '-A'); p.git('commit', '-q', '-m', 'x'); };
+
+test('g16: a parked question does not block compaction; an open one still does', () => {
+  const p = cleanGitProject();
+  const a = addQuestion(p.root, q);
+  commitAll(p);
+  assert.match(compactBlocker(p.root), /Q-001/);
+  parkQuestion(p.root, a.id, { until: 'first sale' });
+  commitAll(p);
+  assert.equal(compactBlocker(p.root), null);
+  const b = addQuestion(p.root, { ...q, title: 'Other?' });
+  commitAll(p);
+  assert.match(compactBlocker(p.root), new RegExp(b.id));
+  assert.doesNotMatch(compactBlocker(p.root), /Q-001/, 'only the unparked question is named');
+});
+
+test('g16: the pre-compact hook allows an auto compaction with only a parked question open', () => {
+  const p = cleanGitProject();
+  const a = addQuestion(p.root, q);
+  parkQuestion(p.root, a.id, { until: 'first sale' });
+  commitAll(p);
+  const tr = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'nac tr ')), 't.jsonl');
+  fs.writeFileSync(tr, `${JSON.stringify({ type: 'assistant', message: { content: [], usage: { input_tokens: 10, cache_read_input_tokens: 150000, cache_creation_input_tokens: 20 } } })}\n`);
+  const r = runHookNamed('pre-compact', { hook_event_name: 'PreCompact', session_id: `g16-${process.pid}-${Date.now()}`, cwd: p.root, trigger: 'auto', transcript_path: tr });
+  assert.equal(r.status, 0, r.stderr);
+});
+
+test('g16: parked state keeps its reason, survives a round trip, and unpark reopens the question', () => {
+  const root = makeProject();
+  const a = addQuestion(root, q);
+  const parked = parkQuestion(root, a.id, { until: 'first sale; owner decides then' });
+  assert.equal(parked.state, 'parked');
+  assert.equal(parked['parked-until'], 'first sale; owner decides then');
+  assert.equal(readDecisions(root).open[0].state, 'parked');
+  unparkQuestion(root, a.id);
+  assert.equal(readDecisions(root).open[0].state, undefined);
+  assert.equal(readDecisions(root).open[0]['parked-until'], undefined);
+  assert.throws(() => parkQuestion(root, 'Q-099', { until: 'x' }), /No open question/);
+  assert.throws(() => parkQuestion(root, a.id, { until: '  ' }), /until/);
+});
+
+test('g16: a deferred question cannot be parked (flush it first)', () => {
+  const root = makeProject();
+  const a = addQuestion(root, { ...q, defer: true });
+  assert.throws(() => parkQuestion(root, a.id, { until: 'x' }), /deferred/);
+});
+
+test('g16: the hand-off and resume summary list parked questions separately from queued ones', () => {
+  const root = makeProject();
+  const a = addQuestion(root, q);
+  addQuestion(root, { ...q, title: 'Live one?' });
+  parkQuestion(root, a.id, { until: 'first sale' });
+  const text = buildResumeSummary(root, { gitStatus: '' });
+  const queued = text.slice(text.indexOf('Queued owner questions:'), text.indexOf('Parked owner questions'));
+  assert.match(queued, /Q-002/);
+  assert.doesNotMatch(queued, /Q-001/);
+  assert.match(text, /Parked owner questions[^\n]*:\n- Q-001: License\? \(until first sale\)/);
+});
+
+test('g16: decisions.js park and unpark on the command line; open lists only unparked ones', () => {
+  const root = makeProject();
+  const run = (...args) => spawnSync(process.execPath, [decisionsCli, ...args, '--project', root], { encoding: 'utf8' });
+  assert.equal(ask(root).status, 0);
+  assert.equal(run('park', 'Q-001').status, 1, 'park needs --until');
+  const r = run('park', 'Q-001', '--until', 'first sale');
+  assert.equal(r.status, 0, r.stderr);
+  assert.deepEqual(JSON.parse(run('open').stdout), []);
+  assert.equal(JSON.parse(run('parked').stdout)[0].id, 'Q-001');
+  assert.equal(run('unpark', 'Q-001').status, 0);
+  assert.equal(JSON.parse(run('open').stdout).length, 1);
+});

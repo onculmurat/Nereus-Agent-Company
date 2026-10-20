@@ -38,7 +38,8 @@ export function buildResumeSummary(root, { gitStatus } = {}) {
   const inProgress = board.entries.filter((e) => e.status === 'in-progress' || e.status === 'review');
   const pending = board.entries.filter((e) => e.status === 'todo' || e.status === 'blocked');
   const unread = listInbox(root, 'team-lead').length;
-  const questions = [...open].sort((a, b) => (a.blocking === 'yes' ? 0 : 1) - (b.blocking === 'yes' ? 0 : 1));
+  const parked = open.filter((q) => q.state === 'parked');
+  const questions = open.filter((q) => q.state !== 'parked').sort((a, b) => (a.blocking === 'yes' ? 0 : 1) - (b.blocking === 'yes' ? 0 : 1));
 
   const parts = [`Phase: ${board.phase}`];
   const handoff = latestLeadHandoff(root);
@@ -52,6 +53,9 @@ export function buildResumeSummary(root, { gitStatus } = {}) {
   if (unread) parts.push(`Unread for team-lead: ${unread}`);
   if (questions.length) {
     parts.push(['Queued owner questions:', ...capped(questions.map((q) => `- ${q.id}: ${q.title}${q.blocking === 'yes' ? ' [blocking]' : ''}`))].join('\n'));
+  }
+  if (parked.length) {
+    parts.push(['Parked owner questions (owner-deferred; they do not block compaction):', ...capped(parked.map((q) => `- ${q.id}: ${q.title} (until ${q['parked-until'] ?? 'later'})`))].join('\n'));
   }
   return `${parts.join('\n\n')}\n`;
 }
