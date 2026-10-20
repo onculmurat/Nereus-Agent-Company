@@ -179,3 +179,67 @@ test('g22: cost.js --save --task warns when part of the task dispatches had no p
   assert.match(r.warnings[0], /packed 50%/);
   assert.match(r.warnings[0], /T-009/);
 });
+
+// ---- A3 (g23) irreversible / spending go path ----
+import { execFileSync } from 'node:child_process';
+
+const decisionsCli = path.join(pluginRoot, 'scripts', 'decisions.js');
+const ask = (root, ...extra) => spawnSync(process.execPath, [decisionsCli, 'ask', '--title', 'Run the paid bench?', '--source', 's', '--status', 'st', '--impact', 'i', '--blocking', 'yes', '--thread', 'bench', '--options', 'go|no', '--recommend', 'go', '--project', root, ...extra], { encoding: 'utf8' });
+
+function irreversibleProject({ brief, gate = exit(0), testFile = true } = {}) {
+  const root = projectWith({ gateCommands: [{ name: 'test', command: gate }] });
+  fs.mkdirSync(path.join(root, 'team', 'work', 'tasks'), { recursive: true });
+  if (brief !== undefined) fs.writeFileSync(path.join(root, 'team', 'work', 'tasks', 'T-037.md'), brief);
+  if (testFile) { fs.mkdirSync(path.join(root, 'tests')); fs.writeFileSync(path.join(root, 'tests', 'go_path.rs'), '// stub runner'); }
+  return root;
+}
+
+test('g23: an --irreversible go question needs --task', () => {
+  const r = ask(irreversibleProject(), '--irreversible');
+  assert.equal(r.status, 1);
+  assert.match(r.stderr, /--irreversible needs --task/);
+});
+
+test('g23: refused when the brief names no go-path test', () => {
+  const r = ask(irreversibleProject({ brief: '# T-037\nRun bench with --yes.\n' }), '--irreversible', '--task', 'T-037');
+  assert.equal(r.status, 1);
+  assert.match(r.stderr, /Go-path test/);
+});
+
+test('g23: refused when the named test file does not exist', () => {
+  const r = ask(irreversibleProject({ brief: '# T-037\nGo-path test: tests/missing.rs\n' }), '--irreversible', '--task', 'T-037');
+  assert.equal(r.status, 1);
+  assert.match(r.stderr, /tests\/missing\.rs/);
+});
+
+test('g23: refused when the gate is red', () => {
+  const r = ask(irreversibleProject({ brief: '# T-037\nGo-path test: tests/go_path.rs\n', gate: exit(1) }), '--irreversible', '--task', 'T-037');
+  assert.equal(r.status, 1);
+  assert.match(r.stderr, /gate is not green/);
+});
+
+test('g23: refused (closed) when no gate command is configured', () => {
+  const root = irreversibleProject({ brief: '# T-037\nGo-path test: tests/go_path.rs\n' });
+  fs.writeFileSync(path.join(root, 'team', 'config.json'), '{}');
+  assert.equal(ask(root, '--irreversible', '--task', 'T-037').status, 1);
+});
+
+test('g23: allowed when the brief names an existing test and the gate is green; the question carries the tag', () => {
+  const root = irreversibleProject({ brief: '# T-037\n- Go-path test: `tests/go_path.rs` (stub runner, --yes reaches the executor)\n' });
+  const r = ask(root, '--irreversible', '--task', 'T-037');
+  assert.equal(r.status, 0, r.stderr);
+  assert.equal(JSON.parse(r.stdout).irreversible, 'yes');
+  assert.equal(readDecisions(root).open[0].irreversible, 'yes');
+});
+
+test('g23: a question without --irreversible is untouched', () => {
+  assert.equal(ask(irreversibleProject()).status, 0);
+});
+
+test('g23: planner and question-protocol text carry the rule', () => {
+  const planner = fs.readFileSync(path.join(pluginRoot, 'agents', 'planner.md'), 'utf8');
+  assert.match(planner, /Go-path test/);
+  assert.match(planner, /stub runner/);
+  const qp = fs.readFileSync(path.join(pluginRoot, 'skills', 'question-protocol', 'SKILL.md'), 'utf8');
+  assert.match(qp, /--irreversible/);
+});

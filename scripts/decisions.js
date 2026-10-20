@@ -4,6 +4,11 @@ import { runCli, need, UsageError } from './lib/cli.js';
 import fs from 'node:fs';
 import { readDecisions, addQuestion, flushQuestions, decide, recordOutcomes, amendDecision, threadFromText } from './lib/decisions.js';
 import { isValidThread } from './lib/mailbox.js';
+import { irreversibleProblems } from './lib/irreversible.js';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const pluginRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 const usage = `Usage:
   decisions.js show
@@ -12,6 +17,9 @@ const usage = `Usage:
                                          --options "a|b" --recommend <option> [--defer] [--task <id>] [--finding-class <observed|known|theoretical>]
                                          --finding-class: required in spirit when the question proposes a new task; a theoretical-only proposal
                                          cannot recommend "now" (recommend the phase end)
+                                         --irreversible --task <id>: the question asks the owner for "go" on an irreversible or spending step;
+                                         refused unless the task brief has a line "Go-path test: <file>" (stub-runner test of the go path)
+                                         and the gate is green
                                          --defer: not blocking, asked later in a batch; board.js refuses done for the --task until flushed
   decisions.js flush [--task <id>]       prints deferred questions as JSON groups of at most 4 (one AskUserQuestion call each), marks them open
   decisions.js decide <Q-id> --answer <text> [--link <path or url>]
@@ -65,7 +73,7 @@ function normalize(item, i) {
 runCli(usage, {
   title: { type: 'string' }, source: { type: 'string' }, status: { type: 'string' }, impact: { type: 'string' },
   blocking: { type: 'string' }, thread: { type: 'string' }, answer: { type: 'string' }, link: { type: 'string' },
-  outcome: { type: 'string' }, file: { type: 'string' }, supersedes: { type: 'string' }, date: { type: 'string' }, defer: { type: 'boolean' }, task: { type: 'string' }, options: { type: 'string' }, recommend: { type: 'string' }, 'finding-class': { type: 'string' },
+  outcome: { type: 'string' }, file: { type: 'string' }, supersedes: { type: 'string' }, date: { type: 'string' }, defer: { type: 'boolean' }, task: { type: 'string' }, options: { type: 'string' }, recommend: { type: 'string' }, 'finding-class': { type: 'string' }, irreversible: { type: 'boolean' },
 }, ({ values: v, positionals: [cmd, id], root }) => {
   switch (cmd) {
     case 'show':
@@ -77,6 +85,11 @@ runCli(usage, {
       if (!['yes', 'no'].includes(v.blocking)) throw new UsageError('--blocking must be yes or no');
       checkChoices(v);
       checkFindingClass(v);
+      if (v.irreversible) {
+        if (!v.task) throw new UsageError('--irreversible needs --task <id>: the brief of that task must name the go-path test');
+        const problems = irreversibleProblems(root, v.task, { pluginRoot });
+        if (problems.length) throw new UsageError(`Irreversible go question refused:\n- ${problems.join('\n- ')}`);
+      }
       return addQuestion(root, v);
     case 'flush':
       return flushQuestions(root, { task: v.task });
