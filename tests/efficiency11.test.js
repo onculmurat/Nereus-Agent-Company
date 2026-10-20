@@ -51,7 +51,7 @@ test('--permissions writes only the rule, keeps formatting and commits that one 
   assert.equal(settingsOf(root).autoCompactWindow, 200000);
   assert.deepEqual(settingsOf(root).permissions.allow, [`Bash(node "${slash(pluginRoot)}/scripts/team-commit.js" *)`, `Bash(node "${slash(pluginRoot)}/scripts/task.js" *)`]);
   assert.equal(git('status', '--porcelain'), '');
-  assert.match(git('log', '-1', '--format=%s'), /^chore\(nac\): allow team-commit\.js/);
+  assert.match(git('log', '-1', '--format=%s'), /^chore\(nac\): allow team-commit\.js and task\.js for the lead \(g27, g33\)$/);
   assert.equal(applyPermissions(planPermissions(root, { pluginRoot, sources: [] })).changed, false);
 });
 

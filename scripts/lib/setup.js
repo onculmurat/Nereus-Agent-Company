@@ -113,7 +113,7 @@ export function planPermissions(projectRoot, { pluginRoot, sources } = {}) {
 }
 
 export function applyPermissions(plan) {
-  return writeAndCommit(plan, 'chore(nac): allow team-commit.js for the lead (g27)', 'the allow rule');
+  return writeAndCommit(plan, 'chore(nac): allow team-commit.js and task.js for the lead (g27, g33)', 'the allow rules');
 }
 
 // g29: only the owner sets the proxy (the classifier refuses a standing delegation the lead writes itself).

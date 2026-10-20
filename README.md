@@ -243,6 +243,10 @@ The next session starts with a resume summary: phase, work in progress (with `gi
 
 `team/brief.md`, `decisions.md`, `contracts/`, `research/`, `glossary.md` and `config.json` are meant to be committed. `team/work/` (board, briefs, hand-offs, escalations, mailbox) is committed too; only `team/work/packs/` (generated context packs) is git-ignored. The lead commits it in its own commits, `chore(team): <what>`, after each task is marked done and at each lead rotation, staging explicit paths and never mixing it into a code commit. Setup changes an older `.gitignore` line `team/work/` to `team/work/packs/` and shows the diff first.
 
+## Changes in 1.3.6
+
+- **Permissions commit names both scripts**: `setup.js --permissions` committed as `allow team-commit.js for the lead (g27)` although it also adds the `task.js` rule (g33); the message is now `chore(nac): allow team-commit.js and task.js for the lead (g27, g33)`.
+
 ## Changes in 1.3.5
 
 - **Fewer lead calls for bookkeeping** (g33): about a third of the lead's calls went to the board, team commits, the hand-off and findings. `task.js start <id>` now does in-progress, the hand-off skeleton with the base commit, the worktree and the role's pack, then one commit; `task.js note <id>` appends to the hand-off; `task.js close <id> --commit <sha> [--findings <file>] --lead-note <text>` records the findings, done (same refusals as before), the cost file and, when due, the lead hand-off, then one commit. Setup's allow rule covers `task.js` too; for a project set up earlier run `! node <path>/scripts/setup.js --permissions` once.
