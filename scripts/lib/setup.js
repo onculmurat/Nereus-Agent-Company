@@ -2,6 +2,7 @@
 // and never replaces an existing settings value; conflicts stop the apply.
 import fs from 'node:fs';
 import path from 'node:path';
+import os from 'node:os';
 import { execFileSync } from 'node:child_process';
 import { detectGateCommands } from './gate.js';
 import { commitPaths, dirtyPaths, notIgnored } from './commit.js';
@@ -39,7 +40,33 @@ function readJsonOrNull(file) {
   }
 }
 
-function planSettings(projectRoot, compaction = {}) {
+// g27: the auto-mode classifier refuses the lead's team-commit.js run ("Modify Shared Resources"), so every team
+// commit fell to the owner. The project allows exactly that script, from the plugin root and from a directory
+// marketplace source (the lead reads scripts from there), and nothing else.
+export function marketplaceSources(file = path.join(os.homedir(), '.claude', 'plugins', 'known_marketplaces.json')) {
+  try {
+    const known = JSON.parse(fs.readFileSync(file, 'utf8').replace(/^\uFEFF/, ''));
+    return Object.values(known)
+      .filter((m) => m?.source?.source === 'directory' && typeof m.source.path === 'string')
+      .map((m) => m.source.path)
+      .filter((p) => fs.existsSync(path.join(p, 'scripts', 'team-commit.js')));
+  } catch {
+    return [];
+  }
+}
+
+export function teamCommitRules(pluginRoot, { sources = marketplaceSources() } = {}) {
+  const rule = (root) => `Bash(node "${String(root).replace(/\\/g, '/').replace(/\/+$/, '')}/scripts/team-commit.js" *)`;
+  return [...new Set([pluginRoot, ...sources].map(rule))];
+}
+
+function addAllowRules(settings, rules) {
+  settings.permissions ??= {};
+  settings.permissions.allow ??= [];
+  for (const r of rules) if (!settings.permissions.allow.includes(r)) settings.permissions.allow.push(r);
+}
+
+function planSettings(projectRoot, compaction = {}, rules = []) {
   const file = path.join(projectRoot, '.claude', 'settings.json');
   const before = readJsonOrNull(file);
   const after = structuredClone(before ?? {});
@@ -57,6 +84,7 @@ function planSettings(projectRoot, compaction = {}) {
   // Conditional compaction: an existing value of the owner is kept, never a conflict.
   if (after.autoCompactWindow === undefined) after.autoCompactWindow = compaction.autoCompactWindow ?? 200000;
   if (after.idleCompaction === undefined) after.idleCompaction = false;
+  if (rules.length) addAllowRules(after, rules);
   return { path: file, before, after, conflicts };
 }
 
@@ -68,6 +96,20 @@ export function planCompaction(projectRoot, { config } = {}) {
   after.autoCompactWindow ??= plan.after.autoCompactWindow;
   after.idleCompaction ??= plan.after.idleCompaction;
   return { path: plan.path, before: plan.before, after };
+}
+
+// Only the team-commit allow rule, for projects set up earlier (the owner runs it; the classifier blocks the lead
+// from editing its own permissions, "Self-Modification").
+export function planPermissions(projectRoot, { pluginRoot, sources } = {}) {
+  const file = path.join(path.resolve(projectRoot), '.claude', 'settings.json');
+  const before = readJsonOrNull(file);
+  const after = structuredClone(before ?? {});
+  addAllowRules(after, teamCommitRules(pluginRoot, sources === undefined ? {} : { sources }));
+  return { path: file, before, after };
+}
+
+export function applyPermissions(plan) {
+  return writeAndCommit(plan, 'chore(nac): allow team-commit.js for the lead (g27)', 'the allow rule');
 }
 
 export function hasCompactionSettings(projectRoot) {
@@ -94,6 +136,10 @@ const originalText = (file) => (fs.existsSync(file) ? fs.readFileSync(file, 'utf
 // is not blocked by NAC's own change. Fail-open: when it cannot commit (no git, ignored file, owner edits already
 // pending in the file) it leaves the file written and returns a warning. Returns { changed, committed, warning }.
 export function applyCompaction(plan) {
+  return writeAndCommit(plan, 'chore(nac): enable conditional compaction settings', 'the compaction keys');
+}
+
+function writeAndCommit(plan, message, what) {
   if (JSON.stringify(plan.before) === JSON.stringify(plan.after)) return { changed: false, committed: false };
   const dir = path.dirname(plan.path);
   const git = (...args) => execFileSync('git', args, { cwd: dir, stdio: ['ignore', 'pipe', 'pipe'], encoding: 'utf8' }).trim();
@@ -114,10 +160,10 @@ export function applyCompaction(plan) {
     }
     dirtyBefore = false;
   }
-  if (dirtyBefore) return { changed: true, committed: false, warning: `${path.basename(plan.path)} had uncommitted edits already; the compaction keys are written but not committed. Commit it yourself, or the PreCompact clean-tree check waits for the ceiling.` };
+  if (dirtyBefore) return { changed: true, committed: false, warning: `${path.basename(plan.path)} had uncommitted edits already; ${what} ${what.endsWith('keys') ? 'are' : 'is'} written but not committed. Commit it yourself, or the PreCompact clean-tree check waits for the ceiling.` };
   try {
     git('add', '--', plan.path);
-    git('commit', '-q', '-m', 'chore(nac): enable conditional compaction settings', '--', plan.path);
+    git('commit', '-q', '-m', message, '--', plan.path);
     return { changed: true, committed: true };
   } catch (e) {
     return { changed: true, committed: false, warning: `not committed (${String(e.stderr || e.message).trim().split('\n')[0]}). Commit ${path.basename(plan.path)} yourself so the PreCompact clean-tree check passes.` };
@@ -189,7 +235,7 @@ export function planSetup(projectRoot, { pluginRoot, config }) {
   return {
     projectRoot: root,
     files,
-    settings: planSettings(root, config.compaction),
+    settings: planSettings(root, config.compaction, teamCommitRules(pluginRoot)),
     gateCommands,
     claudeMd: planClaudeMd(root, pluginRoot),
     // gitignoreLine: the line to write; gitignoreReplaces: the older whole-folder line it takes the place of.
