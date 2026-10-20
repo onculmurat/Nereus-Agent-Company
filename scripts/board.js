@@ -15,7 +15,8 @@ const usage = `Usage:
                                          --hardening yes: the module's hardening task (needs --module); a second one in the same module and phase is refused
                                          unless --decision names a decision recorded in decisions.md
                                          --code no: a task that produces no code (spike, research, docs only); gate.js --task checks its report file
-  board.js update <id> [--status <todo|in-progress|review|done|blocked>] [--owner <role>] [--model <m>] [--commit <sha>] [--handoff <path>] [--code <yes|no>] [--security <yes|no|contract>] [--module <m>] [--size <S|M|L>]
+  board.js update <id> [--status <todo|in-progress|review|done|blocked>] [--owner <role>] [--model <m>] [--commit <sha>] [--handoff <path>] [--worktree <path>] [--code <yes|no>] [--security <yes|no|contract>] [--module <m>] [--size <S|M|L>]
+                                         --status in-progress is refused while another code task is in progress in the same tree; parallel tasks each get a worktree (worktree.js add <id>) and record it with --worktree <path>
                                          --size M or L: done warns when the task has a single code commit (developers commit each green step)
                                          a brief that cites threat-model IDs ("threat-model T12, M2") tags the task security: yes when it is added or started (--security no or an existing tag wins)
                                          --security yes: reviewed per module by security-reviewer; contract (task changes a security contract): done is refused until a pass is recorded (review)
@@ -53,7 +54,7 @@ const commands = {
     const patch = {};
     checkYesNo('code', v.code);
     checkYesNo('security', v.security, ['yes', 'no', 'contract']);
-    for (const k of ['status', 'owner', 'model', 'handoff', 'code', 'security', 'module', 'size']) if (v[k] !== undefined) patch[k] = v[k];
+    for (const k of ['status', 'owner', 'model', 'handoff', 'code', 'security', 'module', 'size', 'worktree']) if (v[k] !== undefined) patch[k] = v[k];
     if (v.commit !== undefined) {
       verifyCommit(root, v.commit);
       const entry = readBoard(root).entries.find((e) => e.id === id);
@@ -111,7 +112,7 @@ const commands = {
 
 const options = {
   title: { type: 'string' }, owner: { type: 'string' }, model: { type: 'string' }, id: { type: 'string' },
-  status: { type: 'string' }, code: { type: 'string' }, security: { type: 'string' }, module: { type: 'string' }, role: { type: 'string' }, verdict: { type: 'string' }, commit: { type: 'string' }, handoff: { type: 'string' }, reset: { type: 'boolean' }, approach: { type: 'string' }, hardening: { type: 'string' }, decision: { type: 'string' }, size: { type: 'string' },
+  status: { type: 'string' }, code: { type: 'string' }, security: { type: 'string' }, module: { type: 'string' }, role: { type: 'string' }, verdict: { type: 'string' }, commit: { type: 'string' }, handoff: { type: 'string' }, reset: { type: 'boolean' }, approach: { type: 'string' }, hardening: { type: 'string' }, decision: { type: 'string' }, size: { type: 'string' }, worktree: { type: 'string' },
 };
 
 // g15: with compaction configured the lead rotates by hand-off and autocompact; /clear is for projects without it.

@@ -60,6 +60,7 @@ export function readBoard(root) {
     model: f.model ?? '',
     commits: (f.commits ?? '').split(',').map((s) => s.trim()).filter(Boolean),
     handoff: f.handoff ?? '',
+    ...(f.worktree ? { worktree: f.worktree } : {}),
     ...(Number(f.foldins) > 0 ? { foldins: Number(f.foldins) } : {}),
     ...(f.approach ? { approach: f.approach, roundsBase: Number(f.roundsbase ?? 0) } : {}),
     ...(f.code === 'no' ? { code: 'no' } : {}),
@@ -80,6 +81,7 @@ export function writeBoard(root, board) {
   fs.mkdirSync(path.dirname(file), { recursive: true });
   const blocks = board.entries.map((e) => formatEntry('##', e.id, e.title, {
     owner: e.owner, status: e.status, rounds: e.rounds, model: e.model, commits: e.commits.join(', '), handoff: e.handoff,
+    ...(e.worktree ? { worktree: e.worktree } : {}),
     ...(e.foldins > 0 ? { foldins: e.foldins } : {}),
     ...(e.approach ? { approach: e.approach, roundsbase: e.roundsBase ?? 0 } : {}),
     ...(e.code === 'no' ? { code: 'no' } : {}),
@@ -166,7 +168,9 @@ export function updateEntry(root, id, patch) {
   if (patch.status === 'done') checkDone(root, { ...entry, ...(patch.security === undefined ? {} : { security: patch.security }) });
   if (patch.status === 'done' && entry.status !== 'done') board.doneSinceRotation = (board.doneSinceRotation ?? 0) + 1;
   if (patch.module !== undefined && patch.module !== '') checkModuleName(patch.module);
+  if (patch.status === 'in-progress') checkTreeFree(board, entry, patch.worktree ?? entry.worktree);
   Object.assign(entry, patch);
+  if (!entry.worktree) delete entry.worktree;
   const note = patch.status === 'in-progress' ? autoTagSecurity(root, entry, { explicit: patch.security }) : undefined;
   if (!entry.module) delete entry.module;
   if (entry.code !== 'no') delete entry.code;
@@ -174,6 +178,19 @@ export function updateEntry(root, id, patch) {
   writeBoard(root, board);
   const warnings = patch.status === 'done' ? doneWarnings(entry) : [];
   return { ...entry, ...(note ? { securityNote: note } : {}), ...(warnings.length ? { warnings } : {}) };
+}
+
+// g24: two implementers in one working tree share the git index (a formatter or `git add` of one pulls the other's
+// files into its commit). A code task starts only when no other in-progress code task uses the same tree: the main
+// tree (no worktree recorded) or the same worktree path. Tasks with distinct worktrees run in parallel.
+function checkTreeFree(board, entry, worktree) {
+  if (entry.code === 'no') return;
+  const tree = worktree || '';
+  const other = board.entries.find((e) => e.id !== entry.id && e.status === 'in-progress' && e.code !== 'no' && (e.worktree || '') === tree);
+  if (!other) return;
+  throw new Error(tree
+    ? `${entry.id} cannot start in worktree ${tree}: ${other.id} is in progress there. Use its own worktree.`
+    : `${entry.id} cannot start in the main working tree: ${other.id} is in progress there, and two implementers in one tree share the git index (one's formatter or commit pulls in the other's files). Run it in its own worktree: node "<scripts>/worktree.js" add ${entry.id}, then board.js update ${entry.id} --status in-progress --worktree <printed path>.`);
 }
 
 // Advisory only (never blocks done): a medium or large task with at most one code commit lost its work once at a quota stop.

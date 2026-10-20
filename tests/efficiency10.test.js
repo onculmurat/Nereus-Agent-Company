@@ -725,3 +725,78 @@ test('g12: an unreadable cache path falls back to the sha-only warning; nothing 
   fs.writeFileSync(path.join(c.plugins, 'installed_plugins.json'), JSON.stringify(rec));
   assert.match(pluginSourceDrift({ pluginsDir: c.plugins }), /NAC plugin drift/);
 });
+
+// ---- D1 (g24) parallel developers need their own worktree ----
+import { worktreePath } from '../scripts/lib/worktree.js';
+
+const code2 = (root) => {
+  addEntry(root, { id: 'T-1', title: 'refs', owner: 'backend-developer', model: 'sonnet' });
+  addEntry(root, { id: 'T-2', title: 'parse', owner: 'backend-developer', model: 'sonnet' });
+};
+
+test('g24: a second in-progress code task in the same tree is refused and names worktree.js', () => {
+  const root = makeProject();
+  code2(root);
+  updateEntry(root, 'T-1', { status: 'in-progress' });
+  assert.throws(() => updateEntry(root, 'T-2', { status: 'in-progress' }), /T-1.*worktree\.js/s);
+  assert.equal(readBoard(root).entries.find((e) => e.id === 'T-2').status, 'todo', 'the refused task is unchanged');
+});
+
+test('g24: distinct worktrees are allowed; the same worktree twice is refused', () => {
+  const root = makeProject();
+  code2(root);
+  updateEntry(root, 'T-1', { status: 'in-progress', worktree: '/wt/T-1' });
+  assert.doesNotThrow(() => updateEntry(root, 'T-2', { status: 'in-progress', worktree: '/wt/T-2' }));
+  assert.equal(readBoard(root).entries[1].worktree, '/wt/T-2');
+  addEntry(root, { id: 'T-3', title: 'x', owner: 'backend-developer', model: 'sonnet' });
+  assert.doesNotThrow(() => updateEntry(root, 'T-3', { status: 'in-progress' }), 'the main tree is free');
+  addEntry(root, { id: 'T-4', title: 'y', owner: 'backend-developer', model: 'sonnet' });
+  assert.throws(() => updateEntry(root, 'T-4', { status: 'in-progress', worktree: '/wt/T-2' }), /T-2/);
+});
+
+test('g24: code: no tasks and tasks in review do not count as occupying the tree', () => {
+  const root = makeProject();
+  code2(root);
+  addEntry(root, { id: 'T-9', title: 'spike', owner: 'researcher', model: 'sonnet', code: 'no' });
+  updateEntry(root, 'T-9', { status: 'in-progress' });
+  updateEntry(root, 'T-1', { status: 'in-progress' });
+  updateEntry(root, 'T-1', { status: 'review' });
+  assert.doesNotThrow(() => updateEntry(root, 'T-2', { status: 'in-progress' }));
+});
+
+test('g24: re-marking the same task in-progress is not a conflict with itself', () => {
+  const root = makeProject();
+  code2(root);
+  updateEntry(root, 'T-1', { status: 'in-progress' });
+  assert.doesNotThrow(() => updateEntry(root, 'T-1', { status: 'in-progress', handoff: 'team/work/handoffs/T-1.md' }));
+});
+
+test('g24: worktreePath honours a base directory (config worktreeRoot)', () => {
+  const root = path.join(os.tmpdir(), 'proj');
+  assert.equal(worktreePath(root, 'T-7'), path.join(`${root}-wt`, 'T-7'));
+  assert.equal(worktreePath(root, 'T-7', { worktreeRoot: path.join(os.tmpdir(), 'bigdrive') }), path.join(os.tmpdir(), 'bigdrive', 'proj-wt', 'T-7'));
+});
+
+test('g24: worktreeRoot must be a non-empty string', () => {
+  const base = loadConfig({ pluginRoot, userConfigPath: null });
+  assert.doesNotThrow(() => validateConfig({ ...base, worktreeRoot: '/big' }));
+  for (const bad of ['', ' ', 5, []]) assert.throws(() => validateConfig({ ...base, worktreeRoot: bad }), /worktreeRoot/);
+});
+
+test('g24: board.js update --worktree is recorded and the CLI refuses a second tree user', () => {
+  const root = makeProject();
+  code2(root);
+  const run = (...a) => spawnSync(process.execPath, [path.join(pluginRoot, 'scripts', 'board.js'), ...a, '--project', root], { encoding: 'utf8' });
+  assert.equal(run('update', 'T-1', '--status', 'in-progress').status, 0);
+  const r = run('update', 'T-2', '--status', 'in-progress');
+  assert.equal(r.status, 1);
+  assert.match(r.stderr, /worktree.js" add T-2/);
+  assert.equal(run('update', 'T-2', '--status', 'in-progress', '--worktree', '/wt/T-2').status, 0);
+});
+
+test('g24: the task-loop skill says parallel code tasks always get their own worktree', () => {
+  const t = fs.readFileSync(path.join(pluginRoot, 'skills', 'task-loop', 'SKILL.md'), 'utf8');
+  assert.match(t, /parallel code tasks always get their own worktree/i);
+  assert.match(t, /--worktree/);
+  assert.match(t, /worktreeRoot/);
+});

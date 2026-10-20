@@ -220,6 +220,7 @@ test('A4 a brief without threat-model IDs is left alone; an explicit tag is kept
   addTask(root, 'T-001');
   briefFor(root, 'T-001', '# T-001\n\nNo threats here, mentions T12 in prose only.\n');
   assert.equal(board(root, 'update', 'T-001', '--status', 'in-progress').out.security, undefined);
+  board(root, 'update', 'T-001', '--status', 'review'); // g24: one code task per working tree at a time
   addTask(root, 'T-002', '--security', 'contract');
   briefFor(root, 'T-002', 'threat-model T5\n');
   assert.equal(board(root, 'update', 'T-002', '--status', 'in-progress').out.security, 'contract');

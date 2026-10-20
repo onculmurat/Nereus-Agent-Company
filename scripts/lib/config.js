@@ -67,6 +67,9 @@ export function validateConfig(cfg) {
   if (cfg.testCommand !== undefined && (typeof cfg.testCommand !== 'string' || !cfg.testCommand.trim())) {
     throw new Error(`testCommand must be a non-empty command string; got ${JSON.stringify(cfg.testCommand)}`);
   }
+  if (cfg.worktreeRoot !== undefined && (typeof cfg.worktreeRoot !== 'string' || !cfg.worktreeRoot.trim())) {
+    throw new Error(`worktreeRoot must be a non-empty directory path; got ${JSON.stringify(cfg.worktreeRoot)}`);
+  }
   const g = cfg.gateCommands;
   if (g !== undefined) {
     if (!Array.isArray(g) || g.length === 0) throw new Error(`gateCommands must be a non-empty list of { name, command }; got ${JSON.stringify(g)}`);
