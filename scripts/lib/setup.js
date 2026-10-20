@@ -2,6 +2,7 @@
 // and never replaces an existing settings value; conflicts stop the apply.
 import fs from 'node:fs';
 import path from 'node:path';
+import { execFileSync } from 'node:child_process';
 import { detectGateCommands } from './gate.js';
 
 export const PLUGIN_KEY = 'nac@nereus-agent-company';
@@ -76,11 +77,50 @@ export function hasCompactionSettings(projectRoot) {
   }
 }
 
+// Serialises a JSON value the way the original file was written: same indentation (tab or N spaces), same line
+// endings (CRLF or LF) and the same trailing-newline habit, so a two-key change is a two-line diff (g11).
+export function formatLike(value, original) {
+  const text = typeof original === 'string' ? original.replace(/^\uFEFF/, '') : '';
+  const eol = text.includes('\r\n') ? '\r\n' : '\n';
+  const indent = /\n([\t ]+)\S/.exec(text.replace(/\r\n/g, '\n'))?.[1] ?? '  ';
+  const trailing = text === '' || /\n$/.test(text) ? eol : '';
+  return JSON.stringify(value, null, indent).replace(/\n/g, eol) + trailing;
+}
+
+const originalText = (file) => (fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : null);
+
+// Writes the two keys and commits that one file as its own chore(nac) commit, so the PreCompact clean-tree check
+// is not blocked by NAC's own change. Fail-open: when it cannot commit (no git, ignored file, owner edits already
+// pending in the file) it leaves the file written and returns a warning. Returns { changed, committed, warning }.
 export function applyCompaction(plan) {
-  if (JSON.stringify(plan.before) === JSON.stringify(plan.after)) return;
-  fs.mkdirSync(path.dirname(plan.path), { recursive: true });
-  fs.writeFileSync(plan.path, `${JSON.stringify(plan.after, null, 2)}
-`);
+  if (JSON.stringify(plan.before) === JSON.stringify(plan.after)) return { changed: false, committed: false };
+  const dir = path.dirname(plan.path);
+  const git = (...args) => execFileSync('git', args, { cwd: dir, stdio: ['ignore', 'pipe', 'pipe'], encoding: 'utf8' }).trim();
+  let dirtyBefore = null;
+  try {
+    if (fs.existsSync(dir)) dirtyBefore = git('status', '--porcelain', '--', plan.path) !== '';
+  } catch {
+    dirtyBefore = null; // not a git repository
+  }
+  const original = originalText(plan.path);
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(plan.path, formatLike(plan.after, original));
+  if (dirtyBefore === null) {
+    try {
+      git('rev-parse', '--is-inside-work-tree');
+    } catch {
+      return { changed: true, committed: false, warning: 'not committed: the project is not a git repository' };
+    }
+    dirtyBefore = false;
+  }
+  if (dirtyBefore) return { changed: true, committed: false, warning: `${path.basename(plan.path)} had uncommitted edits already; the compaction keys are written but not committed. Commit it yourself, or the PreCompact clean-tree check waits for the ceiling.` };
+  try {
+    git('add', '--', plan.path);
+    git('commit', '-q', '-m', 'chore(nac): enable conditional compaction settings', '--', plan.path);
+    return { changed: true, committed: true };
+  } catch (e) {
+    return { changed: true, committed: false, warning: `not committed (${String(e.stderr || e.message).trim().split('\n')[0]}). Commit ${path.basename(plan.path)} yourself so the PreCompact clean-tree check passes.` };
+  }
 }
 
 // The project CLAUDE.md block that still works when the plugin is not loaded and no hook runs.
@@ -169,7 +209,7 @@ export function applySetup(plan) {
   }
   if (JSON.stringify(plan.settings.before) !== JSON.stringify(plan.settings.after)) {
     fs.mkdirSync(path.dirname(plan.settings.path), { recursive: true });
-    fs.writeFileSync(plan.settings.path, `${JSON.stringify(plan.settings.after, null, 2)}\n`);
+    fs.writeFileSync(plan.settings.path, formatLike(plan.settings.after, originalText(plan.settings.path)));
   }
   if (plan.gateCommands) {
     const cfgFile = path.join(plan.projectRoot, 'team', 'config.json');

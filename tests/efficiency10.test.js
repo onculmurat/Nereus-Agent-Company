@@ -381,3 +381,50 @@ test('g21: developers add no behaviour beyond the brief; the code reviewer repor
   assert.match(rev, /out-of-brief[^\n]*blocker/i, 'out-of-brief that changes behaviour is a blocker');
   assert.match(rev, /traceable to a (brief )?(acceptance )?criterion/i);
 });
+
+// ---- B3 (g11) setup --compaction: keep line endings and indentation, commit its own change ----
+import { formatLike } from '../scripts/lib/setup.js';
+
+const setupCli = path.join(pluginRoot, 'scripts', 'setup.js');
+const runSetup = (dir, ...a) => spawnSync(process.execPath, [setupCli, '--project', dir, ...a], { encoding: 'utf8' });
+
+test('g11: formatLike keeps CRLF, indentation and the trailing-newline habit of the original file', () => {
+  const crlf4 = '{\r\n    "a": 1\r\n}\r\n';
+  assert.equal(formatLike({ a: 1, b: 2 }, crlf4), '{\r\n    "a": 1,\r\n    "b": 2\r\n}\r\n');
+  assert.equal(formatLike({ a: 1, b: 2 }, '{\n\t"a": 1\n}'), '{\n\t"a": 1,\n\t"b": 2\n}', 'tab indent, no trailing newline');
+  assert.equal(formatLike({ a: 1 }, null), '{\n  "a": 1\n}\n', 'no original: 2 spaces, LF');
+});
+
+test('g11: --compaction on a CRLF settings file changes only the two keys and commits them as chore(nac)', () => {
+  const { root, git } = makeGitProject();
+  fs.mkdirSync(path.join(root, '.claude'));
+  const file = path.join(root, '.claude', 'settings.json');
+  fs.writeFileSync(file, '{\r\n    "env": {\r\n        "X": "1"\r\n    }\r\n}\r\n');
+  git('add', '-A'); git('commit', '-q', '-m', 'init');
+  const r = runSetup(root, '--compaction');
+  assert.equal(r.status, 0, r.stderr);
+  const text = fs.readFileSync(file, 'utf8');
+  assert.ok(!/[^\r]\n/.test(text), 'every line ending is still CRLF');
+  assert.match(text, /\r\n    "autoCompactWindow": 200000/, 'indentation kept');
+  assert.equal(git('status', '--porcelain'), '', 'tree is clean: the change was committed');
+  assert.match(git('log', '-1', '--format=%s'), /^chore\(nac\): /);
+  assert.equal(git('show', '--stat', '--format=', 'HEAD').split('\n').length, 2, 'the commit touches only settings.json');
+  assert.match(git('diff', 'HEAD~1', 'HEAD', '--numstat'), /^3\t1\t\.claude\/settings\.json/, 'two keys added (the comma line changes), nothing rewritten');
+});
+
+test('g11: --compaction outside git, or with settings the owner already edited, writes but does not commit (warns)', () => {
+  const plain = fs.mkdtempSync(path.join(os.tmpdir(), 'nac nogit '));
+  assert.equal(runSetup(plain, '--compaction').status, 0);
+  assert.ok(fs.existsSync(path.join(plain, '.claude', 'settings.json')));
+  const { root, git } = makeGitProject();
+  fs.mkdirSync(path.join(root, '.claude'));
+  const file = path.join(root, '.claude', 'settings.json');
+  fs.writeFileSync(file, '{\n  "a": 1\n}\n');
+  git('add', '-A'); git('commit', '-q', '-m', 'init');
+  fs.writeFileSync(file, '{\n  "a": 2\n}\n'); // owner edit, uncommitted
+  const r = runSetup(root, '--compaction');
+  assert.equal(r.status, 0, r.stderr);
+  assert.match(r.stderr + r.stdout, /not committed/i);
+  assert.equal(git('log', '-1', '--format=%s'), 'init');
+  assert.equal(JSON.parse(fs.readFileSync(file, 'utf8')).autoCompactWindow, 200000);
+});

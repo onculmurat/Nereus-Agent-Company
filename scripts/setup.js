@@ -15,7 +15,8 @@ const usage = `Usage:
   node setup.js [--project <dir>] --guard-block --dry-run   prints the block that would be written; writes nothing
                                          The owner runs --guard-block, typed in the prompt as "! node <path>/scripts/setup.js --guard-block":
                                          the auto-mode classifier blocks the lead from writing CLAUDE.md ("Self-Modification").
-  node setup.js [--project <dir>] --compaction [--dry-run]   writes only autoCompactWindow and idleCompaction into .claude/settings.json (existing values stay)
+  node setup.js [--project <dir>] --compaction [--dry-run]   writes only autoCompactWindow and idleCompaction into .claude/settings.json (existing values stay),
+                                         keeps the file's line endings and indentation, and commits that one file as chore(nac) (warns instead when it cannot)
                                          The owner runs it as "! node <path>/scripts/setup.js --compaction" if the lead is blocked from editing settings.
   node setup.js --global-model-pointer [--claude-md <file>]
   node setup.js --apply-global-model-pointer [--claude-md <file>]
@@ -63,8 +64,10 @@ runCli(
       const keys = `autoCompactWindow=${plan.after.autoCompactWindow}, idleCompaction=${plan.after.idleCompaction}`;
       if (values['dry-run']) return `${changed ? 'would write' : 'already set, nothing would change in'} ${plan.path} (${keys}; nothing written)
 `;
-      applyCompaction(plan);
-      return `${changed ? 'Updated' : 'Unchanged'} ${plan.path} (${keys})
+      const done = applyCompaction(plan);
+      if (done.warning) process.stderr.write(`WARNING  ${done.warning}
+`);
+      return `${changed ? 'Updated' : 'Unchanged'} ${plan.path} (${keys})${done.committed ? '; committed as chore(nac)' : ''}
 `;
     }
     if (values['guard-block']) {
