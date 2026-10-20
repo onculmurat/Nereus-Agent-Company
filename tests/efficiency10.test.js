@@ -101,3 +101,81 @@ test('g18: the task-loop skill states the red-check-is-a-finding rule', () => {
   assert.match(loop, /gateCommands/);
   assert.match(loop, /red check you see is recorded as a finding/);
 });
+
+// ---- A2 (g22) pack enforcement at dispatch ----
+import { runHook as runHookScript } from './hooks/run-hook.js';
+import { projectSlug, saveMetrics } from '../scripts/lib/cost.js';
+import { readDecisions } from '../scripts/lib/decisions.js';
+
+const dispatch = (root, subagent_type, prompt, tool_name = 'Agent') => runHookScript('pack-guard', {
+  session_id: 's', cwd: root, hook_event_name: 'PreToolUse', tool_name, tool_input: { subagent_type, description: 'd', prompt },
+});
+
+test('g22: a code-role dispatch without a context pack is refused, and the message names the pack command', () => {
+  const root = makeProject();
+  for (const role of ['backend-developer', 'nac:frontend-developer', 'code-reviewer', 'security-reviewer']) {
+    const r = dispatch(root, role, 'Implement T-001, read the hand-off team/work/handoffs/T-000.md');
+    assert.equal(r.status, 2, role);
+    assert.match(r.stderr, /pack\.js/);
+    assert.match(r.stderr, /--no-pack/);
+  }
+  assert.equal(dispatch(root, 'backend-developer', 'x', 'Task').status, 2, 'the older Task tool name is covered too');
+});
+
+test('g22: a dispatch that names a pack, a non-code role or a non-dispatch tool passes', () => {
+  const root = makeProject();
+  assert.equal(dispatch(root, 'backend-developer', 'Read team/work/packs/T-001-backend-developer.md first.').status, 0);
+  assert.equal(dispatch(root, 'code-reviewer', 'Delta: team\\work\\packs\\T-001-code-reviewer-r2.md').status, 0);
+  assert.equal(dispatch(root, 'researcher', 'no pack needed').status, 0);
+  assert.equal(dispatch(root, 'planner', 'no pack needed').status, 0);
+  assert.equal(dispatch(root, 'general-purpose', 'explore').status, 0);
+  assert.equal(dispatch(root, 'backend-developer', 'x', 'Read').status, 0);
+});
+
+test('g22: --no-pack <reason> lets the dispatch through and records the reason in the decisions log', () => {
+  const root = makeProject();
+  const r = dispatch(root, 'backend-developer', 'T-070 quick fix. --no-pack the change is one line in a config file');
+  assert.equal(r.status, 0, r.stderr);
+  const logged = readDecisions(root).decided;
+  assert.equal(logged.length, 1);
+  assert.match(logged[0].answer, /backend-developer/);
+  assert.match(logged[0].answer, /one line in a config file/);
+  assert.equal(dispatch(root, 'backend-developer', 'T-070 --no-pack').status, 2, 'a bare --no-pack without a reason is not an escape hatch');
+});
+
+test('g22: outside a NAC project and on a malformed payload the hook stays out of the way', () => {
+  const outside = fs.mkdtempSync(path.join(os.tmpdir(), 'nac outside '));
+  assert.equal(dispatch(outside, 'backend-developer', 'x').status, 0);
+  assert.equal(runHookScript('pack-guard', 'not json').status, 0);
+  assert.equal(runHookScript('pack-guard', { cwd: makeProject(), tool_name: 'Agent', tool_input: null }).status, 0);
+});
+
+test('g22: hooks.json registers pack-guard on the dispatch tools', () => {
+  const hooksJson = JSON.parse(fs.readFileSync(path.join(pluginRoot, 'hooks', 'hooks.json'), 'utf8'));
+  const entry = hooksJson.hooks.PreToolUse.find((e) => /pack-guard\.js"$/.test(e.hooks[0].command));
+  assert.ok(entry);
+  assert.match(entry.matcher, /Agent/);
+  assert.match(entry.matcher, /Task/);
+});
+
+test('g22: cost.js --save --task warns when part of the task dispatches had no pack', () => {
+  const root = makeProject();
+  const projects = fs.mkdtempSync(path.join(os.tmpdir(), 'nac projects '));
+  const sub = path.join(projects, projectSlug(root), 's1', 'subagents');
+  fs.mkdirSync(sub, { recursive: true });
+  const line = (type, body) => JSON.stringify({ type, timestamp: '2026-10-01T10:00:00Z', message: body });
+  const mk = (name, prompt) => {
+    fs.writeFileSync(path.join(sub, `agent-${name}.jsonl`), `${[
+      line('user', { role: 'user', content: prompt }),
+      line('assistant', { id: `m-${name}`, model: 'claude-sonnet-5-5', role: 'assistant', content: [], usage: { input_tokens: 1, output_tokens: 1 } }),
+    ].join('\n')}\n`);
+    fs.writeFileSync(path.join(sub, `agent-${name}.meta.json`), JSON.stringify({ agentType: 'backend-developer' }));
+  };
+  mk('a', 'Read team/work/packs/T-009-backend-developer.md first.');
+  mk('b', 'Do T-009 from the hand-off.');
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'nac home '));
+  const r = saveMetrics(root, { task: 'T-009', projectsDir: projects, home });
+  assert.equal(r.totals.packedShare, 50);
+  assert.match(r.warnings[0], /packed 50%/);
+  assert.match(r.warnings[0], /T-009/);
+});

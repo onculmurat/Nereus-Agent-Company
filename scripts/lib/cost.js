@@ -331,7 +331,9 @@ export function saveMetrics(root, opts = {}) {
   const fresh = !fs.existsSync(shared) || fs.readFileSync(shared, 'utf8').trim() === '';
   const header = '# NAC metrics (all projects on this machine)\n\n| date | project | scope | calls | tokens | weighted | dispatches | packed | over budget |\n|---|---|---|---|---|---|---|---|---|\n';
   fs.appendFileSync(shared, `${fresh ? header : ''}| ${[localDate(now), path.basename(path.resolve(root)), scope, t.calls, t.tokens, t.weighted, t.dispatches, `${t.packedShare}%`, t.overBudget].join(' | ')} |\n`);
-  return { md, jsonl, shared, rows, totals: t };
+  // g22: a task closed with part of its dispatches unpacked gets a warning (printed by cost.js).
+  const warnings = t.dispatches && t.packedShare < 100 ? [`${scope}: packed ${t.packedShare}% (${t.packed} of ${t.dispatches} dispatches named a context pack); build the pack with pack.js before dispatching a role.`] : [];
+  return { md, jsonl, shared, rows, totals: t, warnings };
 }
 
 function roleAverages(rows) {

@@ -26,6 +26,7 @@ runCli(usage, { since: { type: 'string' }, until: { type: 'string' }, session: {
   const opts = { since: v.since, until: v.until, session: v.session, task: v.task, projectsDir: v.transcripts };
   const report = buildCostReport(root, { by: v.by, ...opts });
   if (!v.save && v.baseline === undefined) return report;
-  const { md, jsonl, shared } = saveMetrics(root, { ...opts, baseline: v.baseline });
-  return { ...report, saved: { md, jsonl, shared } };
+  const { md, jsonl, shared, warnings } = saveMetrics(root, { ...opts, baseline: v.baseline });
+  for (const w of warnings) process.stderr.write(`warning: ${w}\n`);
+  return { ...report, saved: { md, jsonl, shared }, ...(warnings.length ? { warnings } : {}) };
 });
