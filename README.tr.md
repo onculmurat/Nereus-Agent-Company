@@ -192,10 +192,10 @@ Bilmeniz gereken sınırlar:
 
 ## Koşullu sıkıştırma
 
-Lider bağlamı Claude Code tarafından kendiliğinden sıkıştırılır; bu bir görevin ortasında olabilir. NAC, otomatik sıkıştırmanın yalnız temiz bir noktada çalışmasına izin verir (yalnız lider oturumunda çalışan `PreCompact` kancası): devam eden görev yok, git çalışma ağacı temiz, son biten görevin commit'i var, açık/ertelenmiş sahip sorusu yok. Aksi halde tek satır gerekçeyle ertelenir; bağlam `compaction.ceiling` (varsayılan 300000 token) eşiğini aşarsa yine de çalışır. Elle `/compact` asla engellenmez, kanca hatası sıkıştırmaya izin verir. Çalıştığında `team/work/handoffs/compact-<damga>.md` devir notu yazılır ve sonraki oturum başı lideri ona yönlendirir. `/nac:setup` proje `.claude/settings.json` dosyasına `autoCompactWindow` (varsayılan 200000) ve `idleCompaction: false` yazar; daha önce kurulmuş projede `! node <yol>/scripts/setup.js --compaction` yalnız bunları yazar. Varsayılanlar:
+Lider bağlamı Claude Code tarafından kendiliğinden sıkıştırılır; bu bir görevin ortasında olabilir. NAC, otomatik sıkıştırmanın yalnız temiz bir noktada çalışmasına izin verir (yalnız lider oturumunda çalışan `PreCompact` kancası): liderin kendi durumu güvenli olmalı (g25): `team/` commit'li (yalnız `team/` altı sayılır), son biten görevin commit'i var, bu turda yanıt bekleyen sahip sorusu yok (park edilmiş, ertelenmiş, kuyruktaki sorular engellemez), her `in-progress` görevin devir dosyası var. Süren görevler tek başına engellemez; devir notu her birini rolü, ajanı, worktree'si ve devir dosyasıyla listeler. Aksi halde tek satır gerekçeyle ertelenir; bağlam `compaction.ceiling` (varsayılan 220000 token) eşiğini aşarsa yine de çalışır. Elle `/compact` asla engellenmez, kanca hatası sıkıştırmaya izin verir. Çalıştığında `team/work/handoffs/compact-<damga>.md` devir notu yazılır ve sonraki oturum başı lideri ona yönlendirir. `/nac:setup` proje `.claude/settings.json` dosyasına `autoCompactWindow` (varsayılan 200000) ve `idleCompaction: false` yazar; daha önce kurulmuş projede `! node <yol>/scripts/setup.js --compaction` yalnız bunları yazar. Varsayılanlar:
 
 ```json
-{ "compaction": { "autoCompactWindow": 200000, "ceiling": 300000 } }
+{ "compaction": { "autoCompactWindow": 200000, "ceiling": 220000 } }
 ```
 
 Ayrıntılar İngilizce README'de.

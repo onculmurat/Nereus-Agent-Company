@@ -61,6 +61,7 @@ export function readBoard(root) {
     commits: (f.commits ?? '').split(',').map((s) => s.trim()).filter(Boolean),
     handoff: f.handoff ?? '',
     ...(f.worktree ? { worktree: f.worktree } : {}),
+    ...(f.agent ? { agent: f.agent } : {}),
     ...(Number(f.foldins) > 0 ? { foldins: Number(f.foldins) } : {}),
     ...(f.approach ? { approach: f.approach, roundsBase: Number(f.roundsbase ?? 0) } : {}),
     ...(f.code === 'no' ? { code: 'no' } : {}),
@@ -82,6 +83,7 @@ export function writeBoard(root, board) {
   const blocks = board.entries.map((e) => formatEntry('##', e.id, e.title, {
     owner: e.owner, status: e.status, rounds: e.rounds, model: e.model, commits: e.commits.join(', '), handoff: e.handoff,
     ...(e.worktree ? { worktree: e.worktree } : {}),
+    ...(e.agent ? { agent: e.agent } : {}),
     ...(e.foldins > 0 ? { foldins: e.foldins } : {}),
     ...(e.approach ? { approach: e.approach, roundsbase: e.roundsBase ?? 0 } : {}),
     ...(e.code === 'no' ? { code: 'no' } : {}),
@@ -171,6 +173,7 @@ export function updateEntry(root, id, patch) {
   if (patch.status === 'in-progress') checkTreeFree(board, entry, patch.worktree ?? entry.worktree);
   Object.assign(entry, patch);
   if (!entry.worktree) delete entry.worktree;
+  if (!entry.agent) delete entry.agent;
   const note = patch.status === 'in-progress' ? autoTagSecurity(root, entry, { explicit: patch.security }) : undefined;
   if (!entry.module) delete entry.module;
   if (entry.code !== 'no') delete entry.code;

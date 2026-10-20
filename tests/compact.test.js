@@ -62,7 +62,7 @@ test('the handoff itself does not make the next check block', () => {
   assert.equal(pre(p, 150000).status, 0);
 });
 
-test('an active task blocks', () => {
+test('an in-flight task without a hand-off file blocks (g25)', () => {
   const p = cleanProject();
   const e = addEntry(p.root, { title: 'wip', owner: 'backend-developer', model: 'sonnet' });
   updateEntry(p.root, e.id, { status: 'in-progress' });
@@ -70,16 +70,18 @@ test('an active task blocks', () => {
   const r = pre(p, 150000);
   assert.equal(r.status, 2);
   assert.match(r.stderr, new RegExp(e.id));
+  assert.match(r.stderr, /hand-off/);
   assert.equal(handoffs(p.root).length, 0);
 });
 
-test('a dirty working tree blocks; an ignored file does not', () => {
+test('a dirty team/ state blocks; an ignored file and a developer file elsewhere do not', () => {
   const p = cleanProject();
   fs.writeFileSync(path.join(p.root, '.gitignore'), 'junk.txt\n');
   commitAll(p);
   fs.writeFileSync(path.join(p.root, 'junk.txt'), 'x');
+  fs.writeFileSync(path.join(p.root, 'work.txt'), 'changed by a developer');
   assert.equal(pre(p, 150000).status, 0);
-  fs.writeFileSync(path.join(p.root, 'work.txt'), 'changed');
+  fs.writeFileSync(path.join(p.root, 'team', 'work', 'note.md'), 'x');
   const r = pre(p, 150000);
   assert.equal(r.status, 2);
   assert.match(r.stderr, /uncommitted/);
@@ -95,36 +97,38 @@ test('the last done task without a reachable commit blocks', () => {
   assert.match(r.stderr, /commit/);
 });
 
-test('an open owner question (pending or deferred) blocks', () => {
-  for (const defer of [false, true]) {
-    const p = cleanProject();
-    addQuestion(p.root, { title: 'q?', source: 's', status: 'st', impact: 'i', blocking: 'no', defer });
-    commitAll(p);
-    const r = pre(p, 150000);
-    assert.equal(r.status, 2, `defer=${defer}`);
-    assert.match(r.stderr, /question/);
-  }
+test('a pending owner question blocks; a deferred one does not (g25)', () => {
+  const p = cleanProject();
+  addQuestion(p.root, { title: 'q?', source: 's', status: 'st', impact: 'i', blocking: 'no', defer: true });
+  commitAll(p);
+  assert.equal(pre(p, 150000).status, 0);
+  const p2 = cleanProject();
+  addQuestion(p2.root, { title: 'q?', source: 's', status: 'st', impact: 'i', blocking: 'no' });
+  commitAll(p2);
+  const r = pre(p2, 150000);
+  assert.equal(r.status, 2);
+  assert.match(r.stderr, /question/);
 });
 
 test('at or above the ceiling compaction is allowed even when conditions fail', () => {
   const p = cleanProject();
-  fs.writeFileSync(path.join(p.root, 'dirty.txt'), 'x');
+  fs.writeFileSync(path.join(p.root, 'team', 'dirty.txt'), 'x');
   assert.equal(pre(p, 150000).status, 2);
-  assert.equal(pre(p, 300000).status, 0);
+  assert.equal(pre(p, 220000).status, 0);
 });
 
 test('the ceiling comes from team/config.json compaction.ceiling', () => {
   const p = cleanProject();
   fs.writeFileSync(path.join(p.root, 'team', 'config.json'), JSON.stringify({ compaction: { ceiling: 200000 } }));
   commitAll(p);
-  fs.writeFileSync(path.join(p.root, 'dirty.txt'), 'x');
+  fs.writeFileSync(path.join(p.root, 'team', 'dirty.txt'), 'x');
   assert.equal(pre(p, 190000).status, 2);
   assert.equal(pre(p, 210000).status, 0);
 });
 
 test('manual compaction is always allowed', () => {
   const p = cleanProject();
-  fs.writeFileSync(path.join(p.root, 'dirty.txt'), 'x');
+  fs.writeFileSync(path.join(p.root, 'team', 'dirty.txt'), 'x');
   assert.equal(pre(p, 150000, { trigger: 'manual' }).status, 0);
 });
 
@@ -148,12 +152,12 @@ test('any error allows: unreadable transcript, garbage input, broken config', ()
 
 test('a block repeats from a short cache, so repeated checks do not repeat the git work', () => {
   const p = cleanProject();
-  fs.writeFileSync(path.join(p.root, 'dirty.txt'), 'x');
+  fs.writeFileSync(path.join(p.root, 'team', 'dirty.txt'), 'x');
   const sid = `cache-${process.pid}-${Date.now()}`;
   const tr = transcript(150000);
   const call = () => runHook('pre-compact', { session_id: sid, cwd: p.root, trigger: 'auto', transcript_path: tr });
   assert.equal(call().status, 2);
-  fs.rmSync(path.join(p.root, 'dirty.txt'));
+  fs.rmSync(path.join(p.root, 'team', 'dirty.txt'));
   assert.equal(call().status, 2, 'served from the cache');
 });
 

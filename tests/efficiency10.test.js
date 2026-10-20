@@ -454,7 +454,7 @@ test('g17: a ceiling hand-off says it is not a clean point and lists what failed
   const e = addEntry(p.root, { title: 'still going', owner: 'backend-developer', model: 'sonnet' });
   updateEntry(p.root, e.id, { status: 'in-progress' });
   addQuestion(p.root, q);
-  const name = writeCompactHandoff(p.root, new Date(), { trigger: 'ceiling', tokens: 301778, ceiling: 300000 });
+  const name = writeCompactHandoff(p.root, new Date(), { trigger: 'ceiling', tokens: 301778, ceiling: 220000 });
   const t = handoffText(p, name);
   assert.doesNotMatch(t, /clean point: nothing in flight|at a clean point/i, 'no false clean-point claim');
   assert.match(t, /ceiling/i);
@@ -470,7 +470,7 @@ test('g17: a safe-point hand-off keeps the clean-point claim; a manual one says 
   assert.match(safe, /safe point/i);
   assert.match(safe, /no pending owner question/);
   const p2 = cleanGitProject();
-  fs.writeFileSync(path.join(p2.root, 'dirty.txt'), 'x');
+  fs.writeFileSync(path.join(p2.root, 'team', 'dirty.txt'), 'x');
   const manual = handoffText(p2, writeCompactHandoff(p2.root, new Date(), { trigger: 'manual' }));
   assert.match(manual, /manual/i);
   assert.match(manual, /Conditions not met[\s\S]*uncommitted/);
@@ -494,7 +494,7 @@ test('g17: next task is the in-progress one first, then a brief-ready todo, then
 
 test('g17: the pre-compact hook writes a ceiling hand-off that names the ceiling and the failed conditions', () => {
   const p = cleanGitProject();
-  fs.writeFileSync(path.join(p.root, 'dirty.txt'), 'x');
+  fs.writeFileSync(path.join(p.root, 'team', 'dirty.txt'), 'x');
   const tr = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'nac tr ')), 't.jsonl');
   fs.writeFileSync(tr, `${JSON.stringify({ type: 'assistant', message: { content: [], usage: { input_tokens: 10, cache_read_input_tokens: 310000, cache_creation_input_tokens: 20 } } })}\n`);
   const r = runHookNamed('pre-compact', { hook_event_name: 'PreCompact', session_id: `g17-${process.pid}-${Date.now()}`, cwd: p.root, trigger: 'auto', transcript_path: tr });
@@ -799,4 +799,104 @@ test('g24: the task-loop skill says parallel code tasks always get their own wor
   assert.match(t, /parallel code tasks always get their own worktree/i);
   assert.match(t, /--worktree/);
   assert.match(t, /worktreeRoot/);
+});
+
+// ---- E1 (g25) compaction when the lead's own state is safe, ceiling 220K ----
+import { DEFAULT_CEILING } from '../scripts/lib/compact.js';
+
+const trOf = (tokens) => {
+  const tr = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'nac tr ')), 't.jsonl');
+  fs.writeFileSync(tr, `${JSON.stringify({ type: 'assistant', message: { content: [], usage: { input_tokens: 10, cache_read_input_tokens: tokens, cache_creation_input_tokens: 20 } } })}\n`);
+  return tr;
+};
+const autoPre = (p, tokens) => runHookNamed('pre-compact', { hook_event_name: 'PreCompact', session_id: `g25-${process.pid}-${Date.now()}-${Math.random()}`, cwd: p.root, trigger: 'auto', transcript_path: trOf(tokens) });
+function inFlight(p, { handoff = true, worktree, agent } = {}) {
+  const e = addEntry(p.root, { title: 'running', owner: 'backend-developer', model: 'sonnet' });
+  updateEntry(p.root, e.id, { status: 'in-progress', ...(worktree ? { worktree } : {}), ...(agent ? { agent } : {}), ...(handoff ? { handoff: `team/work/handoffs/${e.id}.md` } : {}) });
+  if (handoff) {
+    fs.mkdirSync(path.join(p.root, 'team', 'work', 'handoffs'), { recursive: true });
+    fs.writeFileSync(path.join(p.root, 'team', 'work', 'handoffs', `${e.id}.md`), '# steps so far');
+  }
+  commitAll(p);
+  return e;
+}
+
+test('g25: the default ceiling is 220000 in code and in the shipped config', () => {
+  assert.equal(DEFAULT_CEILING, 220000);
+  assert.equal(loadConfig({ pluginRoot, userConfigPath: null }).compaction.ceiling, 220000);
+});
+
+test('g25: tasks in flight with a committed team/ state and hand-offs no longer block compaction', () => {
+  const p = cleanGitProject();
+  inFlight(p);
+  inFlight(p, { worktree: '/wt/x' });
+  assert.deepEqual(compactBlockers(p.root), []);
+  assert.equal(autoPre(p, 150000).status, 0);
+});
+
+test('g25: an in-progress task without a hand-off file blocks, naming the task', () => {
+  const p = cleanGitProject();
+  const e = inFlight(p, { handoff: false });
+  assert.match(compactBlockers(p.root).join('\n'), new RegExp(`${e.id}.*hand-off`));
+  assert.equal(autoPre(p, 150000).status, 2);
+});
+
+test('g25: an uncommitted team/ change blocks, a developer file elsewhere does not', () => {
+  const p = cleanGitProject();
+  inFlight(p);
+  fs.writeFileSync(path.join(p.root, 'src.rs'), 'fn main() {}');
+  fs.writeFileSync(path.join(p.root, 'work.txt'), 'edited by a developer');
+  assert.deepEqual(compactBlockers(p.root), []);
+  fs.appendFileSync(path.join(p.root, 'team', 'work', 'board.md'), '\n');
+  const r = autoPre(p, 150000);
+  assert.equal(r.status, 2);
+  assert.match(r.stderr, /uncommitted/);
+});
+
+test('g25: parked and deferred questions do not block; a pending one does', () => {
+  const p = cleanGitProject();
+  inFlight(p);
+  const a = addQuestion(p.root, q);
+  parkQuestion(p.root, a.id, { until: 'first sale' });
+  addQuestion(p.root, { ...q, title: 'later?', defer: true });
+  commitAll(p);
+  assert.deepEqual(compactBlockers(p.root), []);
+  addQuestion(p.root, { ...q, title: 'now?' });
+  commitAll(p);
+  assert.match(compactBlockers(p.root).join('\n'), /not answered/);
+});
+
+test('g25: the hand-off lists every in-flight task with role, agent, worktree and hand-off file', () => {
+  const p = cleanGitProject();
+  const a = inFlight(p, { worktree: '/wt/refs', agent: 'dev-1' });
+  const b = inFlight(p);
+  const t = handoffText(p, writeCompactHandoff(p.root, new Date(), { trigger: 'safe point' }));
+  const line = (id) => t.split('\n').find((l) => l.includes(`${id}:`) && /owner/.test(l));
+  assert.match(line(a.id), /owner backend-developer/);
+  assert.match(line(a.id), /agent dev-1/);
+  assert.match(line(a.id), /worktree \/wt\/refs/);
+  assert.match(line(a.id), new RegExp(`team/work/handoffs/${a.id}\.md`));
+  assert.match(line(b.id), /owner backend-developer/);
+  assert.doesNotMatch(line(b.id), /agent|worktree/);
+  assert.match(t, /In flight/);
+});
+
+test('g25: a project with nothing in flight has no In flight section', () => {
+  const p = cleanGitProject();
+  assert.doesNotMatch(handoffText(p, writeCompactHandoff(p.root, new Date(), { trigger: 'safe point' })), /In flight/);
+});
+
+test('g25: a ceiling-path compaction is never blocked, even with a pending question and a dirty team/', () => {
+  const p = cleanGitProject();
+  addQuestion(p.root, q);
+  fs.writeFileSync(path.join(p.root, 'team', 'dirty.txt'), 'x');
+  assert.equal(autoPre(p, 230000).status, 0);
+});
+
+test('g25: board.js update --agent records the agent on the entry', () => {
+  const root = makeProject();
+  addEntry(root, { id: 'T-1', title: 'x', owner: 'backend-developer', model: 'sonnet' });
+  const r = spawnSync(process.execPath, [path.join(pluginRoot, 'scripts', 'board.js'), 'update', 'T-1', '--status', 'in-progress', '--agent', 'dev-1', '--project', root], { encoding: 'utf8' });
+  assert.equal(r.status, 0, r.stderr);
+  assert.equal(readBoard(root).entries[0].agent, 'dev-1');
 });

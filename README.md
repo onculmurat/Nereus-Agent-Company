@@ -188,14 +188,14 @@ Settings resolve in three layers, later wins: plugin defaults (`defaults/config.
 
 Claude Code compacts the lead's context by itself, which can happen in the middle of a task. NAC lets an automatic compaction run only at a clean point, through a `PreCompact` hook that acts in the lead session only:
 
-- Allowed when nothing is in flight: no task `in-progress` or `review`, the git working tree is clean (ignored files do not count), the last `done` task has its commit on HEAD, and no owner question is open or deferred. NAC then writes a short `team/work/handoffs/compact-<stamp>.md` (board state, next task, pointer to `team/decisions.md`), and the next session start (source `compact`) points the lead to it.
-- Otherwise the compaction is deferred with a one-line reason. Above the ceiling (`compaction.ceiling`, default 300000 tokens in context) it runs anyway, so a deferral can never overflow the context.
+- Allowed when the lead's own state is safe (g25): `team/` is committed (only paths under `team/` count; developer files elsewhere in a shared tree do not), the last `done` task has its commit on HEAD, no owner question is waiting for an answer in this turn (parked, deferred and queued ones do not block), and every `in-progress` task has a hand-off file. Tasks in flight no longer block by themselves; the hand-off lists each one with its owner role, agent (`board.js update --agent`), worktree and hand-off file. NAC then writes a short `team/work/handoffs/compact-<stamp>.md` (board state, next task, pointer to `team/decisions.md`), and the next session start (source `compact`) points the lead to it.
+- Otherwise the compaction is deferred with a one-line reason. Above the ceiling (`compaction.ceiling`, default 220000 tokens in context) it runs anyway, so a deferral can never overflow the context.
 - Manual `/compact` is never blocked. Any error in the hook allows the compaction. The compact hand-off states the real trigger (safe point, ceiling or manual) and lists every condition that was not met; its next task is the one in progress first, then a todo whose brief exists, then any todo.
 
 Defaults, in `defaults/config.json` (override in `team/config.json`):
 
 ```json
-{ "compaction": { "autoCompactWindow": 200000, "ceiling": 300000 } }
+{ "compaction": { "autoCompactWindow": 200000, "ceiling": 220000 } }
 ```
 
 `/nac:setup` writes `autoCompactWindow` (minimum 100000) and `idleCompaction: false` into the project `.claude/settings.json` without touching values you already set; for a project set up earlier, `node <path>/scripts/setup.js --compaction` writes only these two keys (`--dry-run` prints them). It keeps the file's line endings and indentation and commits that one file as `chore(nac): ...` so the clean-tree check is not blocked (it warns instead when it cannot, for example outside git or when you already have uncommitted edits in the file). The auto-mode classifier can block the lead from editing settings, so the session-start hint asks you to type it with `!`. The first automatic compaction fires somewhat below the window (about 72% in a spike with 100000), so do not rely on the exact point. If your shell sets `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE`, its interaction with `autoCompactWindow` is untested; NAC does not depend on it.
