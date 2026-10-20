@@ -14,7 +14,7 @@ Bir ürünü tek başına geliştirmek her rolü üstlenmek demektir: mimar, gel
 
 NAC'ın görsel bir arayüzü yoktur. Claude Code terminalinin içinde çalışır.
 
-**v1.2 kapsamı.** Bu sürüm çekirdek rolleri (ekip lideri, araştırmacı, finans analisti, mimar, planlayıcı, backend geliştirici, frontend geliştirici, veritabanı mühendisi, test mühendisi, kod incelemecisi, son incelemeci, güvenlik incelemecisi, doküman yazarı, asistan) ve 0, 1, 3, 4, 5 ve 6. aşamaları içerir. Sonraki adımlar: v2 ürün yöneticisi, UX ve UI tasarımcıları, DevOps mühendisi ile 2 ve 7. aşamaları; v3 pazarlama ve kalan iş rolleri ile 8 ve 9. aşamaları ekler.
+**v1.3 kapsamı.** Bu sürüm çekirdek rolleri (ekip lideri, araştırmacı, finans analisti, mimar, planlayıcı, backend geliştirici, frontend geliştirici, veritabanı mühendisi, test mühendisi, kod incelemecisi, son incelemeci, güvenlik incelemecisi, doküman yazarı, asistan) ve 0, 1, 3, 4, 5 ve 6. aşamaları içerir. Sonraki adımlar: v2 ürün yöneticisi, UX ve UI tasarımcıları, DevOps mühendisi ile 2 ve 7. aşamaları; v3 pazarlama ve kalan iş rolleri ile 8 ve 9. aşamaları ekler.
 
 ## Kurulum
 
@@ -228,6 +228,26 @@ Sonraki oturum bir devam özetiyle başlar: aşama, süren iş (`git status` ile
 ### Ekip durumu commit'lenir mi?
 
 `team/brief.md`, `decisions.md`, `contracts/`, `research/`, `glossary.md` ve `config.json` commit'lenmek içindir. `team/work/` (pano, görev özetleri, devir notları, eskalasyonlar, posta kutusu) de commit'lenir; yalnız `team/work/packs/` (üretilen bağlam paketleri) git dışındadır. Lider bunu kendi commit'lerinde, `chore(team): <ne>`, her görev bittiğinde ve her lider rotasyonunda, açık yolları ekleyerek commit'ler; kod commit'lerine karıştırmaz. Kurulum eski `.gitignore` satırını `team/work/` yerine `team/work/packs/` yapar ve önce farkı gösterir.
+
+## 1.3.0 değişiklikleri
+
+Her madde kapattığı açığı belirtir; ayrıntılar yukarıdaki bölümlerdedir.
+
+- **Gate her kontrolü koşar** (g18): `gateCommands` test, lint ve biçim kontrollerini koşar; kurulum yığına göre varsayılanları doldurur.
+- **Bağlam paketi zorunlu** (g22): kod rolleri, test mühendisi, son incelemeci ve veritabanı mühendisi paketsiz dispatch edilemez; `cost.js` paket oranı %100'ün altındaysa uyarır.
+- **Geri alınamaz adımdan önce go-path testi** (g23): `--irreversible` onay sorusu, çalıştırılıp 0 ile biten bir go-path test komutu ve yeşil gate ister.
+- **Bekletilen sorular** (g16): sahibin ertelediği sorular sıkıştırmayı artık engellemez.
+- **Her yeşil adım commit'lenir** (g19): görevlere boyut etiketi; `board.js`, en fazla bir kod commit'i olan M/L görevi (boyutsuz görev M sayılır) `--single-commit <gerekçe>` olmadan bitirmez; `--code no` görevler muaftır.
+- **Brief dışına çıkılmaz** (g21): geliştirici ek dalları soru olarak önerir; incelemeci brief dışı kodu bulgu yazar.
+- **Kurulum kendi değişikliğini commit'ler** (g11): `--compaction` satır sonlarını ve girintiyi korur; `--apply` yalnız oluşturduğu ya da değiştirdiği dosyaları commit'ler.
+- **Hand-off gerçek tetiği yazar** (g17): güvenli nokta mı tavan mı, hangi koşullar sağlanmadı ve gerçek sıradaki görev.
+- **Bitişte maliyet dosyası** (g20): `board.js done` eksikse görev maliyet dosyasını kendisi yazar.
+- **Hand-off soruları kayıttan** (g14), **gömülü sorular** (g13), **sıkıştırma açıkken hand-off ile rotasyon** (g15), **yalnız gerçek farkta sürüm kayması uyarısı** (g12).
+- **Bir çalışma ağacında tek kod görevi** (g24): aynı ağaçta ikinci süren kod görevi reddedilir; `worktreeRoot` worktree yerini belirler.
+- **Lider güvendeyken sıkıştırma** (g25): görevler sürerken de, `team/` commit'liyse, bekleyen soru yoksa ve her süren görevin hand-off'u varsa izinli; tavan 220000.
+- **Bilinmeyen Q/D numaraları** (g26): Stop hook, liderin mesajında `decisions.md`'de olmayan Q ya da D numarasını işaretler.
+- **Yalnız team/ commit'leri** (D-227): ekip durumu commit'leri `team-commit.js` ile yalnız `team/` yol kapsamını kullanır.
+- Testler: testlerdeki git zamanlaması deterministik (sabit tarih ve kimlik, açık saatli önbellek testi).
 
 ## Lisans
 

@@ -55,12 +55,22 @@ test('setup requirements name the web tools the research roles use', () => {
 
 test('plugin and package versions match the release the READMEs describe', () => {
   const version = (...p) => JSON.parse(fs.readFileSync(path.join(pluginRoot, ...p), 'utf8')).version;
-  assert.equal(version('.claude-plugin', 'plugin.json'), '1.2.0');
-  assert.equal(version('package.json'), '1.2.0');
-  assert.match(en, /\*\*v1\.2 scope\.\*\*/);
+  assert.equal(version('.claude-plugin', 'plugin.json'), '1.3.0');
+  assert.equal(version('package.json'), '1.3.0');
+  assert.match(en, /\*\*v1\.3 scope\.\*\*/);
 });
 
 test('both READMEs list team/research/ among the committed files', () => {
   assert.match(en, /`team\/brief\.md`[^\n]*`research\/`[^\n]*committed/);
   assert.match(tr, /`team\/brief\.md`[^\n]*`research\/`[^\n]*commit/);
+});
+
+test('both READMEs list every 1.3.0 change with its g-number', () => {
+  const section = (text, heading) => text.slice(text.indexOf(heading), text.indexOf('\n## ', text.indexOf(heading) + 1));
+  const ids = ['g11', 'g12', 'g13', 'g14', 'g15', 'g16', 'g17', 'g18', 'g19', 'g20', 'g21', 'g22', 'g23', 'g24', 'g25', 'g26', 'D-227'];
+  for (const [text, heading] of [[en, '## Changes in 1.3.0'], [tr, '## 1.3.0 değişiklikleri']]) {
+    assert.ok(text.includes(heading), heading);
+    const body = section(text, heading);
+    for (const id of ids) assert.ok(body.includes(`(${id}`), `${heading} lacks ${id}`);
+  }
 });

@@ -14,7 +14,7 @@ Building a product alone means playing every role: architect, developer, reviewe
 
 NAC has no graphical interface. It runs inside the Claude Code terminal.
 
-**v1.2 scope.** This release ships the core roles (team lead, researcher, finance analyst, architect, planner, backend developer, frontend developer, database engineer, test engineer, code reviewer, final reviewer, security reviewer, doc writer, assistant) and phases 0, 1, 3, 4, 5 and 6. Planned next: v2 adds product manager, UX and UI designers, DevOps engineer and phases 2 and 7; v3 adds marketing and the remaining business roles and phases 8 and 9.
+**v1.3 scope.** This release ships the core roles (team lead, researcher, finance analyst, architect, planner, backend developer, frontend developer, database engineer, test engineer, code reviewer, final reviewer, security reviewer, doc writer, assistant) and phases 0, 1, 3, 4, 5 and 6. Planned next: v2 adds product manager, UX and UI designers, DevOps engineer and phases 2 and 7; v3 adds marketing and the remaining business roles and phases 8 and 9.
 
 ## Install
 
@@ -242,6 +242,26 @@ The next session starts with a resume summary: phase, work in progress (with `gi
 ### Is team state committed?
 
 `team/brief.md`, `decisions.md`, `contracts/`, `research/`, `glossary.md` and `config.json` are meant to be committed. `team/work/` (board, briefs, hand-offs, escalations, mailbox) is committed too; only `team/work/packs/` (generated context packs) is git-ignored. The lead commits it in its own commits, `chore(team): <what>`, after each task is marked done and at each lead rotation, staging explicit paths and never mixing it into a code commit. Setup changes an older `.gitignore` line `team/work/` to `team/work/packs/` and shows the diff first.
+
+## Changes in 1.3.0
+
+Each item names the gap it closes; details are in the sections above.
+
+- **Gate runs every check** (g18): `gateCommands` runs test, lint and format checks; setup fills defaults per stack.
+- **Context pack required** (g22): code-role, test-engineer, final-reviewer and database-engineer dispatches without a pack are refused; `cost.js` warns below 100% packed.
+- **Go-path test before an irreversible step** (g23): an `--irreversible` go question needs a named go-path test command that is run and exits 0, and a green gate.
+- **Parked questions** (g16): owner-deferred questions no longer block compaction.
+- **Commit each green step** (g19): size tag on tasks; `board.js` refuses done on an M/L task (no size counts as M) with at most one code commit unless `--single-commit <reason>`; `--code no` tasks are exempt.
+- **No behaviour beyond the brief** (g21): developers propose extra branches as questions; reviewers flag out-of-brief code.
+- **Setup commits its own changes** (g11): `--compaction` keeps line endings and indentation; `--apply` commits exactly the files it created or changed.
+- **True hand-off trigger** (g17): the hand-off states safe point or ceiling, the failed conditions and the real next task.
+- **Cost file on done** (g20): `board.js done` writes the task cost file when it is missing.
+- **Hand-off questions from the log** (g14), **buried questions** (g13), **rotation by hand-off when compaction is on** (g15), **drift warning only on a real difference** (g12).
+- **One code task per working tree** (g24): a second in-progress code task in the same tree is refused; `worktreeRoot` sets where worktrees go.
+- **Compaction when the lead is safe** (g25): allowed with tasks in flight when `team/` is committed, no question is pending and every in-progress task has a hand-off; ceiling 220000.
+- **Unknown Q/D-ids** (g26): the Stop hook flags a Q-id or D-id in the lead's message that `decisions.md` does not hold.
+- **Team-only commits** (D-227): team-state commits use a `team/`-only pathspec through `team-commit.js`.
+- Tests: git timing in tests is deterministic (pinned dates and identity, explicit-clock cache test).
 
 ## License
 
