@@ -44,3 +44,25 @@ export function lastAssistantText(file) {
   }
   return '';
 }
+
+// A status report section is a heading or a bold-only title line such as "## Done" or "**Summary**".
+// The "Status:" label of a question block is not one.
+const REPORT_HEADING = /^[ \t]*(?:#{1,4}[ \t]*|\*\*[ \t]*)(?:done|summary|status report|report|completed|results?|özet|rapor|tamamlanan|yapılanlar)\b/im;
+
+// The final message mixes a status report with an owner question, or names an open Q-id without its own question block
+// (the "Source:" line of the question-protocol shape). Returns the problem as text, or '' (also on any internal error).
+export function buriedQuestionProblem(text, openIds) {
+  try {
+    if (typeof text !== 'string' || !text.trim()) return '';
+    const lastParagraph = text.trimEnd().split(/\r?\n\s*\r?\n/).at(-1) ?? '';
+    const asks = lastParagraph.replace(/`[^`]*`/g, '').includes('?');
+    if (asks && REPORT_HEADING.test(text)) return 'it holds a status report section and a question to the owner together';
+    const mentioned = (Array.isArray(openIds) ? openIds : []).filter((id) => text.split(/[^A-Za-z0-9-]+/).includes(id));
+    if (mentioned.length && !/^[ \t]*(?:[-*][ \t]*)?\**source\**[ \t]*:/im.test(text)) {
+      return `it names open owner question ${mentioned.join(', ')} without the question's own block (Source, Status, Impact, options, recommendation)`;
+    }
+    return '';
+  } catch {
+    return '';
+  }
+}

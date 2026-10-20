@@ -602,3 +602,40 @@ test('g14: the rotation skill tells the lead to generate the question lists, not
   const s = fs.readFileSync(path.join(pluginRoot, 'skills', 'task-loop', 'SKILL.md'), 'utf8');
   assert.match(s, /decisions\.js" handoff-questions/);
 });
+
+// ---- C2 (g13) owner question buried in a status report ----
+import { buriedQuestionProblem } from '../scripts/lib/owner-question.js';
+
+const REPORT = '## Done\n- T-028 merged, tests green.\n\nI recommend option a for Q-001.\n\nWhich one do you pick?';
+const BLOCK = 'Source: T-028 review\nStatus: code written\nImpact: auth contract\nOptions: a) now b) later\nRecommendation: a\nQ-001: which one?';
+
+test('g13: buriedQuestionProblem flags a question to the owner inside a status report even with a recommendation', () => {
+  assert.match(buriedQuestionProblem(REPORT, ['Q-001']), /status report/i);
+  assert.match(buriedQuestionProblem('**Summary**\nAll done.\n\nShall we continue? Önerim: evet.', []), /status report/i);
+});
+
+test('g13: an open Q-id mentioned without its own question block is flagged; with the block, or a closed id, it is not', () => {
+  assert.match(buriedQuestionProblem('Waiting on your answer to Q-004 before the next task.', ['Q-004']), /Q-004/);
+  assert.equal(buriedQuestionProblem('Waiting on your answer to Q-004.', ['Q-009']), '', 'a Q-id that is not open is history');
+  assert.equal(buriedQuestionProblem(BLOCK, ['Q-001']), '');
+  assert.equal(buriedQuestionProblem('A question alone? Recommendation: yes.', []), '');
+  assert.equal(buriedQuestionProblem('## Done\nAll merged.', ['Q-001']), '', 'no Q-id mention, no question');
+});
+
+test('g13: fail-open on odd input', () => {
+  assert.equal(buriedQuestionProblem(undefined, ['Q-001']), '');
+  assert.equal(buriedQuestionProblem('Q-001 ?', null), '');
+  assert.equal(buriedQuestionProblem('', []), '');
+});
+
+test('g13: the Stop hook blocks a report with a buried open question once, and passes a clean question message', () => {
+  const root = makeProject();
+  addQuestion(root, q);
+  const stop = (msg, patch = {}) => runHookScript('stop-question', { session_id: 's', cwd: root, hook_event_name: 'Stop', stop_hook_active: false, last_assistant_message: msg, ...patch });
+  const r = stop('## Done\n- T-028 merged.\n\nQ-001 is open, I recommend yes. Agree?');
+  assert.equal(r.status, 2);
+  assert.match(r.stderr, /own message|separate/i);
+  assert.equal(stop('## Done\n- T-028 merged.\n\nQ-001 is open, I recommend yes. Agree?', { stop_hook_active: true }).status, 0);
+  assert.equal(stop('## Done\n- T-028 merged. Tests green.').status, 0);
+  assert.equal(stop(BLOCK).status, 0);
+});
