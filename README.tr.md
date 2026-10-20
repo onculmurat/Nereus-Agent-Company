@@ -229,6 +229,10 @@ Sonraki oturum bir devam özetiyle başlar: aşama, süren iş (`git status` ile
 
 `team/brief.md`, `decisions.md`, `contracts/`, `research/`, `glossary.md` ve `config.json` commit'lenmek içindir. `team/work/` (pano, görev özetleri, devir notları, eskalasyonlar, posta kutusu) de commit'lenir; yalnız `team/work/packs/` (üretilen bağlam paketleri) git dışındadır. Lider bunu kendi commit'lerinde, `chore(team): <ne>`, her görev bittiğinde ve her lider rotasyonunda, açık yolları ekleyerek commit'ler; kod commit'lerine karıştırmaz. Kurulum eski `.gitignore` satırını `team/work/` yerine `team/work/packs/` yapar ve önce farkı gösterir.
 
+## 1.3.9 değişiklikleri
+
+- **Files: satırındaki notlar** (g43): yolun ardındaki parantez içi not (`store.rs (read only, unless ...)`) yolu virgülünden bölüyordu; kod haritası mevcut dosyaları yeni gösterdi. Parantez içindeki virgül artık bölmez, notlar ve baştaki "new" atılır; planner notları ayrı satıra yazar.
+
 ## 1.3.8 değişiklikleri
 
 - **Tur bütçesi zorlanır** (g36): rol kendi turlarını sayamadığı için pack'teki bütçe satırı tek başına yetmedi; bir geliştirici rapor ve commit olmadan `maxTurns` sert durağına çarptı. Yeni PostToolUse hook'u (`turn-budget.js`) rolün turlarını kendi kaydından sayar, son 5 turda adımı bitirmesini, `turnBudget`'ta durup yalnız yeşil işi commit edip raporlamasını söyler. `turnBudget` `maxTurns`'ün altında kalmalı.
