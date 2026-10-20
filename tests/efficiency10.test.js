@@ -428,3 +428,83 @@ test('g11: --compaction outside git, or with settings the owner already edited, 
   assert.equal(git('log', '-1', '--format=%s'), 'init');
   assert.equal(JSON.parse(fs.readFileSync(file, 'utf8')).autoCompactWindow, 200000);
 });
+
+// ---- B4 (g17) honest compact hand-off ----
+import { writeCompactHandoff, compactBlockers } from '../scripts/lib/compact.js';
+
+const handoffText = (p, name) => fs.readFileSync(path.join(p.root, 'team', 'work', 'handoffs', name), 'utf8');
+
+test('g17: compactBlockers lists every failed condition, not just the first', () => {
+  const p = cleanGitProject();
+  const e = addEntry(p.root, { title: 'in flight', owner: 'backend-developer', model: 'sonnet' });
+  updateEntry(p.root, e.id, { status: 'in-progress' });
+  addQuestion(p.root, q);
+  fs.writeFileSync(path.join(p.root, 'dirty.txt'), 'x');
+  const list = compactBlockers(p.root);
+  assert.equal(list.length, 3);
+  assert.match(list.join('\n'), /in flight|T-002/);
+  assert.match(list.join('\n'), /uncommitted/);
+  assert.match(list.join('\n'), /Q-001/);
+  assert.equal(compactBlocker(p.root), list[0], 'compactBlocker keeps returning the first one');
+  assert.deepEqual(compactBlockers(cleanGitProject().root), []);
+});
+
+test('g17: a ceiling hand-off says it is not a clean point and lists what failed', () => {
+  const p = cleanGitProject();
+  const e = addEntry(p.root, { title: 'still going', owner: 'backend-developer', model: 'sonnet' });
+  updateEntry(p.root, e.id, { status: 'in-progress' });
+  addQuestion(p.root, q);
+  const name = writeCompactHandoff(p.root, new Date(), { trigger: 'ceiling', tokens: 301778, ceiling: 300000 });
+  const t = handoffText(p, name);
+  assert.doesNotMatch(t, /clean point: nothing in flight|at a clean point/i, 'no false clean-point claim');
+  assert.match(t, /ceiling/i);
+  assert.match(t, /301778/);
+  assert.match(t, /Conditions not met/);
+  assert.match(t, /T-002/);
+  assert.match(t, /Q-001/);
+});
+
+test('g17: a safe-point hand-off keeps the clean-point claim; a manual one says manual', () => {
+  const p = cleanGitProject();
+  const safe = handoffText(p, writeCompactHandoff(p.root, new Date(), { trigger: 'safe point' }));
+  assert.match(safe, /safe point/i);
+  assert.match(safe, /no pending owner question/);
+  const p2 = cleanGitProject();
+  fs.writeFileSync(path.join(p2.root, 'dirty.txt'), 'x');
+  const manual = handoffText(p2, writeCompactHandoff(p2.root, new Date(), { trigger: 'manual' }));
+  assert.match(manual, /manual/i);
+  assert.match(manual, /Conditions not met[\s\S]*uncommitted/);
+});
+
+test('g17: next task is the in-progress one first, then a brief-ready todo, then any todo', () => {
+  const p = cleanGitProject();
+  const todoPlain = addEntry(p.root, { title: 'plain todo', owner: 'backend-developer', model: 'sonnet' });
+  const todoBrief = addEntry(p.root, { title: 'brief-ready todo', owner: 'backend-developer', model: 'sonnet' });
+  fs.mkdirSync(path.join(p.root, 'team', 'work', 'tasks'), { recursive: true });
+  fs.writeFileSync(path.join(p.root, 'team', 'work', 'tasks', `${todoBrief.id}.md`), '# brief');
+  const next = (t) => handoffText(p, writeCompactHandoff(p.root, t, { trigger: 'safe point' })).match(/^Next task: (.*)$/m)[1];
+  assert.match(next(new Date(2026, 0, 1, 1, 0, 1)), new RegExp(`^${todoBrief.id}`), 'brief-ready beats a plain todo that comes earlier');
+  const going = addEntry(p.root, { title: 'going', owner: 'backend-developer', model: 'sonnet' });
+  updateEntry(p.root, going.id, { status: 'in-progress' });
+  assert.match(next(new Date(2026, 0, 1, 1, 0, 2)), new RegExp(`^${going.id}`), 'in-progress wins');
+  updateEntry(p.root, going.id, { status: 'done', commits: ['abc1234'] });
+  updateEntry(p.root, todoBrief.id, { status: 'done', commits: ['abc1234'] });
+  assert.match(next(new Date(2026, 0, 1, 1, 0, 3)), new RegExp(`^${todoPlain.id}`));
+});
+
+test('g17: the pre-compact hook writes a ceiling hand-off that names the ceiling and the failed conditions', () => {
+  const p = cleanGitProject();
+  fs.writeFileSync(path.join(p.root, 'dirty.txt'), 'x');
+  const tr = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'nac tr ')), 't.jsonl');
+  fs.writeFileSync(tr, `${JSON.stringify({ type: 'assistant', message: { content: [], usage: { input_tokens: 10, cache_read_input_tokens: 310000, cache_creation_input_tokens: 20 } } })}\n`);
+  const r = runHookNamed('pre-compact', { hook_event_name: 'PreCompact', session_id: `g17-${process.pid}-${Date.now()}`, cwd: p.root, trigger: 'auto', transcript_path: tr });
+  assert.equal(r.status, 0, r.stderr);
+  const names = fs.readdirSync(path.join(p.root, 'team', 'work', 'handoffs')).filter((n) => n.startsWith('compact-'));
+  assert.equal(names.length, 1);
+  const t = handoffText(p, names[0]);
+  assert.match(t, /ceiling/i);
+  assert.match(t, /uncommitted/);
+  const m = runHookNamed('pre-compact', { hook_event_name: 'PreCompact', session_id: `g17m-${process.pid}-${Date.now()}`, cwd: p.root, trigger: 'manual', transcript_path: tr });
+  assert.equal(m.status, 0, m.stderr);
+  assert.ok(fs.readdirSync(path.join(p.root, 'team', 'work', 'handoffs')).some((n) => /^compact-.*\.md$/.test(n) && /manual/i.test(handoffText(p, n))), 'a manual compaction also leaves an honest hand-off');
+});

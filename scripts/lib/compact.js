@@ -46,26 +46,35 @@ export function contextTokens(file) {
   return null;
 }
 
-// null when compaction may run, else a one-line reason. Throws on a problem the caller treats as "allow".
-export function compactBlocker(root) {
+// Every condition that is not met, one line each (empty when compaction may run). Throws on a problem the caller
+// treats as "allow".
+export function compactBlockers(root) {
+  const out = [];
   const board = readBoard(root);
   const active = board.entries.filter((e) => e.status === 'in-progress' || e.status === 'review');
-  if (active.length) return `${active.map((e) => e.id).join(', ')} still in flight; finish or hand off, then compaction can run.`;
+  if (active.length) out.push(`${active.map((e) => e.id).join(', ')} still in flight; finish or hand off, then compaction can run.`);
   const dirty = execFileSync('git', ['status', '--porcelain', '--', '.', `:(exclude)${HANDOFF_GLOB}`], { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], timeout: 5000 }).trim();
-  if (dirty) return 'uncommitted changes in the working tree; commit them first.';
+  if (dirty) out.push('uncommitted changes in the working tree; commit them first.');
   const last = board.entries.filter((e) => e.status === 'done').at(-1);
   if (last && last.code !== 'no') {
     const sha = last.commits.at(-1);
-    if (!sha) return `${last.id} is done but has no commit recorded on the board.`;
-    try {
-      verifyCommit(root, sha);
-    } catch {
-      return `${last.id}: commit ${sha} is not reachable from HEAD.`;
+    if (!sha) out.push(`${last.id} is done but has no commit recorded on the board.`);
+    else {
+      try {
+        verifyCommit(root, sha);
+      } catch {
+        out.push(`${last.id}: commit ${sha} is not reachable from HEAD.`);
+      }
     }
   }
   const open = pendingQuestions(root);
-  if (open.length) return `${open.length} owner question(s) not answered yet (${open.map((q) => q.id).join(', ')}); ask or answer them first.`;
-  return null;
+  if (open.length) out.push(`${open.length} owner question(s) not answered yet (${open.map((q) => q.id).join(', ')}); ask or answer them first.`);
+  return out;
+}
+
+// null when compaction may run, else a one-line reason (the first unmet condition).
+export function compactBlocker(root) {
+  return compactBlockers(root)[0] ?? null;
 }
 
 // A block is remembered briefly: Claude Code asks again after every tool result.
@@ -86,17 +95,43 @@ export function cachedBlocker(sessionId, root, now = Date.now()) {
   return reason;
 }
 
-export function writeCompactHandoff(root, now = new Date()) {
+// The task to resume: one in progress or in review first, then a todo whose brief exists, then any todo.
+function nextTaskLine(root) {
+  const board = readBoard(root);
+  const inFlight = board.entries.find((e) => e.status === 'in-progress') ?? board.entries.find((e) => e.status === 'review');
+  if (inFlight) return `${inFlight.id}: ${inFlight.title} (${inFlight.status}; resume it first)`;
+  const todo = board.entries.filter((e) => e.status === 'todo');
+  const ready = todo.find((e) => fs.existsSync(path.join(teamPaths(root).tasks, `${e.id}.md`)));
+  const pick = ready ?? todo[0];
+  if (pick) return `${pick.id}: ${pick.title} (${ready ? 'brief ready' : 'todo, no brief yet'})`;
+  return 'none on the board; ask the owner or plan the next step';
+}
+
+// trigger: 'safe point' (the hook found every condition met), 'ceiling' (token ceiling reached) or 'manual'.
+// The header states the real trigger and, unless it is a verified safe point, the conditions that were not met.
+export function writeCompactHandoff(root, now = new Date(), { trigger = 'safe point', tokens, ceiling } = {}) {
   const dir = teamPaths(root).handoffs;
   fs.mkdirSync(dir, { recursive: true });
   const pad = (n) => String(n).padStart(2, '0');
   const name = `compact-${localDate(now)}-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}.md`;
-  const board = readBoard(root);
-  const next = board.entries.find((e) => e.status === 'todo');
+  let failed;
+  try {
+    failed = compactBlockers(root);
+  } catch {
+    failed = null; // could not check: say so instead of claiming a clean point
+  }
+  const how = trigger === 'ceiling'
+    ? `Written by the PreCompact hook because the context reached the token ceiling${tokens ? ` (${tokens} of ${ceiling} tokens)` : ''}, not because a safe point was reached.`
+    : trigger === 'manual' ? 'Written for a manual compaction (the owner asked for it); nothing checked that it is a safe point.'
+      : 'Written by the PreCompact hook at a safe point.';
+  const status = failed === null ? 'Conditions could not be checked; treat the state below as unverified.'
+    : failed.length ? ['Conditions not met when this was written:', ...failed.map((f) => `- ${f}`)].join('\n')
+      : 'All conditions met: nothing in flight, tree committed, last done task committed, no pending owner question (parked ones are listed below).';
   const text = [
     '# Compact hand-off',
-    'Written by the PreCompact hook at a clean point: nothing in flight, tree committed, last done task committed, no pending owner question (parked ones are listed below).',
-    `Next task: ${next ? `${next.id}: ${next.title}` : 'none on the board; ask the owner or plan the next step'}`,
+    how,
+    status,
+    `Next task: ${nextTaskLine(root)}`,
     'Owner questions: team/decisions.md (open and decided).',
     '',
     buildResumeSummary(root, { gitStatus: '' }).trim(),

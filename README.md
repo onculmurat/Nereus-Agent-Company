@@ -189,7 +189,7 @@ Claude Code compacts the lead's context by itself, which can happen in the middl
 
 - Allowed when nothing is in flight: no task `in-progress` or `review`, the git working tree is clean (ignored files do not count), the last `done` task has its commit on HEAD, and no owner question is open or deferred. NAC then writes a short `team/work/handoffs/compact-<stamp>.md` (board state, next task, pointer to `team/decisions.md`), and the next session start (source `compact`) points the lead to it.
 - Otherwise the compaction is deferred with a one-line reason. Above the ceiling (`compaction.ceiling`, default 300000 tokens in context) it runs anyway, so a deferral can never overflow the context.
-- Manual `/compact` is never blocked. Any error in the hook allows the compaction.
+- Manual `/compact` is never blocked. Any error in the hook allows the compaction. The compact hand-off states the real trigger (safe point, ceiling or manual) and lists every condition that was not met; its next task is the one in progress first, then a todo whose brief exists, then any todo.
 
 Defaults, in `defaults/config.json` (override in `team/config.json`):
 
