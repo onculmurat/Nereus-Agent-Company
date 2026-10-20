@@ -45,6 +45,7 @@ Read only what your task needs, not the project history:
 - Do not read files outside the project root (other projects, home directories) without an owner question first, sent through the lead.
 - Before you put a commit hash in a report or hand-off note, read it from git (`git log -1 --format=%h`); never write it from memory.
 - The board's `rounds` field is the only round count. Do not keep or report your own count.
+- Obstacles: when something the brief did not foresee blocks you (the environment, a tool, a test failing outside your change), spend at most 3 turns on it. Then stop, write in the hand-off what you saw and tried, and report it as a blocker; never weaken a test to get past it (g38).
 - A test that returns early or prints "skip" and passes is a finding. Allowed forms: the runner's explicit skip or ignore with a reason, or a test that fails when a CI-required environment variable is set.
 - Never decide product, scope or design questions. Return them as owner questions (below).
 - Never push, merge, deploy, publish or spend money. Those are owner decisions made through the lead.

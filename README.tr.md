@@ -229,6 +229,15 @@ Sonraki oturum bir devam özetiyle başlar: aşama, süren iş (`git status` ile
 
 `team/brief.md`, `decisions.md`, `contracts/`, `research/`, `glossary.md` ve `config.json` commit'lenmek içindir. `team/work/` (pano, görev özetleri, devir notları, eskalasyonlar, posta kutusu) de commit'lenir; yalnız `team/work/packs/` (üretilen bağlam paketleri) git dışındadır. Lider bunu kendi commit'lerinde, `chore(team): <ne>`, her görev bittiğinde ve her lider rotasyonunda, açık yolları ekleyerek commit'ler; kod commit'lerine karıştırmaz. Kurulum eski `.gitignore` satırını `team/work/` yerine `team/work/packs/` yapar ve önce farkı gösterir.
 
+## 1.3.8 değişiklikleri
+
+- **Tur bütçesi zorlanır** (g36): rol kendi turlarını sayamadığı için pack'teki bütçe satırı tek başına yetmedi; bir geliştirici rapor ve commit olmadan `maxTurns` sert durağına çarptı. Yeni PostToolUse hook'u (`turn-budget.js`) rolün turlarını kendi kaydından sayar, son 5 turda adımı bitirmesini, `turnBudget`'ta durup yalnız yeşil işi commit edip raporlamasını söyler. `turnBudget` `maxTurns`'ün altında kalmalı.
+- **Pack'te kod haritası** (g37): pack, brief'in adını verdiği dosyaların bildirimlerini satır numaralarıyla listeler; rol bu dosyaları tanımak için tur harcamaz. Planner artık her kod brief'ine tek bir `Files:` satırı yazar; bu satırı olmayan eski brief'te tırnak içindeki mevcut yollar kullanılır.
+- **Engel kuralı** (g38): her rol brief'in öngörmediği bir engelde en fazla 3 tur harcar, sonra raporlar; engeli geçmek için test zayıflatılmaz.
+- **Kapsam kaydı ve team/ dosyaları**: `task.js close` `team/metrics/scope-<id>.json` yazar (değişen dosyaların ne kadarını `Files:` satırı adlandırıyor, kalanlar türüne göre); bu, ileride kapsam kontrolü için bir kayıttır. Bir kod commit'inde `team/` dosyası varsa uyarır. Geliştirici kuralları artık hand-off'un kod commit'ine girmediğini söyler.
+- **Bulgu düzeltme ve pack --ids** (g40): `findings.js amend <F-id> --file --line --symbol` açık bir bulgunun adresini add ile aynı denetimlerle düzeltir; `findings.js pack --ids` bir modülün bulgularının bir kısmını paketler.
+- **Board başlığı** (g42): `board.js update <id> --title <metin>`.
+
 ## 1.3.7 değişiklikleri
 
 - **Bulgu adresi dosya olmalı** (g35): bir dizine (`crates/bench/src:1`) kaydedilen bulgu `findings.js pack` komutunu EISDIR ile düşürüyor, sertleştirme paketi üretilemiyordu. `findings.js add` ve `task.js close --findings` artık dizin adresini reddeder (close hiçbir şey kaydetmeden durur); `pack` eski bir dizin adresini hata vermek yerine pakette not eder.

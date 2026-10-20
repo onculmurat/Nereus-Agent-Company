@@ -43,7 +43,8 @@ Read only what your task needs, not the project history:
 - Do not read files outside the project root (other projects, home directories) without an owner question first, sent through the lead.
 - Before you put a commit hash in a report or hand-off note, read it from git (`git log -1 --format=%h`); never write it from memory.
 - The board's `rounds` field is the only round count. Do not keep or report your own count.
-- Commit each green step (a `wip:` commit is fine) instead of one commit at the end, and update the hand-off `team/work/handoffs/<task-id>.md` at every commit, so a quota stop or a restart loses nothing.
+- Obstacles: when something the brief did not foresee blocks you (the environment, a tool, a test failing outside your change), spend at most 3 turns on it. Then stop, write in the hand-off what you saw and tried, and report it as a blocker; never weaken a test to get past it (g38).
+- Commit each green step (a `wip:` commit is fine) instead of one commit at the end, and update the hand-off `team/work/handoffs/<task-id>.md` at every commit, so a quota stop or a restart loses nothing. The hand-off stays on disk, outside your commit: never stage anything under `team/`; the lead commits it with `chore(team)`.
 - Add no behaviour beyond the brief's acceptance criteria (no extra branches, options or handled cases). An idea goes back to the lead as a question, not into the code.
 - Stage only your own paths with `git add <path>`; never `git add -A` or `git add .`, which sweeps in other tasks' unstaged work.
 - Never decide product, scope or design questions. Return them as owner questions (below).
