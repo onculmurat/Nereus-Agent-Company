@@ -301,7 +301,7 @@ function totalsOf(rows) {
 // Saves the run: team/metrics/cost-<date>-<HHMM>.md (cost-<task>-<date>-<HHMM>.md with a task, or baseline-<name>.md), appends the rows to cost.jsonl and one
 // line to the shared ~/.claude/nac/metrics.md (this machine only).
 export function saveMetrics(root, opts = {}) {
-  const { baseline, home = os.homedir(), now = new Date() } = opts;
+  const { baseline, home = process.env.NAC_METRICS_HOME || os.homedir(), now = new Date() } = opts;
   if (baseline !== undefined && !BASELINE_RE.test(baseline)) throw new Error(`Invalid baseline name "${baseline}": letters, digits, dot, dash and underscore only`);
   const rows = buildMetricRows(root, opts);
   const dir = metricsDir(root);
@@ -334,6 +334,19 @@ export function saveMetrics(root, opts = {}) {
   // g22: a task closed with part of its dispatches unpacked gets a warning (printed by cost.js).
   const warnings = t.dispatches && t.packedShare < 100 ? [`${scope}: packed ${t.packedShare}% (${t.packed} of ${t.dispatches} dispatches named a context pack); build the pack with pack.js before dispatching a role.`] : [];
   return { md, jsonl, shared, rows, totals: t, warnings };
+}
+
+// g20: the cost file of a task, written on demand. Returns { file, created, warnings }. An existing
+// team/metrics/cost-<id>-<date>-<HHMM>.md counts (the id must be followed by the date, so T-01 never matches T-010).
+export function ensureCostFile(root, id, opts = {}) {
+  const prefix = `cost-${id}-`;
+  let existing = [];
+  try {
+    existing = fs.readdirSync(metricsDir(root)).filter((f) => f.startsWith(prefix) && /^\d{4}-\d{2}-\d{2}-\d{4}\.md$/.test(f.slice(prefix.length))).sort();
+  } catch { /* no metrics folder yet */ }
+  if (existing.length) return { file: path.join(metricsDir(root), existing.at(-1)), created: false, warnings: [] };
+  const saved = saveMetrics(root, { ...opts, task: id });
+  return { file: saved.md, created: true, warnings: saved.warnings };
 }
 
 function roleAverages(rows) {

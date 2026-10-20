@@ -508,3 +508,51 @@ test('g17: the pre-compact hook writes a ceiling hand-off that names the ceiling
   assert.equal(m.status, 0, m.stderr);
   assert.ok(fs.readdirSync(path.join(p.root, 'team', 'work', 'handoffs')).some((n) => /^compact-.*\.md$/.test(n) && /manual/i.test(handoffText(p, n))), 'a manual compaction also leaves an honest hand-off');
 });
+
+// ---- B5 (g20) a task does not close without a cost file ----
+import { ensureCostFile } from '../scripts/lib/cost.js';
+
+const boardCli = path.join(pluginRoot, 'scripts', 'board.js');
+const costFiles = (root) => { try { return fs.readdirSync(path.join(root, 'team', 'metrics')).filter((f) => /^cost-.*\.md$/.test(f)); } catch { return []; } };
+
+test('g20: ensureCostFile finds an existing task cost file and does not mistake a longer id for it', () => {
+  const root = makeProject();
+  fs.mkdirSync(path.join(root, 'team', 'metrics'));
+  fs.writeFileSync(path.join(root, 'team', 'metrics', 'cost-T-010-2026-10-01-1200.md'), 'x');
+  const miss = ensureCostFile(root, 'T-01', { home: os.tmpdir() });
+  assert.equal(miss.created, true, 'cost-T-010-... is not the cost file of T-01');
+  assert.match(path.basename(miss.file), /^cost-T-01-\d{4}-\d{2}-\d{2}-\d{4}\.md$/);
+  const hit = ensureCostFile(root, 'T-010', { home: os.tmpdir() });
+  assert.equal(hit.created, false);
+  assert.equal(path.basename(hit.file), 'cost-T-010-2026-10-01-1200.md');
+});
+
+test('g20: board.js update --status done writes the cost file itself when it is missing, once', () => {
+  const root = makeProject();
+  const run = (...a) => spawnSync(process.execPath, [boardCli, ...a, '--project', root], { encoding: 'utf8' });
+  assert.equal(run('add', '--title', 'x', '--owner', 'backend-developer', '--model', 'sonnet').status, 0);
+  assert.equal(costFiles(root).length, 0);
+  const r = run('update', 'T-001', '--status', 'done');
+  assert.equal(r.status, 0, r.stderr);
+  assert.equal(costFiles(root).length, 1);
+  assert.match(costFiles(root)[0], /^cost-T-001-/);
+  assert.match(JSON.parse(r.stdout).cost.file, /cost-T-001-/);
+  assert.equal(run('update', 'T-001', '--status', 'done').status, 0);
+  assert.equal(costFiles(root).length, 1, 'a second done does not write another file');
+  run('update', 'T-001', '--status', 'in-progress');
+  assert.equal(costFiles(root).length, 1, 'only done triggers it');
+});
+
+test('g20: a refused done writes no cost file; a cost.js failure only warns', () => {
+  const root = makeProject();
+  const run = (...a) => spawnSync(process.execPath, [boardCli, ...a, '--project', root], { encoding: 'utf8' });
+  run('add', '--title', 'x', '--owner', 'backend-developer', '--model', 'sonnet', '--security', 'contract');
+  assert.equal(run('update', 'T-001', '--status', 'done').status, 1);
+  assert.equal(costFiles(root).length, 0);
+  run('review', 'T-001', '--role', 'security-reviewer', '--verdict', 'pass');
+  fs.writeFileSync(path.join(root, 'team', 'metrics'), 'a file where the folder should be');
+  const r = run('update', 'T-001', '--status', 'done');
+  assert.equal(r.status, 0, 'fail-open: the board update still succeeds');
+  assert.match(r.stderr, /cost file not written/i);
+  assert.equal(JSON.parse(r.stdout).status, 'done');
+});

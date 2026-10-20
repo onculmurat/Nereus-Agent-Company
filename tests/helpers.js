@@ -4,6 +4,9 @@ import os from 'node:os';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 
+// Tests never write into the real ~/.claude/nac/metrics.md (cost.js saves a line there).
+process.env.NAC_METRICS_HOME ??= fs.mkdtempSync(path.join(os.tmpdir(), 'nac metrics home '));
+
 export function makeProject(prefix = 'nac project ') {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
   fs.mkdirSync(path.join(root, 'team', 'work'), { recursive: true });

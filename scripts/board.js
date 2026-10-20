@@ -6,6 +6,7 @@ import { runCli, need, UsageError } from './lib/cli.js';
 import { readBoard, addEntry, updateEntry, recordReview, recordModuleReview, phaseCloseProblems, setPhase, incrementRound, verifyCommit, rotationDue, markRotated, countFoldIn } from './lib/board.js';
 import { loadConfig, validateConfig } from './lib/config.js';
 import { listFindings } from './lib/findings.js';
+import { ensureCostFile } from './lib/cost.js';
 
 const usage = `Usage:
   board.js show
@@ -61,7 +62,16 @@ const commands = {
       patch.commits = seen ? known : [...known, v.commit];
     }
     const entry = updateEntry(root, id, patch);
-    return v.status === 'done' ? { ...entry, rotate: rotationDue(root) } : entry;
+    if (v.status !== 'done') return entry;
+    // g20: a task does not close without its cost file; write it now. Fail-open: a problem here only warns.
+    let cost;
+    try {
+      cost = ensureCostFile(root, id);
+      for (const w of cost.warnings) process.stderr.write(`warning: ${w}\n`);
+    } catch (e) {
+      process.stderr.write(`warning: cost file not written for ${id} (${e.message}); run cost.js --save --task ${id}\n`);
+    }
+    return { ...entry, rotate: rotationDue(root), ...(cost ? { cost: { file: cost.file, created: cost.created } } : {}) };
   },
   review: ({ values: v, positionals: [, id], root }) => {
     need(v, 'role', 'verdict');
