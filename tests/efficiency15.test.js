@@ -233,6 +233,19 @@ test('g33: a malformed finding stops close before anything is recorded', () => {
   assert.deepEqual(listFindings(p.root), []);
 });
 
+test('g35: a finding with a bad value (a directory address) also stops close before done', () => {
+  const p = taskProject();
+  json(node('task.js', ['start', 'T-001'], p.root));
+  const sha = p.commit('code.txt');
+  fs.mkdirSync(path.join(p.root, 'src'));
+  fs.writeFileSync(path.join(p.root, 'f.json'), JSON.stringify([{ module: 'core', file: 'src', line: 1, severity: 'hardening', class: 'observed', text: 'dir' }]));
+  const r = node('task.js', ['close', 'T-001', '--commit', sha, '--findings', 'f.json'], p.root);
+  assert.equal(r.status, 1);
+  assert.match(r.stderr, /finding 1 in --findings: --file "src" is a directory/);
+  assert.equal(readBoard(p.root).entries.find((e) => e.id === 'T-001').status, 'in-progress');
+  assert.deepEqual(listFindings(p.root), []);
+});
+
 // g34: with compaction the lead rotates after every task: close writes the lead hand-off and resets the counter.
 test('g34: with compaction, close writes the lead hand-off with the lead note and resets the counter', () => {
   const p = taskProject({ compaction: true });

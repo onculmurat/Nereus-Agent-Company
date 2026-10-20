@@ -9,7 +9,7 @@ import { addWorktree, removeWorktree } from './worktree.js';
 import { writePack } from './pack.js';
 import { commitPaths } from './commit.js';
 import { ensureCostFile } from './cost.js';
-import { addFinding } from './findings.js';
+import { addFinding, validateFinding } from './findings.js';
 import { buildResumeSummary, questionListsMarkdown } from './summary.js';
 import { hasCompactionSettings } from './setup.js';
 import { teamPaths } from './paths.js';
@@ -96,6 +96,11 @@ export function closeTask(root, id, { commit, singleCommit, findings = [], leadN
   for (const [i, f] of findings.entries()) {
     const missing = ['module', 'file', 'line', 'severity', 'class', 'text'].filter((k) => f?.[k] === undefined || f[k] === '');
     if (missing.length) throw new Error(`finding ${i + 1} in --findings lacks ${missing.join(', ')}; nothing was recorded`);
+    try {
+      validateFinding(root, f);
+    } catch (err) {
+      throw new Error(`finding ${i + 1} in --findings: ${err.message}; nothing was recorded`);
+    }
   }
   const commits = commit === undefined ? e.commits : commitsWith(root, id, commit);
   // done first: a refused done (deferred question, security review) must not leave findings that a second try repeats
