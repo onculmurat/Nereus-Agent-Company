@@ -243,6 +243,10 @@ The next session starts with a resume summary: phase, work in progress (with `gi
 
 `team/brief.md`, `decisions.md`, `contracts/`, `research/`, `glossary.md` and `config.json` are meant to be committed. `team/work/` (board, briefs, hand-offs, escalations, mailbox) is committed too; only `team/work/packs/` (generated context packs) is git-ignored. The lead commits it in its own commits, `chore(team): <what>`, after each task is marked done and at each lead rotation, staging explicit paths and never mixing it into a code commit. Setup changes an older `.gitignore` line `team/work/` to `team/work/packs/` and shows the diff first.
 
+## Changes in 1.3.9
+
+- **Files: line notes** (g43): a note in parentheses after a path (`store.rs (read only, unless ...)`) split the path at its comma, so the code map called existing files new. Commas inside parentheses no longer split, notes and a leading "new" are dropped, and the planner writes notes on their own line.
+
 ## Changes in 1.3.8
 
 - **Turn budget is enforced** (g36): a role cannot count its own turns, so the pack's budget line alone let a developer run into the `maxTurns` hard stop with no report and no commit. A new PostToolUse hook (`turn-budget.js`) counts the role's turns from its transcript, tells it in its last 5 turns to finish the step it is on, and at `turnBudget` to stop, commit only green work and report. Keep `turnBudget` below `maxTurns`.

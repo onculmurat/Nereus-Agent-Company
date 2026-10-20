@@ -13,10 +13,25 @@ const clean = (p) => p.trim().replace(/\s*\(new\)$/i, '').replace(/^`|`$/g, '').
 const usable = (p) => p && /\//.test(p) || /\.[A-Za-z0-9]+$/.test(p);
 const kept = (p) => usable(p) && !/^https?:/.test(p) && !p.startsWith('team/') && !p.startsWith('/') && !p.includes('..') && !/^[A-Za-z]:/.test(p);
 
+// Splits on commas outside parentheses: a note like `a.rs (read only, unless x)` stays one item (g43, T-084).
+const splitTop = (s) => {
+  const items = [];
+  let depth = 0;
+  let cur = '';
+  for (const ch of s) {
+    if (ch === '(') depth += 1;
+    else if (ch === ')') depth = Math.max(0, depth - 1);
+    if (ch === ',' && depth === 0) { items.push(cur); cur = ''; } else cur += ch;
+  }
+  return [...items, cur];
+};
+// One Files: item to its path: the notes in parentheses, a leading "new" and backticks are not part of it.
+const itemPath = (item) => item.replace(/\([^)]*\)?/g, ' ').replace(/`/g, ' ').trim().replace(/^new\s+/i, '').split(/\s+/)[0] ?? '';
+
 // { line: true|false, files: [...] }: line is true when the brief has a Files: line (the planner's list).
 export function briefFiles(brief) {
   const m = /^[ \t]*(?:[-*][ \t]*)?Files:[ \t]*(.+)$/im.exec(brief);
-  if (m) return { line: true, files: [...new Set(m[1].split(',').map(clean).filter(kept))] };
+  if (m) return { line: true, files: [...new Set(splitTop(m[1]).map(itemPath).map(clean).filter(kept))] };
   // Backticked text is often a symbol, a call or an env path (`%LOCALAPPDATA%/x`, `store::open(a/b)`): plain paths only.
   const ticked = [...brief.matchAll(/`([^`\s]+)`/g)].map((t) => clean(t[1])).filter((p) => kept(p) && /\//.test(p) && /^[A-Za-z0-9._/-]+$/.test(p));
   return { line: false, files: [...new Set(ticked)] };
