@@ -5,11 +5,13 @@ import { fileURLToPath } from 'node:url';
 import { runCli, UsageError } from './lib/cli.js';
 import { loadConfig, validateConfig } from './lib/config.js';
 import { runGate, gateChecks, isCodeless, checkDocGate } from './lib/gate.js';
+import { taskTree } from './lib/board.js';
 
 const usage = `Usage:
   gate.js [--task <id>] [--project <dir>]
                       without --task, or when the task has code: runs every check of gateCommands (name + command, in order; all are run and reported, any red fails)
                       or the single testCommand when gateCommands is not set
+                      with --task, the checks run in the task's worktree when the board records one (g28)
                       a task marked code: no (board entry or brief) is checked on its report file instead:
                       the file named by the brief's "Output: <path>" line exists, has a verdict line
                       (Verdict: GO | GO-WITH-CHANGES | NO-GO) and an acceptance criteria section
@@ -28,7 +30,8 @@ runCli(usage, { task: { type: 'string' } }, ({ values, root }) => {
   if (checks.length === 0) {
     throw new UsageError('No testCommand in team/config.json. The planner records it in phase 4; ask the owner if it is unknown.');
   }
-  const result = runGate(root, checks);
+  const tree = values.task === undefined ? root : taskTree(root, values.task);
+  const result = runGate(tree, checks);
   if (!result.ok) process.exitCode = 1;
-  return result;
+  return { ...result, tree };
 });

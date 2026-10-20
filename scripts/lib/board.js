@@ -77,6 +77,17 @@ export function readBoard(root) {
   return board;
 }
 
+// g28: the tree a task's code lives in. pack --base and gate --task ran in the main tree while the task worked in
+// its own worktree (T-059: empty diff, gate on the wrong tree). A worktree recorded on the board but missing is an
+// error, not a silent fall back to the main tree.
+export function taskTree(root, id) {
+  const wt = readBoard(root).entries.find((e) => e.id === id)?.worktree;
+  if (!wt) return root;
+  const dir = path.resolve(root, wt);
+  if (!fs.existsSync(dir)) throw new Error(`${id}: worktree ${wt} on the board does not exist. Fix it with board.js update ${id} --worktree <path>.`);
+  return dir;
+}
+
 export function writeBoard(root, board) {
   const file = teamPaths(root).board;
   fs.mkdirSync(path.dirname(file), { recursive: true });

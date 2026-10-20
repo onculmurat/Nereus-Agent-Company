@@ -229,6 +229,10 @@ Sonraki oturum bir devam özetiyle başlar: aşama, süren iş (`git status` ile
 
 `team/brief.md`, `decisions.md`, `contracts/`, `research/`, `glossary.md` ve `config.json` commit'lenmek içindir. `team/work/` (pano, görev özetleri, devir notları, eskalasyonlar, posta kutusu) de commit'lenir; yalnız `team/work/packs/` (üretilen bağlam paketleri) git dışındadır. Lider bunu kendi commit'lerinde, `chore(team): <ne>`, her görev bittiğinde ve her lider rotasyonunda, açık yolları ekleyerek commit'ler; kod commit'lerine karıştırmaz. Kurulum eski `.gitignore` satırını `team/work/` yerine `team/work/packs/` yapar ve önce farkı gösterir.
 
+## 1.3.2 değişiklikleri
+
+- **Pack ve gate görev worktree'sini izler** (g28): görev kendi worktree'sinde çalışırken `pack.js --base` diff'i, `gate.js --task` kontrolleri ana ağaçta alıyordu; pack boş çıkıyor, gate yanlış kodu denetliyordu. İkisi de artık board'da kayıtlı worktree'yi kullanır; kayıtlı ama olmayan worktree hata verir.
+
 ## 1.3.1 değişiklikleri
 
 - **Lider ekip commit'i yapabilir** (g27): otomatik mod sınıflandırıcısı liderin `team-commit.js` çalıştırmasını reddediyordu, ekip commit'leri sana kalıyordu. Kurulum artık yalnız bu script için proje izin kuralı yazar (eklenti kökü ve dizin kaynaklı marketplace); önceden kurulmuş projede bir kez `! node <yol>/scripts/setup.js --permissions` çalıştır. Lider `team-commit.js`'i tek başına koşar, zincirlemez.
