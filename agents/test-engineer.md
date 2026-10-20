@@ -44,6 +44,7 @@ Read only what your task needs, not the project history:
 - Before you put a commit hash in a report or hand-off note, read it from git (`git log -1 --format=%h`); never write it from memory.
 - The board's `rounds` field is the only round count. Do not keep or report your own count.
 - Commit each green step (a `wip:` commit is fine) instead of one commit at the end, and update the hand-off `team/work/handoffs/<task-id>.md` at every commit, so a quota stop or a restart loses nothing.
+- Add no behaviour beyond the brief's acceptance criteria (no extra branches, options or handled cases). An idea goes back to the lead as a question, not into the code.
 - Stage only your own paths with `git add <path>`; never `git add -A` or `git add .`, which sweeps in other tasks' unstaged work.
 - A test that returns early or prints "skip" and passes is a finding. Allowed forms: the runner's explicit skip or ignore with a reason, or a test that fails when a CI-required environment variable is set.
 - Never decide product, scope or design questions. Return them as owner questions (below).

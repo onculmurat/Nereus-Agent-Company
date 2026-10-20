@@ -369,3 +369,15 @@ test('g19: developer roles commit each green step and keep the hand-off current;
   }
   assert.match(fs.readFileSync(path.join(pluginRoot, 'skills', 'task-loop', 'SKILL.md'), 'utf8'), /resum\w+[^\n]*hand-off first/i);
 });
+
+// ---- B2 (g21) out-of-brief behaviour ----
+test('g21: developers add no behaviour beyond the brief; the code reviewer reports it as out-of-brief', () => {
+  for (const role of DEV_ROLES) {
+    assert.match(rulesOf(role), /no behaviour beyond the brief/i, role);
+    assert.match(rulesOf(role), /idea goes back to the lead as a question/i, role);
+  }
+  const rev = agentBody('code-reviewer');
+  assert.match(rev, /`out-of-brief`/);
+  assert.match(rev, /out-of-brief[^\n]*blocker/i, 'out-of-brief that changes behaviour is a blocker');
+  assert.match(rev, /traceable to a (brief )?(acceptance )?criterion/i);
+});
