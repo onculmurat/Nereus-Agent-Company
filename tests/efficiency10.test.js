@@ -946,6 +946,16 @@ test('g22 wider: test-engineer and final-reviewer dispatches without a pack are 
   assert.equal(dispatch(root, 'my-test-engineer-helper', 'x').status, 0, 'only the exact role names are covered');
 });
 
+test('g22 wider: database-engineer dispatches without a pack are refused, with or without the nac: prefix', () => {
+  const root = makeProject();
+  for (const role of ['database-engineer', 'nac:database-engineer']) {
+    const r = dispatch(root, role, 'Write the migration for T-001');
+    assert.equal(r.status, 2, role);
+    assert.match(r.stderr, /pack\.js/);
+  }
+  assert.equal(dispatch(root, 'database-engineer', 'Read team/work/packs/T-001-database-engineer.md first.').status, 0);
+});
+
 // ---- F3 (g26) unregistered Q-ids and unread D-ids ----
 import { unknownIdsProblem } from '../scripts/lib/owner-question.js';
 import { decide as decideQuestion } from '../scripts/lib/decisions.js';

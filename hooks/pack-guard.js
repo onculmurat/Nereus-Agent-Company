@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// PreToolUse (Agent/Task): refuses a developer, reviewer, security, test-engineer or final-reviewer dispatch without a context pack (g22).
+// PreToolUse (Agent/Task): refuses a developer, database-engineer, reviewer, security, test-engineer or final-reviewer dispatch without a context pack (g22).
 // Fails open: an internal error never blocks a dispatch.
 import { runHook } from '../scripts/lib/hookio.js';
 import { checkDispatch } from '../scripts/lib/pack-guard.js';
