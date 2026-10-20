@@ -3,6 +3,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
+import { readBoard } from './board.js';
 
 const ID_RE = /^[A-Za-z0-9-]{1,64}$/;
 
@@ -53,8 +54,10 @@ export function integrateWorktree(root, id) {
   return { id, branch, commits: added };
 }
 
+// g30: the board's worktree wins over the computed path; T-059's worktree lived elsewhere and remove did not find it.
 export function removeWorktree(root, id, opts) {
-  const dir = worktreePath(root, id, opts);
+  const recorded = readBoard(root).entries.find((e) => e.id === checkId(id))?.worktree;
+  const dir = recorded ? path.resolve(root, recorded) : worktreePath(root, id, opts);
   git(root, 'worktree', 'remove', dir);
   git(root, 'branch', '-D', branchOf(id));
   return { id, removed: dir };
