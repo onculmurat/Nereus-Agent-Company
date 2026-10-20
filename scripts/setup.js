@@ -19,7 +19,9 @@ const usage = `Usage:
   node setup.js [--project <dir>] --compaction [--dry-run]   writes only autoCompactWindow and idleCompaction into .claude/settings.json (existing values stay),
                                          keeps the file's line endings and indentation, and commits that one file as chore(nac) (warns instead when it cannot)
                                          The owner runs it as "! node <path>/scripts/setup.js --compaction" if the lead is blocked from editing settings.
-  node setup.js [--project <dir>] --permissions [--dry-run]   adds only the allow rule for team-commit.js to .claude/settings.json (g27),
+                                         --window <n> (at least 100000) replaces an existing autoCompactWindow: 100000 lets the lead compact at the
+                                         end of each task (g34) instead of growing to the ceiling
+  node setup.js [--project <dir>] --permissions [--dry-run]   adds only the allow rules for team-commit.js and task.js to .claude/settings.json (g27, g33),
                                          keeps formatting and commits that one file as chore(nac). The owner runs it as
                                          "! node <path>/scripts/setup.js --permissions": the classifier blocks the lead from editing its permissions.
   node setup.js [--project <dir>] --proxy <session> [--until YYYY-MM-DD] [--dry-run]   sets the owner proxy in team/config.json (g29)
@@ -53,6 +55,7 @@ runCli(
     'claude-md': { type: 'string' },
     'guard-block': { type: 'boolean' },
     compaction: { type: 'boolean' },
+    window: { type: 'string' },
     permissions: { type: 'boolean' },
     proxy: { type: 'string' },
     until: { type: 'string' },
@@ -69,7 +72,7 @@ runCli(
     }
     if (values.compaction) {
       const root = path.resolve(values.project ?? process.cwd());
-      const plan = planCompaction(root, { config: loadConfig({ pluginRoot, projectRoot: root }) });
+      const plan = planCompaction(root, { config: loadConfig({ pluginRoot, projectRoot: root }), window: values.window === undefined ? undefined : Number(values.window) });
       const changed = JSON.stringify(plan.before) !== JSON.stringify(plan.after);
       const keys = `autoCompactWindow=${plan.after.autoCompactWindow}, idleCompaction=${plan.after.idleCompaction}`;
       if (values['dry-run']) return `${changed ? 'would write' : 'already set, nothing would change in'} ${plan.path} (${keys}; nothing written)
@@ -98,7 +101,7 @@ runCli(
     if (values.permissions) {
       const plan = planPermissions(path.resolve(values.project ?? process.cwd()), { pluginRoot });
       const changed = JSON.stringify(plan.before) !== JSON.stringify(plan.after);
-      const rules = plan.after.permissions.allow.filter((r) => r.includes('team-commit.js')).join(', ');
+      const rules = plan.after.permissions.allow.filter((r) => /scripts\/(team-commit|task)\.js/.test(r)).join(', ');
       if (values['dry-run']) return `${changed ? 'would write' : 'already set, nothing would change in'} ${plan.path} (${rules}; nothing written)\n`;
       const done = applyPermissions(plan);
       if (done.warning) process.stderr.write(`WARNING  ${done.warning}\n`);

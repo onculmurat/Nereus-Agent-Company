@@ -19,7 +19,9 @@ test('team-commit rules name the plugin root and a directory marketplace source,
   const rules = teamCommitRules('C:\\cache\\nac\\1.3.0', { sources: ['D:\\Projects\\Agent Team', 'C:\\cache\\nac\\1.3.0'] });
   assert.deepEqual(rules, [
     'Bash(node "C:/cache/nac/1.3.0/scripts/team-commit.js" *)',
+    'Bash(node "C:/cache/nac/1.3.0/scripts/task.js" *)',
     'Bash(node "D:/Projects/Agent Team/scripts/team-commit.js" *)',
+    'Bash(node "D:/Projects/Agent Team/scripts/task.js" *)',
   ]);
 });
 
@@ -47,7 +49,7 @@ test('--permissions writes only the rule, keeps formatting and commits that one 
   const text = fs.readFileSync(file, 'utf8');
   assert.match(text, /\r\n\t"permissions"/);
   assert.equal(settingsOf(root).autoCompactWindow, 200000);
-  assert.deepEqual(settingsOf(root).permissions.allow, [`Bash(node "${slash(pluginRoot)}/scripts/team-commit.js" *)`]);
+  assert.deepEqual(settingsOf(root).permissions.allow, [`Bash(node "${slash(pluginRoot)}/scripts/team-commit.js" *)`, `Bash(node "${slash(pluginRoot)}/scripts/task.js" *)`]);
   assert.equal(git('status', '--porcelain'), '');
   assert.match(git('log', '-1', '--format=%s'), /^chore\(nac\): allow team-commit\.js/);
   assert.equal(applyPermissions(planPermissions(root, { pluginRoot, sources: [] })).changed, false);

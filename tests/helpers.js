@@ -6,6 +6,8 @@ import { execFileSync } from 'node:child_process';
 
 // Tests never write into the real ~/.claude/nac/metrics.md (cost.js saves a line there).
 process.env.NAC_METRICS_HOME ??= fs.mkdtempSync(path.join(os.tmpdir(), 'nac metrics home '));
+// The gate's wait for other runs of its check programs (g31) is off: parallel test files run the same commands.
+process.env.NAC_GATE_WAIT_SECONDS ??= '0';
 
 // Deterministic git for the whole suite (F7): fixed identity, fixed dates and no background maintenance, for the
 // test processes and for every git child they start. Commits made through makeGitProject get strictly increasing

@@ -55,9 +55,10 @@ export function marketplaceSources(file = path.join(os.homedir(), '.claude', 'pl
   }
 }
 
+// g33: task.js start and close commit team/ the same way, so they get the same rule.
 export function teamCommitRules(pluginRoot, { sources = marketplaceSources() } = {}) {
-  const rule = (root) => `Bash(node "${String(root).replace(/\\/g, '/').replace(/\/+$/, '')}/scripts/team-commit.js" *)`;
-  return [...new Set([pluginRoot, ...sources].map(rule))];
+  const rules = (root) => ['team-commit.js', 'task.js'].map((s) => `Bash(node "${String(root).replace(/\\/g, '/').replace(/\/+$/, '')}/scripts/${s}" *)`);
+  return [...new Set([pluginRoot, ...sources].flatMap(rules))];
 }
 
 function addAllowRules(settings, rules) {
@@ -89,10 +90,13 @@ function planSettings(projectRoot, compaction = {}, rules = []) {
 }
 
 // Only the two compaction keys, for projects set up earlier (the owner runs it; the auto-mode classifier blocks the lead).
-export function planCompaction(projectRoot, { config } = {}) {
+// g34: window replaces an existing autoCompactWindow (the owner lowers it so the lead compacts at task ends).
+export function planCompaction(projectRoot, { config, window } = {}) {
+  if (window !== undefined && (!Number.isInteger(window) || window < 100000)) throw new Error(`--window must be a whole number of at least 100000 tokens; got ${JSON.stringify(window)}`);
   const plan = planSettings(path.resolve(projectRoot), config?.compaction);
   const before = plan.before ?? {};
   const after = structuredClone(before);
+  if (window !== undefined) after.autoCompactWindow = window;
   after.autoCompactWindow ??= plan.after.autoCompactWindow;
   after.idleCompaction ??= plan.after.idleCompaction;
   return { path: plan.path, before: plan.before, after };
