@@ -7,6 +7,7 @@ import { readBoard, addEntry, updateEntry, recordReview, recordModuleReview, pha
 import { loadConfig, validateConfig } from './lib/config.js';
 import { listFindings } from './lib/findings.js';
 import { ensureCostFile } from './lib/cost.js';
+import { hasCompactionSettings } from './lib/setup.js';
 
 const usage = `Usage:
   board.js show
@@ -30,7 +31,7 @@ const usage = `Usage:
   board.js foldin <id> [--reset]         before each spec fold-in round: prints action fold-in (rounds up to foldInRounds) or batch; --reset starts a new review cycle
   board.js phase <n>                     refused while a blocker finding is open or a module has security tasks done after its last
                                          security-reviewer pass (board.js review --module); the owner approves the phase first
-  board.js rotated                       after the lead hand-off: reset the done counter (update --status done prints rotate: true at 5)
+  board.js rotated                       after the lead hand-off: reset the done counter (update --status done prints rotate: true at 5, with rotateBy: compaction|clear)
   (all accept --project <dir>; default: nearest directory with team/config.json)
 `;
 
@@ -71,7 +72,8 @@ const commands = {
     } catch (e) {
       process.stderr.write(`warning: cost file not written for ${id} (${e.message}); run cost.js --save --task ${id}\n`);
     }
-    return { ...entry, rotate: rotationDue(root), ...(cost ? { cost: { file: cost.file, created: cost.created } } : {}) };
+    const rotate = rotationDue(root);
+    return { ...entry, rotate, ...(rotate ? { rotateBy: rotationWay(root) } : {}), ...(cost ? { cost: { file: cost.file, created: cost.created } } : {}) };
   },
   review: ({ values: v, positionals: [, id], root }) => {
     need(v, 'role', 'verdict');
@@ -111,6 +113,15 @@ const options = {
   title: { type: 'string' }, owner: { type: 'string' }, model: { type: 'string' }, id: { type: 'string' },
   status: { type: 'string' }, code: { type: 'string' }, security: { type: 'string' }, module: { type: 'string' }, role: { type: 'string' }, verdict: { type: 'string' }, commit: { type: 'string' }, handoff: { type: 'string' }, reset: { type: 'boolean' }, approach: { type: 'string' }, hardening: { type: 'string' }, decision: { type: 'string' }, size: { type: 'string' },
 };
+
+// g15: with compaction configured the lead rotates by hand-off and autocompact; /clear is for projects without it.
+function rotationWay(root) {
+  try {
+    return hasCompactionSettings(root) ? 'compaction' : 'clear';
+  } catch {
+    return 'clear';
+  }
+}
 
 runCli(usage, options, (ctx) => {
   const cmd = commands[ctx.positionals[0]];

@@ -639,3 +639,35 @@ test('g13: the Stop hook blocks a report with a buried open question once, and p
   assert.equal(stop('## Done\n- T-028 merged. Tests green.').status, 0);
   assert.equal(stop(BLOCK).status, 0);
 });
+
+// ---- C3 (g15) rotation vs conditional compaction ----
+
+function fifthDone(root) {
+  const run = (...a) => spawnSync(process.execPath, [boardCli, ...a, '--project', root], { encoding: 'utf8' });
+  for (let i = 1; i <= 5; i += 1) run('add', '--title', `T${i}`, '--owner', 'backend-developer', '--model', 'sonnet');
+  let last;
+  for (let i = 1; i <= 5; i += 1) last = run('update', `T-00${i}`, '--status', 'done');
+  return JSON.parse(last.stdout);
+}
+
+test('g15: the fifth done names how to rotate: autocompact when compaction is configured, /clear when it is off', () => {
+  const off = fifthDone(makeProject());
+  assert.equal(off.rotate, true);
+  assert.equal(off.rotateBy, 'clear');
+  const root = makeProject();
+  fs.mkdirSync(path.join(root, '.claude'));
+  fs.writeFileSync(path.join(root, '.claude', 'settings.json'), JSON.stringify({ autoCompactWindow: 200000 }));
+  const on = fifthDone(root);
+  assert.equal(on.rotate, true);
+  assert.equal(on.rotateBy, 'compaction');
+});
+
+test('g15: the rotation skill rotates by hand-off plus autocompact when compaction is on, /clear only when it is off', () => {
+  const s = fs.readFileSync(path.join(pluginRoot, 'skills', 'task-loop', 'SKILL.md'), 'utf8');
+  const section = s.split('## Session rotation')[1].split('\n## ')[0];
+  assert.match(section, /rotateBy/);
+  assert.match(section, /compaction[\s\S]*autocompact|autocompact[\s\S]*compaction/i);
+  assert.match(section, /\/clear[^\n]*(only|off)|(only|off)[^\n]*\/clear/i);
+  assert.doesNotMatch(section, /Tell the owner: run `\/clear`, then say "devam" \(or "continue"\)\.\s/, 'the unconditional /clear step is gone');
+  assert.match(section, /devam/, 'the /clear path still resumes with "devam"');
+});
