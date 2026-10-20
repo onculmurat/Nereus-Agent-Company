@@ -243,6 +243,10 @@ The next session starts with a resume summary: phase, work in progress (with `gi
 
 `team/brief.md`, `decisions.md`, `contracts/`, `research/`, `glossary.md` and `config.json` are meant to be committed. `team/work/` (board, briefs, hand-offs, escalations, mailbox) is committed too; only `team/work/packs/` (generated context packs) is git-ignored. The lead commits it in its own commits, `chore(team): <what>`, after each task is marked done and at each lead rotation, staging explicit paths and never mixing it into a code commit. Setup changes an older `.gitignore` line `team/work/` to `team/work/packs/` and shows the diff first.
 
+## Changes in 1.3.2
+
+- **Pack and gate follow the task worktree** (g28): `pack.js --base` took the diff and `gate.js --task` ran the checks in the main tree while the task worked in its own worktree, so the pack came out empty and the gate checked the wrong code. Both now use the worktree the board records; a recorded worktree that is missing is an error.
+
 ## Changes in 1.3.1
 
 - **Team commits allowed for the lead** (g27): the auto-mode classifier refused the lead's `team-commit.js` run, so team commits fell to you. Setup now writes a project allow rule for exactly that script (plugin root and a directory marketplace source); for a project set up earlier run `! node <path>/scripts/setup.js --permissions` once. The lead runs `team-commit.js` on its own, never chained.

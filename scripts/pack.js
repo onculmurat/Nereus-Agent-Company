@@ -11,6 +11,7 @@ const usage = `Usage:
                                          delta (fix rounds, re-reviews): the findings or gate output, the diff since
                                          the previous attempt (<sha>) and the acceptance criteria only
                                          the diff never holds team/; --paths limits it to those paths (comma separated).
+                                         The diff is taken in the task's worktree when the board records one (g28); the pack is written in the main project.
                                          A pack up to 25% over packMaxChars (default 60000) is accepted with a note; above that
                                          the test files of the diff are left out and named (testsLeftOut); a pack still over 125% is written but exits 3 with a warning
                                          on stderr: narrow it with --paths or a later --base; --allow-large accepts it.

@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { teamPaths } from './paths.js';
 import { loadConfig } from './config.js';
 import { toLines } from './sections.js';
-import { readBoard } from './board.js';
+import { readBoard, taskTree } from './board.js';
 import { TEST_RE } from './findings.js';
 import { parseRefs } from './refs.js';
 
@@ -164,7 +164,7 @@ function buildDelta(root, { id, role, base, gate, round, findings, paths, leaveO
     notFound.push('acceptance criteria');
     parts.push('## Acceptance criteria\n\nNot found in the brief: read the task brief itself.');
   }
-  const diff = gitDiff(root, base, paths, leaveOut).trimEnd();
+  const diff = gitDiff(taskTree(root, id), base, paths, leaveOut).trimEnd();
   const fence = fenceFor(diff);
   parts.push(`## Diff since ${base}\n\n${fence}diff\n${diff}\n${fence}`);
   if (leaveOut?.length) parts.push(leftOutSection(leaveOut));
@@ -214,7 +214,7 @@ export function buildPack(root, { id, role, base, gate, round, findings, paths, 
   if (found.length) parts.push(`## Decisions\n\n${found.join('\n\n')}`);
   if (notFound.length) parts.push(`## Not found\n\n${notFound.map((n) => `- ${n}`).join('\n')}`);
   if (base !== undefined) {
-    const diff = gitDiff(root, base, paths, leaveOut).trimEnd();
+    const diff = gitDiff(taskTree(root, id), base, paths, leaveOut).trimEnd();
     const fence = fenceFor(diff);
     parts.push(`## Diff against ${base}\n\n${fence}diff\n${diff}\n${fence}`);
     if (leaveOut?.length) parts.push(leftOutSection(leaveOut));
@@ -235,7 +235,7 @@ export function writePack(root, opts) {
   let { text, notFound } = buildPack(root, opts);
   let testsLeftOut;
   if (text.length > hard && opts.base !== undefined) {
-    const tests = changedTestFiles(root, opts.base, opts.paths);
+    const tests = changedTestFiles(taskTree(root, opts.id), opts.base, opts.paths);
     if (tests.length) {
       ({ text, notFound } = buildPack(root, { ...opts, leaveOut: tests }));
       testsLeftOut = tests;
