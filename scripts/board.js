@@ -26,8 +26,10 @@ const usage = `Usage:
                                          records the reviewer's latest verdict on the task; prints the entry
   board.js review --module <m> --role <role> --verdict <pass|fail>
                                          module review: covers the module's security-tagged tasks that are done now
-  board.js round <id> [--approach <decision-id>]
+  board.js round <id> --reason <gate|review|stuck> [--approach <decision-id>]
                                          count one unresolved round; prints {entry, next} (next.action: retry|raise-model|to-lead|to-owner)
+                                         --reason: a red gate, a blocking review finding, or a role stuck; --reason budget is refused (g46):
+                                         a dispatch that hit its turn budget is the same round, re-dispatch it with a fresh pack
                                          refused once reviewRoundCap (default 2) rounds are used since the start or the last approach;
                                          --approach <id> (a decision recorded in decisions.md) lets the task continue for another window
   board.js foldin <id> [--reset]         before each spec fold-in round: prints action fold-in (rounds up to foldInRounds) or batch; --reset starts a new review cycle
@@ -84,10 +86,13 @@ const commands = {
   },
   round: ({ values: v, positionals: [, id], root }) => {
     if (!id) throw new UsageError('Missing entry id');
+    need(v, 'reason');
+    if (v.reason === 'budget') throw new UsageError(`A turn-budget stop is not a round (g46): re-dispatch the same role on the same model with a fresh pack (pack.js ${id} --role <role>) for the remainder, or split the task on the board. Count a round only for a red gate, a blocking review finding or a stuck role.`);
+    checkYesNo('reason', v.reason, ['gate', 'review', 'stuck']);
     const pluginRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
     const config = loadConfig({ pluginRoot, projectRoot: root });
     validateConfig(config);
-    return incrementRound(root, id, config, { approach: v.approach });
+    return incrementRound(root, id, config, { approach: v.approach, reason: v.reason });
   },
   foldin: ({ values: v, positionals: [, id], root }) => {
     if (!id) throw new UsageError('Missing entry id');
@@ -112,7 +117,7 @@ const commands = {
 
 const options = {
   title: { type: 'string' }, owner: { type: 'string' }, model: { type: 'string' }, id: { type: 'string' },
-  status: { type: 'string' }, code: { type: 'string' }, security: { type: 'string' }, module: { type: 'string' }, role: { type: 'string' }, verdict: { type: 'string' }, commit: { type: 'string' }, handoff: { type: 'string' }, reset: { type: 'boolean' }, approach: { type: 'string' }, hardening: { type: 'string' }, decision: { type: 'string' }, size: { type: 'string' }, worktree: { type: 'string' }, agent: { type: 'string' }, 'single-commit': { type: 'string' },
+  status: { type: 'string' }, code: { type: 'string' }, security: { type: 'string' }, module: { type: 'string' }, role: { type: 'string' }, verdict: { type: 'string' }, commit: { type: 'string' }, handoff: { type: 'string' }, reset: { type: 'boolean' }, approach: { type: 'string' }, reason: { type: 'string' }, hardening: { type: 'string' }, decision: { type: 'string' }, size: { type: 'string' }, worktree: { type: 'string' }, agent: { type: 'string' }, 'single-commit': { type: 'string' },
 };
 
 runCli(usage, options, (ctx) => {

@@ -229,6 +229,10 @@ Sonraki oturum bir devam özetiyle başlar: aşama, süren iş (`git status` ile
 
 `team/brief.md`, `decisions.md`, `contracts/`, `research/`, `glossary.md` ve `config.json` commit'lenmek içindir. `team/work/` (pano, görev özetleri, devir notları, eskalasyonlar, posta kutusu) de commit'lenir; yalnız `team/work/packs/` (üretilen bağlam paketleri) git dışındadır. Lider bunu kendi commit'lerinde, `chore(team): <ne>`, her görev bittiğinde ve her lider rotasyonunda, açık yolları ekleyerek commit'ler; kod commit'lerine karıştırmaz. Kurulum eski `.gitignore` satırını `team/work/` yerine `team/work/packs/` yapar ve önce farkı gösterir.
 
+## 1.3.11 değişiklikleri
+
+- **Tur bütçesi durması tur sayılmaz** (g46): T-082b'de geliştirici iş parça parça ilerlerken iki kez tur bütçesinde durdu; ikisi de başarısız tur sayıldı ve üçüncüsü Opus'a gitti. `board.js round` artık `--reason gate|review|stuck` ister ve `--reason budget`'ı reddeder; model yalnız gerçek başarısızlıkta yükselir. Planner 3'ten fazla ayrı test edilebilir parçası olan brief'i böler.
+
 ## 1.3.10 değişiklikleri
 
 - **Yalnız biçim yüzünden kırmızı gate tur sayılmaz** (g44): T-081 ve T-084'te gate yalnız `cargo fmt --check` yüzünden kırmızıydı ve geliştirici boşluk düzeltmek için yeniden çağrıldı. Gate artık yalnız düzeltme komutu olan kontroller kırmızıysa `fixable: true` der (kontrolün `fix` alanı ya da `cargo fmt`, `ruff format`, `black`, `prettier --check`'in yazan biçimi); `gate.js --task <id> --fix` düzeltmeleri çalıştırır, `style(<id>)` olarak commit eder ve gate'i yeniden koşar. Geliştirici kuralları da her commit öncesi biçimlendiriciyi çalıştırmayı söyler.

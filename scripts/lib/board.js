@@ -318,7 +318,7 @@ export function countFoldIn(root, id, { foldInRounds, reset = false }) {
 // Review round cap: after reviewRoundCap rounds (counted from the last approach decision) a task gets no further fix
 // round. The lead sends the findings and round history to the architect as one approach question, brings it to the
 // owner, records the decision and continues with --approach <decision id>. The round with --approach is the first of the next window.
-export function incrementRound(root, id, config, { now = new Date(), approach } = {}) {
+export function incrementRound(root, id, config, { now = new Date(), approach, reason } = {}) {
   const board = readBoard(root);
   const entry = board.entries.find((e) => e.id === id);
   if (!entry) throw new Error(`No board entry ${id}`);
@@ -346,6 +346,7 @@ export function incrementRound(root, id, config, { now = new Date(), approach } 
       `- owner: ${entry.owner}`,
       `- action: ${next.action}`,
       `- model: ${next.model}`,
+      ...(reason ? [`- reason: ${reason}`] : []),
       `- date: ${localStamp(now)}`,
       '',
     ].join('\n');
