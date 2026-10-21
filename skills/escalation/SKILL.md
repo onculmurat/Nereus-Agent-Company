@@ -10,8 +10,10 @@ One round is one attempt plus its review; a reviewer finding counts as a round. 
 The lead never fixes a role's output itself. Every fix goes back to the role that owns the work. `to-lead` means you decide, re-plan or escalate (architect, owner); it never means you implement. Once the decision exists, the implementation round goes to the task's owning role with a delta pack (`--paths` set to the task's code paths), carrying the decision id and any probe findings as notes. You edit only team files (board, briefs, decisions, hand-offs) and one-line text fixes in docs, never source or test code.
 
 ```
-node "<scripts>/board.js" round <id>
+node "<scripts>/board.js" round <id> --reason <gate|review|stuck>
 ```
+
+`--reason` is required: `gate` for a red test gate, `review` for a blocking review finding, `stuck` for a role that reports itself stuck. A dispatch that stopped at its turn budget is not a round and `--reason budget` is refused (g46): re-dispatch the same role on the same model with a fresh pack for the remainder, or split the task. A raised model therefore always follows a real failure, never a long task.
 
 It prints `{ entry, next }`. Act on `next.action`:
 

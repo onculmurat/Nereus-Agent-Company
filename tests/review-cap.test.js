@@ -70,7 +70,7 @@ test('the config override is honoured', () => {
 
 test('board.js round refuses at the cap and accepts --approach <id>; team/config.json overrides the cap', () => {
   const { root, id } = task();
-  const run = (...a) => spawnSync(process.execPath, [boardCli, ...a, '--project', root], { encoding: 'utf8' });
+  const run = (...a) => spawnSync(process.execPath, [boardCli, ...a, '--reason', 'review', '--project', root], { encoding: 'utf8' });
   assert.equal(run('round', id).status, 0);
   assert.equal(run('round', id).status, 0);
   const refused = run('round', id);
@@ -82,7 +82,7 @@ test('board.js round refuses at the cap and accepts --approach <id>; team/config
   assert.equal(JSON.parse(ok.stdout).entry.rounds, 3);
   const other = task();
   fs.writeFileSync(path.join(other.root, 'team', 'config.json'), JSON.stringify({ reviewRoundCap: 3 }));
-  const run2 = (...a) => spawnSync(process.execPath, [boardCli, ...a, '--project', other.root], { encoding: 'utf8' });
+  const run2 = (...a) => spawnSync(process.execPath, [boardCli, ...a, '--reason', 'review', '--project', other.root], { encoding: 'utf8' });
   for (let i = 0; i < 3; i++) assert.equal(run2('round', other.id).status, 0);
   assert.equal(run2('round', other.id).status, 1);
 });
@@ -109,4 +109,20 @@ test('READMEs describe the review round cap in both languages', () => {
     assert.ok(t.includes('reviewRoundCap'), `${f} lacks reviewRoundCap`);
     assert.ok(t.includes('--approach'), `${f} lacks --approach`);
   }
+});
+
+test('board.js round needs --reason and refuses a turn-budget stop (g46)', () => {
+  const { root, id } = task();
+  const run = (...a) => spawnSync(process.execPath, [boardCli, 'round', id, ...a, '--project', root], { encoding: 'utf8' });
+  const none = run();
+  assert.notEqual(none.status, 0);
+  assert.match(none.stderr, /reason/);
+  const budget = run('--reason', 'budget');
+  assert.notEqual(budget.status, 0);
+  assert.match(budget.stderr, /not a round/);
+  assert.notEqual(run('--reason', 'other').status, 0);
+  assert.equal(readBoard(root).entries[0].rounds, 0);
+  const ok = run('--reason', 'gate');
+  assert.equal(ok.status, 0, ok.stderr);
+  assert.equal(JSON.parse(ok.stdout).entry.rounds, 1);
 });
