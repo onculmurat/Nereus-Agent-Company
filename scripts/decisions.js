@@ -2,7 +2,9 @@
 // Decision log CLI (lead only): show | open | park | unpark | parked | ask | flush | decide | record | amend.
 import { runCli, need, UsageError } from './lib/cli.js';
 import fs from 'node:fs';
-import { readDecisions, pendingQuestions, parkedQuestions, parkQuestion, unparkQuestion, addQuestion, flushQuestions, decide, recordOutcomes, amendDecision, threadFromText } from './lib/decisions.js';
+import { proxyDecideProblem } from './lib/proxy.js';
+import { loadConfig } from './lib/config.js';
+import { openQuestion, readDecisions, pendingQuestions, parkedQuestions, parkQuestion, unparkQuestion, addQuestion, flushQuestions, decide, recordOutcomes, amendDecision, threadFromText } from './lib/decisions.js';
 import { isValidThread } from './lib/mailbox.js';
 import { irreversibleProblems } from './lib/irreversible.js';
 import { questionListsMarkdown } from './lib/summary.js';
@@ -28,7 +30,8 @@ const usage = `Usage:
   decisions.js parked                    parked questions
   decisions.js handoff-questions         markdown lists of queued and parked questions from the log, for a hand-off (never hand-write them)
   decisions.js flush [--task <id>]       prints deferred questions as JSON groups of at most 4 (one AskUserQuestion call each), marks them open
-  decisions.js decide <Q-id> --answer <text> [--link <path or url>]
+  decisions.js decide <Q-id> --answer <text> [--link <path or url>] [--by proxy]
+                                         --by proxy: the answer came from the owner proxy (g49); refused for owner-only questions
   decisions.js record --outcome <text> [--thread <id>] [--title <t>] [--link <path or url>]
                                          an outcome without a question; the thread defaults to one made from the title
                                          [--supersedes D-xxx]  marks the old decision "superseded-by" the new id
@@ -79,7 +82,7 @@ function normalize(item, i) {
 runCli(usage, {
   title: { type: 'string' }, source: { type: 'string' }, status: { type: 'string' }, impact: { type: 'string' },
   blocking: { type: 'string' }, thread: { type: 'string' }, answer: { type: 'string' }, link: { type: 'string' },
-  outcome: { type: 'string' }, file: { type: 'string' }, supersedes: { type: 'string' }, date: { type: 'string' }, defer: { type: 'boolean' }, task: { type: 'string' }, options: { type: 'string' }, recommend: { type: 'string' }, 'finding-class': { type: 'string' }, irreversible: { type: 'boolean' }, until: { type: 'string' },
+  outcome: { type: 'string' }, file: { type: 'string' }, supersedes: { type: 'string' }, date: { type: 'string' }, defer: { type: 'boolean' }, task: { type: 'string' }, options: { type: 'string' }, recommend: { type: 'string' }, 'finding-class': { type: 'string' }, irreversible: { type: 'boolean' }, by: { type: 'string' }, until: { type: 'string' },
 }, ({ values: v, positionals: [cmd, id], root }) => {
   switch (cmd) {
     case 'show':
@@ -113,6 +116,15 @@ runCli(usage, {
     case 'decide':
       if (!id) throw new UsageError('Missing question id');
       need(v, 'answer');
+      if (v.by !== undefined && v.by !== 'proxy' && v.by !== 'owner') throw new UsageError('--by must be proxy or owner');
+      if (v.by === 'proxy') {
+        const q = openQuestion(root, id);
+        if (!q) throw new Error(`No open question ${id}`);
+        const config = loadConfig({ pluginRoot, projectRoot: root });
+        const problem = proxyDecideProblem(config, q);
+        if (problem) throw new UsageError(`Proxy decision refused for ${id}: ${problem}.`);
+        return decide(root, id, { answer: v.answer, link: v.link, by: `owner proxy ${config.ownerProxy.session}` });
+      }
       return decide(root, id, { answer: v.answer, link: v.link });
     case 'record': {
       const items = v.file === undefined ? [{ outcome: v.outcome, thread: v.thread, title: v.title, link: v.link, supersedes: v.supersedes }] : readItems(v.file);

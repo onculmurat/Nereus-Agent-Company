@@ -9,7 +9,9 @@
     "PreToolUse": [
       { "hooks": [{ "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/research-guard.js\"" }] },
       { "matcher": "Agent|Task", "hooks": [{ "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/pack-guard.js\"" }] },
-      { "matcher": "Bash|PowerShell", "hooks": [{ "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/destructive-guard.js\"" }] }
+      { "matcher": "Bash|PowerShell", "hooks": [{ "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/destructive-guard.js\"" }] },
+      { "matcher": "AskUserQuestion", "hooks": [{ "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/proxy-guard.js\"" }] },
+      { "matcher": "Read", "hooks": [{ "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/lead-read-guard.js\"" }] }
     ],
     "PostToolUse": [
       { "matcher": "SendMessage", "hooks": [{ "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/post-send-message.js\"" }] },
