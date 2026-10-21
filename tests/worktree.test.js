@@ -97,6 +97,22 @@ test('remove deletes the worktree directory and the branch', () => {
   assert.equal(git(root, 'branch', '--list', 'task/T-7'), '');
 });
 
+// g50: build dirs a task put beside its worktree (target-<id>, target-<id>-sec) are removed with it; other tasks' stay.
+test('remove also deletes the task build dirs beside the worktree', () => {
+  const { root } = repo();
+  const wt = addWorktree(root, 'T-12');
+  assert.equal(wt.target, path.join(`${root}-wt`, 'target-T-12'));
+  const base = path.dirname(wt.path);
+  for (const d of ['target-T-12', 'target-t-12-sec', 'target-T-120', 'target-T-13']) {
+    fs.mkdirSync(path.join(base, d, 'debug'), { recursive: true });
+    fs.writeFileSync(path.join(base, d, 'debug', 'x.rlib'), 'x');
+  }
+  const r = removeWorktree(root, 'T-12');
+  assert.deepEqual(r.buildDirs.map((p) => path.basename(p)).sort(), ['target-T-12', 'target-t-12-sec']);
+  assert.ok(!fs.existsSync(path.join(base, 'target-T-12')) && !fs.existsSync(path.join(base, 'target-t-12-sec')));
+  assert.ok(fs.existsSync(path.join(base, 'target-T-120')) && fs.existsSync(path.join(base, 'target-T-13')));
+});
+
 test('remove refuses a worktree with uncommitted changes', () => {
   const { root } = repo();
   const wt = addWorktree(root, 'T-11');
