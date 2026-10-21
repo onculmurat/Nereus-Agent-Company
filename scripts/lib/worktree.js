@@ -33,7 +33,23 @@ export function addWorktree(root, id, opts) {
   const base = git(root, 'rev-parse', 'HEAD');
   fs.mkdirSync(path.dirname(dir), { recursive: true });
   git(root, 'worktree', 'add', '-b', branchOf(id), dir, base);
-  return { id, path: dir, branch: branchOf(id), base };
+  return { id, path: dir, branch: branchOf(id), base, target: path.join(path.dirname(dir), `target-${id}`) };
+}
+
+// g50: a build dir kept outside the worktree (a full drive, a second profile) lives beside it as target-<id>[-suffix];
+// remove deletes those with the worktree. Ids are checked, so the match never leaves the worktree base.
+function removeBuildDirs(base, id) {
+  const name = new RegExp(`^target-${id.replace(/-/g, '\\-')}(?:-.*)?$`, 'i');
+  let entries = [];
+  try { entries = fs.readdirSync(base, { withFileTypes: true }); } catch { return []; }
+  const removed = [];
+  for (const e of entries) {
+    if (!e.isDirectory() || !name.test(e.name)) continue;
+    const p = path.join(base, e.name);
+    fs.rmSync(p, { recursive: true, force: true });
+    removed.push(p);
+  }
+  return removed;
 }
 
 // Cherry-picks the commits of task/<id> (since it left the working branch) onto the current branch, oldest first.
@@ -60,5 +76,5 @@ export function removeWorktree(root, id, opts) {
   const dir = recorded ? path.resolve(root, recorded) : worktreePath(root, id, opts);
   git(root, 'worktree', 'remove', dir);
   git(root, 'branch', '-D', branchOf(id));
-  return { id, removed: dir };
+  return { id, removed: dir, buildDirs: removeBuildDirs(path.dirname(dir), id) };
 }

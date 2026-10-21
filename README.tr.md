@@ -229,6 +229,10 @@ Sonraki oturum bir devam özetiyle başlar: aşama, süren iş (`git status` ile
 
 `team/brief.md`, `decisions.md`, `contracts/`, `research/`, `glossary.md` ve `config.json` commit'lenmek içindir. `team/work/` (pano, görev özetleri, devir notları, eskalasyonlar, posta kutusu) de commit'lenir; yalnız `team/work/packs/` (üretilen bağlam paketleri) git dışındadır. Lider bunu kendi commit'lerinde, `chore(team): <ne>`, her görev bittiğinde ve her lider rotasyonunda, açık yolları ekleyerek commit'ler; kod commit'lerine karıştırmaz. Kurulum eski `.gitignore` satırını `team/work/` yerine `team/work/packs/` yapar ve önce farkı gösterir.
 
+## 1.3.15 değişiklikleri
+
+- **Görevin derleme klasörleri worktree ile silinir** (g50): bir disk dolunca lider derlemeleri `CARGO_TARGET_DIR` ile başka diske taşıdı (`target-T-059`, ajan scratchpad'leri). Görev kapanınca worktree silindi ama bu klasörler kaldı, yaklaşık 60 GB; sonunda öbür disk de doldu ve ekip iki saatten fazla durdu. `worktree.js add` artık worktree'nin yanında bir `target` yolu yazar (`<kök>/target-<id>`), `worktree.js remove` oradaki her `target-<id>[-ek]` klasörünü worktree ile birlikte siler. task-loop skill'i derleme klasörünü worktree içinde ya da bu yolda tutmayı, scratchpad'e asla koymamayı, disk dolunca `worktreeRoot`'u taşımayı söyler.
+
 ## 1.3.14 değişiklikleri
 
 - **Vekil kararı vekil kararı olarak kaydedilir** (g49): lider vekil cevabını sahibin kendi onayı gibi kaydetti, otomatik mod sınıflandırıcısı reddetti ve lider ondan sonra hiçbir vekil cevabını kaydetmedi. `decisions.js decide --by proxy` artık "by: owner proxy <oturum>" yazar ve sahibe ait soruları (push, merge, deploy, yayın, silme, geri dönüşsüz ya da para harcayan adımlar) reddeder. `setup.js --proxy` yetkiyi sahibin ağzından proje CLAUDE.md'sine owner-proxy bloğu olarak da yazar ve config ile birlikte commit eder.

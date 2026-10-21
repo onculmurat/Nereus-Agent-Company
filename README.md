@@ -243,6 +243,10 @@ The next session starts with a resume summary: phase, work in progress (with `gi
 
 `team/brief.md`, `decisions.md`, `contracts/`, `research/`, `glossary.md` and `config.json` are meant to be committed. `team/work/` (board, briefs, hand-offs, escalations, mailbox) is committed too; only `team/work/packs/` (generated context packs) is git-ignored. The lead commits it in its own commits, `chore(team): <what>`, after each task is marked done and at each lead rotation, staging explicit paths and never mixing it into a code commit. Setup changes an older `.gitignore` line `team/work/` to `team/work/packs/` and shows the diff first.
 
+## Changes in 1.3.15
+
+- **Task build dirs are removed with the worktree** (g50): when a drive filled up, the lead moved builds to another drive with `CARGO_TARGET_DIR` (`target-T-059`, agent scratchpads). The worktrees were removed when tasks closed, but those build dirs stayed, about 60 GB, until the other drive filled up too and the team stopped for over two hours. `worktree.js add` now prints a `target` path beside the worktree (`<base>/target-<id>`), and `worktree.js remove` deletes every `target-<id>[-suffix]` directory there along with the worktree. The task-loop skill says to keep a build dir inside the worktree or at that path, never in a scratchpad, and to move `worktreeRoot` when a drive is full.
+
 ## Changes in 1.3.14
 
 - **Proxy decisions are recorded as proxy decisions** (g49): the lead recorded an owner-proxy answer as the owner's own approval, the auto-mode classifier refused it, and from then on the lead recorded no proxy answer at all. `decisions.js decide --by proxy` now records "by: owner proxy <session>" and refuses owner-only questions (push, merge, deploy, publish, delete, irreversible or spending go-steps). `setup.js --proxy` also writes the delegation as an owner-proxy block in the project CLAUDE.md, in the owner's words, and commits it with the config.
