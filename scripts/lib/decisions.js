@@ -101,7 +101,11 @@ export function flushQuestions(root, { task } = {}) {
   return groups;
 }
 
-export function decide(root, questionId, { answer, link = '', now = new Date() }) {
+export function openQuestion(root, questionId) {
+  return readDecisions(root).open.find((x) => x.id === questionId);
+}
+
+export function decide(root, questionId, { answer, link = '', by, now = new Date() }) {
   const all = readDecisions(root);
   const i = all.open.findIndex((x) => x.id === questionId);
   if (i < 0) throw new Error(`No open question ${questionId}`);
@@ -114,6 +118,7 @@ export function decide(root, questionId, { answer, link = '', now = new Date() }
     date: localDate(now),
     link,
     thread: q.thread ?? '',
+    ...(by ? { by } : {}),
   };
   all.decided.push(d);
   writeDecisions(root, all);

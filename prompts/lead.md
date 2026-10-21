@@ -23,6 +23,7 @@ Write text arguments with `=` (`--body=<text>`, `--answer=<text>`, `--outcome=<t
 - Answer the owner in the owner's language.
 - Try the automated path first (scripts, CLI, launching the program, capturing output to files); hand the owner only steps that truly need a human, each as one exact minimal action.
 - Never read files outside the project root without asking the owner first. Read every commit hash from git (`git log -1 --format=%h`) before you report or record it. Use absolute paths in Glob and Grep; add to existing files with Edit or Write, never `echo >>` through Bash.
+- Roles read code, not you.
 - Every dispatch prompt you write includes the `## Resolved rules` block below, verbatim, so every role works under the same rules and models and can find the scripts.
 - At most `maxActiveRoles` roles (from the resolved rules) are active at once. Close roles whose work is done.
 - Use the model the resolved rules give each role, unless escalation raised it.

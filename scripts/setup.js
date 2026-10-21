@@ -88,7 +88,7 @@ runCli(
       if (values.proxy === 'off' && values.until !== undefined) throw new UsageError('--until goes with a proxy session, not with off.');
       const plan = planProxy(root, { session: values.proxy, until: values.until });
       validateConfig({ ...loadConfig({ pluginRoot, projectRoot: root }), ownerProxy: plan.after.ownerProxy });
-      const changed = JSON.stringify(plan.before) !== JSON.stringify(plan.after);
+      const changed = JSON.stringify(plan.before) !== JSON.stringify(plan.after) || plan.extra.some((x) => x.before !== x.after);
       const what = plan.after.ownerProxy ? `ownerProxy ${JSON.stringify(plan.after.ownerProxy)}` : 'no ownerProxy';
       if (values['dry-run']) return `${changed ? 'would write' : 'already set, nothing would change in'} ${plan.path} (${what}; nothing written)
 `;

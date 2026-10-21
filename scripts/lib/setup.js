@@ -21,6 +21,8 @@ const DOCUMENTS = {
 };
 export const GUARD_START = '<!-- nac:guard:start -->';
 export const GUARD_END = '<!-- nac:guard:end -->';
+export const PROXY_START = '<!-- nac:owner-proxy:start -->';
+export const PROXY_END = '<!-- nac:owner-proxy:end -->';
 const BLOCK_START = '<!-- nac:models -->';
 const BLOCK_END = '<!-- /nac:models -->';
 
@@ -124,7 +126,31 @@ export function planProxy(projectRoot, { session, until } = {}) {
   const after = structuredClone(before ?? {});
   if (session === 'off') delete after.ownerProxy;
   else after.ownerProxy = { session, ...(until === undefined ? {} : { until }) };
-  return { path: file, before, after };
+  const md = path.join(path.resolve(projectRoot), 'CLAUDE.md');
+  const mdBefore = fs.existsSync(md) ? fs.readFileSync(md, 'utf8') : null;
+  return { path: file, before, after, extra: [{ path: md, before: mdBefore, after: withProxyBlock(mdBefore, after.ownerProxy) }] };
+}
+
+// g49: the delegation in the owner's own instruction file, so the lead and the permission system read it as the owner's
+// words, not as a claim in a message from another session.
+function proxyBlock(p) {
+  return [
+    PROXY_START,
+    '## Owner proxy (written by the owner with setup.js --proxy)',
+    `I delegate my decision questions to the Claude session ${p.session}${p.until ? ` until ${p.until}` : ''}. Its answers are my decisions under this delegation: record them with \`decisions.js decide <Q> --by proxy\`. Push, merge into the main branch, deploy, publish, deleting my data, spending money and irreversible go-steps stay with me.`,
+    PROXY_END,
+  ].join('\n');
+}
+
+export function withProxyBlock(text, p) {
+  const t = text ?? '';
+  const start = t.indexOf(PROXY_START);
+  const end = t.indexOf(PROXY_END);
+  const has = start >= 0 && end > start;
+  if (!p) return has ? (t.slice(0, start).replace(/\n+$/, '\n') + t.slice(end + PROXY_END.length).replace(/^\n+/, '')) : text;
+  const block = proxyBlock(p);
+  if (has) return t.slice(0, start) + block + t.slice(end + PROXY_END.length);
+  return `${t}${t && !t.endsWith('\n') ? '\n' : ''}${t ? '\n' : ''}${block}\n`;
 }
 
 export function applyProxy(plan) {
@@ -160,18 +186,21 @@ export function applyCompaction(plan) {
 }
 
 function writeAndCommit(plan, message, what) {
-  if (JSON.stringify(plan.before) === JSON.stringify(plan.after)) return { changed: false, committed: false };
+  const extra = (plan.extra ?? []).filter((x) => x.before !== x.after);
+  if (JSON.stringify(plan.before) === JSON.stringify(plan.after) && !extra.length) return { changed: false, committed: false };
+  const paths = [plan.path, ...extra.map((x) => x.path)];
   const dir = path.dirname(plan.path);
   const git = (...args) => execFileSync('git', args, { cwd: dir, stdio: ['ignore', 'pipe', 'pipe'], encoding: 'utf8' }).trim();
   let dirtyBefore = null;
   try {
-    if (fs.existsSync(dir)) dirtyBefore = git('status', '--porcelain', '--', plan.path) !== '';
+    if (fs.existsSync(dir)) dirtyBefore = git('status', '--porcelain', '--', ...paths.filter((p) => fs.existsSync(path.dirname(p)))) !== '';
   } catch {
     dirtyBefore = null; // not a git repository
   }
   const original = originalText(plan.path);
   fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(plan.path, formatLike(plan.after, original));
+  for (const x of extra) fs.writeFileSync(x.path, x.after);
   if (dirtyBefore === null) {
     try {
       git('rev-parse', '--is-inside-work-tree');
@@ -182,8 +211,8 @@ function writeAndCommit(plan, message, what) {
   }
   if (dirtyBefore) return { changed: true, committed: false, warning: `${path.basename(plan.path)} had uncommitted edits already; ${what} ${what.endsWith('keys') ? 'are' : 'is'} written but not committed. Commit it yourself, or the PreCompact clean-tree check waits for the ceiling.` };
   try {
-    git('add', '--', plan.path);
-    git('commit', '-q', '-m', message, '--', plan.path);
+    git('add', '--', ...paths);
+    git('commit', '-q', '-m', message, '--', ...paths);
     return { changed: true, committed: true };
   } catch (e) {
     return { changed: true, committed: false, warning: `not committed (${String(e.stderr || e.message).trim().split('\n')[0]}). Commit ${path.basename(plan.path)} yourself so the PreCompact clean-tree check passes.` };

@@ -39,7 +39,7 @@ A question gets its own message: no status report, summary or news in it; send t
 
 ## Owner proxy
 
-When team/config.json has `ownerProxy` (the owner sets it with `setup.js --proxy <session>`, g29), the session start names the proxy session. Owner questions then go to that session by SendMessage instead of `AskUserQuestion`, in the same shape and after the same `decisions.js ask`; its answer is the owner's decision. Push, merge into the main branch, deploy, publish and deleting the owner's data still go to the owner. A proxy in chat only (no `ownerProxy`) is not a proxy: ask the owner.
+When team/config.json has `ownerProxy` (the owner sets it with `setup.js --proxy <session>`, g29), the session start names the proxy session. Owner questions then go to that session by SendMessage instead of `AskUserQuestion`, in the same shape and after the same `decisions.js ask`; its answer is the owner's decision. Push, merge into the main branch, deploy, publish and deleting the owner's data still go to the owner. A proxy in chat only (no `ownerProxy`) is not a proxy: ask the owner. With an active proxy the `proxy-guard` hook refuses an `AskUserQuestion` box (g47): the box waits for a key press, so the proxy's answer would wait behind it. Owner-only actions (push, merge, deploy, publish, delete) still use the box; when ListAgents does not show the proxy, start the question text with "Owner direct: <reason>". Record a proxy answer with `decisions.js decide <Q> --by proxy` (g49): it is a proxy decision under the owner's delegation in CLAUDE.md, not the owner's own words; the script refuses it for owner-only questions. If the permission system refuses one, leave that question for the owner and keep recording later proxy answers.
 
 ## Timing
 

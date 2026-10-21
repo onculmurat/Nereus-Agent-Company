@@ -243,6 +243,18 @@ The next session starts with a resume summary: phase, work in progress (with `gi
 
 `team/brief.md`, `decisions.md`, `contracts/`, `research/`, `glossary.md` and `config.json` are meant to be committed. `team/work/` (board, briefs, hand-offs, escalations, mailbox) is committed too; only `team/work/packs/` (generated context packs) is git-ignored. The lead commits it in its own commits, `chore(team): <what>`, after each task is marked done and at each lead rotation, staging explicit paths and never mixing it into a code commit. Setup changes an older `.gitignore` line `team/work/` to `team/work/packs/` and shows the diff first.
 
+## Changes in 1.3.14
+
+- **Proxy decisions are recorded as proxy decisions** (g49): the lead recorded an owner-proxy answer as the owner's own approval, the auto-mode classifier refused it, and from then on the lead recorded no proxy answer at all. `decisions.js decide --by proxy` now records "by: owner proxy <session>" and refuses owner-only questions (push, merge, deploy, publish, delete, irreversible or spending go-steps). `setup.js --proxy` also writes the delegation as an owner-proxy block in the project CLAUDE.md, in the owner's words, and commits it with the config.
+
+## Changes in 1.3.13
+
+- **Lead read guard** (g48): the lead read source files and long outputs itself, its context filled fast and auto-compaction thrashed. A `PreToolUse` hook now refuses a lead `Read` of a source file or a file over 40 KB unless it is a slice of at most 120 lines; roles are not touched. The lead prompt says to send long command output to a file and read its tail.
+
+## Changes in 1.3.12
+
+- **Owner proxy guard** (g47): after a compaction the lead asked the owner proxy's question in an `AskUserQuestion` box; the box waited for a key press and the proxy's answer waited behind it. A `PreToolUse` hook now refuses the box while `ownerProxy` is active and tells the lead to send the question by `SendMessage`. Push, merge, deploy, publish and delete questions still use the box, and "Owner direct: <reason>" lets the lead ask the owner when the proxy is not reachable.
+
 ## Changes in 1.3.11
 
 - **A turn-budget stop is not a round** (g46): in T-082b the developer stopped at its turn budget twice while the work moved on part by part; both stops were counted as failed rounds and the third went to Opus. `board.js round` now needs `--reason gate|review|stuck` and refuses `--reason budget`, so a raised model follows a real failure only. The planner splits a brief with more than 3 separately testable parts.

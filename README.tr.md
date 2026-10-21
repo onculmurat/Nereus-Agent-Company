@@ -229,6 +229,18 @@ Sonraki oturum bir devam özetiyle başlar: aşama, süren iş (`git status` ile
 
 `team/brief.md`, `decisions.md`, `contracts/`, `research/`, `glossary.md` ve `config.json` commit'lenmek içindir. `team/work/` (pano, görev özetleri, devir notları, eskalasyonlar, posta kutusu) de commit'lenir; yalnız `team/work/packs/` (üretilen bağlam paketleri) git dışındadır. Lider bunu kendi commit'lerinde, `chore(team): <ne>`, her görev bittiğinde ve her lider rotasyonunda, açık yolları ekleyerek commit'ler; kod commit'lerine karıştırmaz. Kurulum eski `.gitignore` satırını `team/work/` yerine `team/work/packs/` yapar ve önce farkı gösterir.
 
+## 1.3.14 değişiklikleri
+
+- **Vekil kararı vekil kararı olarak kaydedilir** (g49): lider vekil cevabını sahibin kendi onayı gibi kaydetti, otomatik mod sınıflandırıcısı reddetti ve lider ondan sonra hiçbir vekil cevabını kaydetmedi. `decisions.js decide --by proxy` artık "by: owner proxy <oturum>" yazar ve sahibe ait soruları (push, merge, deploy, yayın, silme, geri dönüşsüz ya da para harcayan adımlar) reddeder. `setup.js --proxy` yetkiyi sahibin ağzından proje CLAUDE.md'sine owner-proxy bloğu olarak da yazar ve config ile birlikte commit eder.
+
+## 1.3.13 değişiklikleri
+
+- **Lider okuma koruması** (g48): lider kaynak dosyaları ve uzun çıktıları kendisi okudu, bağlamı hızla doldu ve otomatik sıkıştırma kilitlendi. Bir `PreToolUse` hook'u liderin kaynak dosyayı ya da 40 KB'den büyük dosyayı `Read` ile okumasını, en fazla 120 satırlık bir dilim değilse reddeder; roller etkilenmez. Lider talimatı uzun komut çıktısını dosyaya alıp sonunu okumasını söyler.
+
+## 1.3.12 değişiklikleri
+
+- **Sahip vekili koruması** (g47): bir sıkıştırmadan sonra lider vekile gidecek soruyu `AskUserQuestion` kutusuyla sordu; kutu tuş bekledi, vekilin cevabı arkasında kuyrukta kaldı. `ownerProxy` etkinken bir `PreToolUse` hook'u kutuyu reddeder ve soruyu `SendMessage` ile göndermesini söyler. Push, merge, deploy, yayın ve silme soruları kutuyla sorulur; vekil erişilemezse lider "Owner direct: <neden>" ile sahibe sorar.
+
 ## 1.3.11 değişiklikleri
 
 - **Tur bütçesi durması tur sayılmaz** (g46): T-082b'de geliştirici iş parça parça ilerlerken iki kez tur bütçesinde durdu; ikisi de başarısız tur sayıldı ve üçüncüsü Opus'a gitti. `board.js round` artık `--reason gate|review|stuck` ister ve `--reason budget`'ı reddeder; model yalnız gerçek başarısızlıkta yükselir. Planner 3'ten fazla ayrı test edilebilir parçası olan brief'i böler.
