@@ -243,6 +243,10 @@ The next session starts with a resume summary: phase, work in progress (with `gi
 
 `team/brief.md`, `decisions.md`, `contracts/`, `research/`, `glossary.md` and `config.json` are meant to be committed. `team/work/` (board, briefs, hand-offs, escalations, mailbox) is committed too; only `team/work/packs/` (generated context packs) is git-ignored. The lead commits it in its own commits, `chore(team): <what>`, after each task is marked done and at each lead rotation, staging explicit paths and never mixing it into a code commit. Setup changes an older `.gitignore` line `team/work/` to `team/work/packs/` and shows the diff first.
 
+## Changes in 1.3.17
+
+- **Version bump only**: the plugin cache had taken 1.3.16 before g52 was added to it, and `/plugin update` does not refresh a cache whose version is unchanged. 1.3.17 carries the same code as the merged 1.3.16, so the update brings in the g52 hook.
+
 ## Changes in 1.3.16
 
 - **The lead's start context stays under the hook limit** (g51): Claude Code saves hook context over 10,000 characters to a file and shows the session only a short preview. With the owner proxy section the lead's start context grew to about 10.3 KB, so since 2026-10-20 nearly every lead start and compaction got only the first ~2 KB: the lead prompt, the rules, the proxy and the resume never reached the lead, and a new lead said "NAC is not loaded" because the marker `NAC-LEAD-ACTIVE` sat past the preview. The marker now comes first, then the owner proxy, the resume and the resolved rules. When everything would pass 9,000 characters, the lead prompt is replaced by a line telling the lead to read `prompts/lead.md` in full first, and a resume still too long is cut with a note.
