@@ -4,7 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { runCli, UsageError } from './lib/cli.js';
 import { loadConfig, validateConfig } from './lib/config.js';
-import { runGate, gateChecks, isCodeless, checkDocGate, waitForIdle, fixable, fixGate, DEFAULT_GATE_WAIT_SECONDS, DEFAULT_GATE_CHECK_SECONDS } from './lib/gate.js';
+import { runGate, gateChecks, isCodeless, checkDocGate, waitForIdle, fixable, fixGate, scopeChecks, DEFAULT_GATE_WAIT_SECONDS, DEFAULT_GATE_CHECK_SECONDS } from './lib/gate.js';
 import { taskTree } from './lib/board.js';
 
 const usage = `Usage:
@@ -19,6 +19,12 @@ const usage = `Usage:
                       of the check programs (for example a cargo test left in the background); still running then: busy + note (g31)
                       each check has gateCheckSeconds (default 1200, 0 = none); past it the check is stopped with its process tree
                       and reported red with timedOut, its last lines and hung + hangNote (g54)
+                      with --task, cargo test and cargo clippy run only on the packages changed since the task's
+                      "chore(team): <id> start" commit and the packages that depend on them; anything outside a package
+                      runs the whole workspace; scope in the result says which (g55)
+  gate.js --task <id> --full
+                      the same over the whole workspace (also gateScope: "full" in team/config.json); the milestone
+                      and phase end run gate.js without --task
   gate.js --task <id> --fix
                       when only checks with a fix command are red (fixable: true; a check's "fix", or the write form of
                       cargo fmt / ruff format / black / prettier --check): runs the fixes, commits them as style(<id>) and
@@ -26,7 +32,7 @@ const usage = `Usage:
 `;
 const pluginRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
-runCli(usage, { task: { type: 'string' }, fix: { type: 'boolean' } }, ({ values, root }) => {
+runCli(usage, { task: { type: 'string' }, fix: { type: 'boolean' }, full: { type: 'boolean' } }, ({ values, root }) => {
   if (values.fix && values.task === undefined) throw new UsageError('--fix needs --task <id>: the style commit is named after the task');
   if (values.task !== undefined && isCodeless(root, values.task)) {
     const doc = checkDocGate(root, values.task);
@@ -35,11 +41,16 @@ runCli(usage, { task: { type: 'string' }, fix: { type: 'boolean' } }, ({ values,
   }
   const config = loadConfig({ pluginRoot, projectRoot: root });
   validateConfig(config);
-  const checks = gateChecks(config);
-  if (checks.length === 0) {
+  const allChecks = gateChecks(config);
+  if (allChecks.length === 0) {
     throw new UsageError('No testCommand in team/config.json. The planner records it in phase 4; ask the owner if it is unknown.');
   }
   const tree = values.task === undefined ? root : taskTree(root, values.task);
+  // g55: with --task, cargo test and clippy run only on the changed packages and their dependents
+  const scoped = values.task !== undefined && !values.full && config.gateScope !== 'full'
+    ? scopeChecks(tree, values.task, allChecks)
+    : { checks: allChecks, scope: { full: values.task === undefined ? 'no --task' : values.full ? '--full' : 'gateScope: full' } };
+  const { checks } = scoped;
   // g31: wait while another run of a check program loads the machine; report it when it outlasts gateWaitSeconds
   // (NAC_GATE_WAIT_SECONDS overrides it for one run; the test suite sets 0)
   const env = process.env.NAC_GATE_WAIT_SECONDS;
@@ -57,5 +68,5 @@ runCli(usage, { task: { type: 'string' }, fix: { type: 'boolean' } }, ({ values,
   const hang = hung.length
     ? { hung, hangNote: `${hung.join(', ')} gave no result in ${seconds}s and was stopped with its process tree. This is a hang (deadlock, a wait that never ends), not a failing assertion: find the test from the last lines of the output, run it alone, and count the fix as a round.` }
     : {};
-  return { ...result, tree, ...hang, ...(idle.waited ? { waited: idle.waited } : {}), ...busy };
+  return { ...result, tree, scope: scoped.scope, ...hang, ...(idle.waited ? { waited: idle.waited } : {}), ...busy };
 });
