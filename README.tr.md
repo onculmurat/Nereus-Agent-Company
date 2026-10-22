@@ -229,6 +229,10 @@ Sonraki oturum bir devam özetiyle başlar: aşama, süren iş (`git status` ile
 
 `team/brief.md`, `decisions.md`, `contracts/`, `research/`, `glossary.md` ve `config.json` commit'lenmek içindir. `team/work/` (pano, görev özetleri, devir notları, eskalasyonlar, posta kutusu) de commit'lenir; yalnız `team/work/packs/` (üretilen bağlam paketleri) git dışındadır. Lider bunu kendi commit'lerinde, `chore(team): <ne>`, her görev bittiğinde ve her lider rotasyonunda, açık yolları ekleyerek commit'ler; kod commit'lerine karıştırmaz. Kurulum eski `.gitignore` satırını `team/work/` yerine `team/work/packs/` yapar ve önce farkı gösterir.
 
+## 1.3.17 değişiklikleri
+
+- **Yalnız sürüm artışı**: eklenti önbelleği 1.3.16'yı g52 eklenmeden önce almıştı; `/plugin update` sürümü değişmeyen önbelleği yenilemez. 1.3.17 birleştirilmiş 1.3.16 ile aynı kodu taşır, güncelleme g52 hook'unu getirir.
+
 ## 1.3.16 değişiklikleri
 
 - **Liderin başlangıç bağlamı hook sınırının altında kalır** (g51): Claude Code 10.000 karakteri aşan hook bağlamını dosyaya yazar, oturuma yalnız kısa bir önizleme gösterir. Vekil bölümü eklenince liderin başlangıç bağlamı ~10,3 KB'a çıktı; 2026-10-20'den beri neredeyse her lider başlangıcı ve sıkıştırması yalnız ilk ~2 KB'ı aldı: lider talimatı, kurallar, vekil ve resume lidere ulaşmadı, `NAC-LEAD-ACTIVE` işareti önizlemenin dışında kaldığı için yeni lider "NAC yüklü değil" dedi. İşaret artık en başta, ardından vekil, resume ve kurallar gelir. Toplam 9.000 karakteri geçecekse lider talimatının yerine "önce `prompts/lead.md`'yi tümüyle oku" satırı konur; yine sığmayan resume notla kesilir.
