@@ -7,9 +7,24 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { runHook, pluginRoot } from '../scripts/lib/hookio.js';
+import { loadConfig } from '../scripts/lib/config.js';
 import { writeMessage, parseHeader, isValidThread, isValidRole } from '../scripts/lib/mailbox.js';
 
 const recipient = (to) => (to === 'main' ? 'team-lead' : to === '*' ? 'all' : to);
+// g52: a reply to another Claude session copies its address (uds:\\.\pipe\..., or "name [ref]") into `to`, and the
+// record said to: unknown. On the owner-proxy thread a session address is the owner proxy; elsewhere it is a peer.
+const SESSION_ADDRESS = /^[a-z][a-z0-9+.-]*:/i;
+function peerRecipient(to, thread, root) {
+  const named = to.replace(/\s+\[[0-9a-f]+\]$/i, '');
+  if (named !== to || !SESSION_ADDRESS.test(to)) return named;
+  if (thread === 'owner-proxy') {
+    try {
+      const session = loadConfig({ pluginRoot, projectRoot: root }).ownerProxy?.session;
+      if (isValidRole(session)) return session;
+    } catch {}
+  }
+  return 'peer-session';
+}
 // A malformed role name must not lose the record: it is stored as "unknown".
 const role = (name) => (isValidRole(name) ? name : 'unknown');
 
@@ -25,8 +40,8 @@ runHook(async (payload, root) => {
   if (typeof input.message !== 'string' || typeof input.to !== 'string') return;
   const header = parseHeader(input.message);
   const real = payload.agent_id ? realRole(payload.agent_type) : null;
-  const to = role(recipient(input.to));
   const thread = isValidThread(header.thread) ? header.thread : 'general';
+  const to = role(peerRecipient(recipient(input.to), thread, root));
   writeMessage(root, {
     id: payload.tool_use_id,
     from: real ?? role(header.from ?? (payload.agent_id ? 'unknown' : 'team-lead')),

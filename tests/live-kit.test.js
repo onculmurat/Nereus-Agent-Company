@@ -52,7 +52,7 @@ test('NAC_HOOK_LOG records each hook call with its outcome', async () => {
   assert.equal(lead.event, 'SessionStart');
   assert.equal(lead.payload.cwd, root);
   assert.equal(lead.outcome, 'output');
-  assert.match(lead.excerpt, /^# NAC lead instructions/);
+  assert.match(lead.excerpt, /^NAC-LEAD-ACTIVE/);
   assert.match(mate.excerpt, /not the team lead/);
 });
 
