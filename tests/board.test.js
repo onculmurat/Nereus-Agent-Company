@@ -42,6 +42,15 @@ test('addEntry accepts a given id and rejects bad or duplicate ids', () => {
   assert.throws(() => addEntry(root, { id: 'TH-db-choice', title: 'x', owner: 'a', model: 'opus' }), /exists/);
 });
 
+test('g56: a duplicate id names the existing task, warns not to start it and gives the next free id', () => {
+  const root = makeProject();
+  addEntry(root, { title: 'Go qualifier', owner: 'planner', model: 'sonnet' });
+  addEntry(root, { title: 'B', owner: 'planner', model: 'sonnet' });
+  assert.throws(() => addEntry(root, { id: 'T-001', title: 'core hardening', owner: 'planner', model: 'sonnet' }),
+    (e) => /"Go qualifier" \(todo\)/.test(e.message) && /do not start T-001/.test(e.message) && /without --id/.test(e.message) && /T-003/.test(e.message));
+  assert.equal(readBoard(root).entries.length, 2);
+});
+
 test('updateEntry patches and rejects unknown status', () => {
   const root = makeProject();
   addEntry(root, { title: 'A', owner: 'planner', model: 'sonnet' });
