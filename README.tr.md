@@ -229,6 +229,10 @@ Sonraki oturum bir devam özetiyle başlar: aşama, süren iş (`git status` ile
 
 `team/brief.md`, `decisions.md`, `contracts/`, `research/`, `glossary.md` ve `config.json` commit'lenmek içindir. `team/work/` (pano, görev özetleri, devir notları, eskalasyonlar, posta kutusu) de commit'lenir; yalnız `team/work/packs/` (üretilen bağlam paketleri) git dışındadır. Lider bunu kendi commit'lerinde, `chore(team): <ne>`, her görev bittiğinde ve her lider rotasyonunda, açık yolları ekleyerek commit'ler; kod commit'lerine karıştırmaz. Kurulum eski `.gitignore` satırını `team/work/` yerine `team/work/packs/` yapar ve önce farkı gösterir.
 
+## 1.3.16 değişiklikleri
+
+- **Liderin başlangıç bağlamı hook sınırının altında kalır** (g51): Claude Code 10.000 karakteri aşan hook bağlamını dosyaya yazar, oturuma yalnız kısa bir önizleme gösterir. Vekil bölümü eklenince liderin başlangıç bağlamı ~10,3 KB'a çıktı; 2026-10-20'den beri neredeyse her lider başlangıcı ve sıkıştırması yalnız ilk ~2 KB'ı aldı: lider talimatı, kurallar, vekil ve resume lidere ulaşmadı, `NAC-LEAD-ACTIVE` işareti önizlemenin dışında kaldığı için yeni lider "NAC yüklü değil" dedi. İşaret artık en başta, ardından vekil, resume ve kurallar gelir. Toplam 9.000 karakteri geçecekse lider talimatının yerine "önce `prompts/lead.md`'yi tümüyle oku" satırı konur; yine sığmayan resume notla kesilir.
+
 ## 1.3.15 değişiklikleri
 
 - **Görevin derleme klasörleri worktree ile silinir** (g50): bir disk dolunca lider derlemeleri `CARGO_TARGET_DIR` ile başka diske taşıdı (`target-T-059`, ajan scratchpad'leri). Görev kapanınca worktree silindi ama bu klasörler kaldı, yaklaşık 60 GB; sonunda öbür disk de doldu ve ekip iki saatten fazla durdu. `worktree.js add` artık worktree'nin yanında bir `target` yolu yazar (`<kök>/target-<id>`), `worktree.js remove` oradaki her `target-<id>[-ek]` klasörünü worktree ile birlikte siler. task-loop skill'i derleme klasörünü worktree içinde ya da bu yolda tutmayı, scratchpad'e asla koymamayı, disk dolunca `worktreeRoot`'u taşımayı söyler.
