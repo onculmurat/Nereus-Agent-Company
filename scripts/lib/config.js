@@ -96,6 +96,7 @@ export function validateConfig(cfg) {
   }
   if (cfg.rotateEvery !== undefined && (!Number.isInteger(cfg.rotateEvery) || cfg.rotateEvery < 1)) throw new Error(`rotateEvery must be a positive integer; got ${JSON.stringify(cfg.rotateEvery)}`);
   if (cfg.gateWaitSeconds !== undefined && (!Number.isInteger(cfg.gateWaitSeconds) || cfg.gateWaitSeconds < 0)) throw new Error(`gateWaitSeconds must be a whole number of seconds, 0 or more; got ${JSON.stringify(cfg.gateWaitSeconds)}`);
+  if (cfg.gateCheckSeconds !== undefined && (!Number.isInteger(cfg.gateCheckSeconds) || cfg.gateCheckSeconds < 0)) throw new Error(`gateCheckSeconds must be a whole number of seconds, 0 (no deadline) or more; got ${JSON.stringify(cfg.gateCheckSeconds)}`);
   const age = cfg.cleanup?.closedThreadMaxAgeDays;
   if (!Number.isInteger(age) || age < 0) throw new Error(`cleanup.closedThreadMaxAgeDays must be a whole number of days, 0 or more; got ${JSON.stringify(age)}`);
 }

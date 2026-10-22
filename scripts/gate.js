@@ -4,7 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { runCli, UsageError } from './lib/cli.js';
 import { loadConfig, validateConfig } from './lib/config.js';
-import { runGate, gateChecks, isCodeless, checkDocGate, waitForIdle, fixable, fixGate, DEFAULT_GATE_WAIT_SECONDS } from './lib/gate.js';
+import { runGate, gateChecks, isCodeless, checkDocGate, waitForIdle, fixable, fixGate, DEFAULT_GATE_WAIT_SECONDS, DEFAULT_GATE_CHECK_SECONDS } from './lib/gate.js';
 import { taskTree } from './lib/board.js';
 
 const usage = `Usage:
@@ -17,6 +17,8 @@ const usage = `Usage:
                       (Verdict: GO | GO-WITH-CHANGES | NO-GO) and an acceptance criteria section
                       before the checks run, the gate waits up to gateWaitSeconds (default 300) while another process runs one
                       of the check programs (for example a cargo test left in the background); still running then: busy + note (g31)
+                      each check has gateCheckSeconds (default 1200, 0 = none); past it the check is stopped with its process tree
+                      and reported red with timedOut, its last lines and hung + hangNote (g54)
   gate.js --task <id> --fix
                       when only checks with a fix command are red (fixable: true; a check's "fix", or the write form of
                       cargo fmt / ruff format / black / prettier --check): runs the fixes, commits them as style(<id>) and
@@ -42,11 +44,18 @@ runCli(usage, { task: { type: 'string' }, fix: { type: 'boolean' } }, ({ values,
   // (NAC_GATE_WAIT_SECONDS overrides it for one run; the test suite sets 0)
   const env = process.env.NAC_GATE_WAIT_SECONDS;
   const idle = waitForIdle(checks, { seconds: /^\d+$/.test(env ?? '') ? Number(env) : config.gateWaitSeconds ?? DEFAULT_GATE_WAIT_SECONDS });
-  const first = runGate(tree, checks);
-  const result = values.fix ? fixGate(tree, checks, first, { id: values.task }) : { ...first, ...(fixable(first, checks) ? { fixable: true } : {}) };
+  // g54: each check gets gateCheckSeconds (NAC_GATE_CHECK_SECONDS for one run); a hang comes back red with timedOut
+  const limit = process.env.NAC_GATE_CHECK_SECONDS;
+  const seconds = /^\d+$/.test(limit ?? '') ? Number(limit) : config.gateCheckSeconds ?? DEFAULT_GATE_CHECK_SECONDS;
+  const first = runGate(tree, checks, { seconds });
+  const result = values.fix ? fixGate(tree, checks, first, { id: values.task, seconds }) : { ...first, ...(fixable(first, checks) ? { fixable: true } : {}) };
   if (!result.ok) process.exitCode = 1;
   const busy = idle.busy.length
     ? { busy: idle.busy, note: `other runs of the check programs were still running after ${idle.waited}s; a red check may come from the load. Find who started them, wait for them to end and run the gate again before you count a round.` }
     : {};
-  return { ...result, tree, ...(idle.waited ? { waited: idle.waited } : {}), ...busy };
+  const hung = result.checks?.filter((c) => c.timedOut).map((c) => c.name) ?? [];
+  const hang = hung.length
+    ? { hung, hangNote: `${hung.join(', ')} gave no result in ${seconds}s and was stopped with its process tree. This is a hang (deadlock, a wait that never ends), not a failing assertion: find the test from the last lines of the output, run it alone, and count the fix as a round.` }
+    : {};
+  return { ...result, tree, ...hang, ...(idle.waited ? { waited: idle.waited } : {}), ...busy };
 });

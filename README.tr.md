@@ -229,6 +229,10 @@ Sonraki oturum bir devam özetiyle başlar: aşama, süren iş (`git status` ile
 
 `team/brief.md`, `decisions.md`, `contracts/`, `research/`, `glossary.md` ve `config.json` commit'lenmek içindir. `team/work/` (pano, görev özetleri, devir notları, eskalasyonlar, posta kutusu) de commit'lenir; yalnız `team/work/packs/` (üretilen bağlam paketleri) git dışındadır. Lider bunu kendi commit'lerinde, `chore(team): <ne>`, her görev bittiğinde ve her lider rotasyonunda, açık yolları ekleyerek commit'ler; kod commit'lerine karıştırmaz. Kurulum eski `.gitignore` satırını `team/work/` yerine `team/work/packs/` yapar ve önce farkı gösterir.
 
+## 1.3.18 değişiklikleri
+
+- **Takılan kontrol kapıyı tutmaz** (g54): bir core testi işlemci kullanmadan takıldı ve bir görevin kapısını 35 dakika tuttu; lider hiç gelmeyecek sonucu bekledi, koşu durdurulunca çıktısı da kayboldu ve hangi test olduğu görülemedi. Her kapı kontrolünün artık bir süre sınırı var: `team/config.json` içinde `gateCheckSeconds` (varsayılan 1200, 0 = sınırsız; tek koşu için `NAC_GATE_CHECK_SECONDS`). Sınır geçince kontrol tüm süreç ağacıyla (cargo ya da npm altındaki test ikilisi dahil) durdurulur ve `timedOut`, son satırları ve `hung` + `hangNote` ile kırmızı döner; not bunun bir takılma olduğunu ve testin nasıl bulunacağını söyler.
+
 ## 1.3.17 değişiklikleri
 
 - **Yalnız sürüm artışı**: eklenti önbelleği 1.3.16'yı g52 eklenmeden önce almıştı; `/plugin update` sürümü değişmeyen önbelleği yenilemez. 1.3.17 birleştirilmiş 1.3.16 ile aynı kodu taşır, güncelleme g52 hook'unu getirir.

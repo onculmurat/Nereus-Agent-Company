@@ -2,12 +2,15 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync, execFileSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 import { teamPaths } from './paths.js';
 import { readBoard } from './board.js';
 import { acceptanceCriteria } from './pack.js';
 
 const TAIL_LINES = 60;
 export const DEFAULT_GATE_WAIT_SECONDS = 300;
+export const DEFAULT_GATE_CHECK_SECONDS = 1200;
+const RUNNER = path.join(path.dirname(fileURLToPath(import.meta.url)), 'run-bounded.js');
 
 // g31: a developer's `cargo test` left running in the background (turn budget reached) loaded the machine, and the
 // lead's gate went red twice on timing tests. Before it runs, the gate waits while a process of one of its own check
@@ -99,11 +102,19 @@ export function parseSkipped(output) {
   return total;
 }
 
-export function runTestGate(root, command) {
-  const r = spawnSync(command, { cwd: root, shell: true, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
-  if (r.error) return { ok: false, exitCode: null, skipped: 0, output: r.error.message };
-  const all = `${r.stdout ?? ''}${r.stderr ?? ''}`.trimEnd();
-  return { ok: r.status === 0, exitCode: r.status, skipped: parseSkipped(all), output: all.split('\n').slice(-TAIL_LINES).join('\n') };
+// g54: each check has a deadline (gateCheckSeconds, 1200 by default; 0 = none). A check past it is stopped with its
+// process tree and reported red with timedOut and its last lines, so the lead sees a hang and where it stopped
+// instead of waiting on a gate that never returns.
+export function runTestGate(root, command, { seconds = DEFAULT_GATE_CHECK_SECONDS } = {}) {
+  const r = spawnSync(process.execPath, [RUNNER, String(seconds), root, command], { encoding: 'utf8', maxBuffer: 256 * 1024 * 1024, windowsHide: true });
+  let run;
+  try { run = JSON.parse(r.stdout); } catch { return { ok: false, exitCode: null, skipped: 0, output: r.error?.message ?? `${r.stdout ?? ''}${r.stderr ?? ''}`.trim() }; }
+  const all = run.output.trimEnd();
+  const tail = all.split('\n').slice(-TAIL_LINES).join('\n');
+  if (run.timedOut) {
+    return { ok: false, exitCode: null, timedOut: true, skipped: parseSkipped(all), output: `${tail}\n[NAC gate: no result after ${seconds}s; the check was stopped with its process tree. A hang, not a red assertion: the lines above show where it stopped.]` };
+  }
+  return { ok: run.status === 0, exitCode: run.status, skipped: parseSkipped(all), output: tail };
 }
 
 // g18: the gate runs every configured check, not only the tests. gateCommands is an ordered list of
@@ -115,8 +126,8 @@ export function gateChecks(config) {
 
 // Runs all checks in order (a red one does not stop the later ones) and reports each. The top-level fields keep
 // the single-command shape: exitCode and output come from the first red check, or from the last one when all pass.
-export function runGate(root, checks) {
-  const checks_ = checks.map((c) => ({ name: c.name, ...runTestGate(root, c.command) }));
+export function runGate(root, checks, opts) {
+  const checks_ = checks.map((c) => ({ name: c.name, ...runTestGate(root, c.command, opts) }));
   const red = checks_.filter((c) => !c.ok);
   const shown = red[0] ?? checks_[checks_.length - 1];
   const output = checks_.length === 1 ? shown.output : (red.length ? red : [shown]).map((c) => `[${c.name}]\n${c.output}`).join('\n');
@@ -142,19 +153,19 @@ export function fixCommand(check) {
 }
 
 // True when the gate is red and every red check has a fix command: the lead runs `gate.js --fix`, not a round.
-export const fixable = (result, checks) => !result.ok && result.checks.filter((c) => !c.ok).every((c) => fixCommand(checks.find((k) => k.name === c.name)) !== null);
+export const fixable = (result, checks) => !result.ok && result.checks.filter((c) => !c.ok).every((c) => !c.timedOut && fixCommand(checks.find((k) => k.name === c.name)) !== null);
 
 // Runs the fix commands of the red checks in `tree`, commits what they changed as style(<id>) and runs the gate
 // again. Refused when a red check has no fix or the tree holds uncommitted changes outside team/ (they would be swept
 // into the style commit).
-export function fixGate(tree, checks, first, { id }) {
+export function fixGate(tree, checks, first, { id, seconds }) {
   const git = (...args) => execFileSync('git', args, { cwd: tree, stdio: ['ignore', 'pipe', 'pipe'], encoding: 'utf8' }).trim();
   if (first.ok) return { ...first, fixed: [] };
   if (!fixable(first, checks)) throw new Error(`gate --fix: red checks without a fix command: ${first.checks.filter((c) => !c.ok && !fixCommand(checks.find((k) => k.name === c.name))).map((c) => c.name).join(', ')}; this is a round for the implementer`);
   const dirty = git('status', '--porcelain', '--', '.', ':(exclude)team');
   if (dirty) throw new Error(`gate --fix: uncommitted changes outside team/ in ${tree}; the implementer commits them first:\n${dirty}`);
   const red = first.checks.filter((c) => !c.ok).map((c) => checks.find((k) => k.name === c.name));
-  const fixes = red.map((c) => ({ name: c.name, command: fixCommand(c), ...runTestGate(tree, fixCommand(c)) }));
+  const fixes = red.map((c) => ({ name: c.name, command: fixCommand(c), ...runTestGate(tree, fixCommand(c), { seconds }) }));
   const failed = fixes.filter((f) => !f.ok);
   if (failed.length) throw new Error(`gate --fix: the fix command failed: ${failed.map((f) => `[${f.name}] ${f.command}\n${f.output}`).join('\n')}`);
   let commit = null;
@@ -163,7 +174,7 @@ export function fixGate(tree, checks, first, { id }) {
     git('commit', '-q', '-m', `style(${id}): ${red.map((c) => c.name).join(', ')} (gate --fix)`);
     commit = git('rev-parse', '--short', 'HEAD');
   }
-  const again = runGate(tree, checks);
+  const again = runGate(tree, checks, { seconds });
   return { ...again, fixed: red.map((c) => c.name), fixCommit: commit };
 }
 

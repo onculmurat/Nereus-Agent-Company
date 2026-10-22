@@ -120,3 +120,38 @@ test('cli prints skipped', () => {
   const r = runCli(project(`${node} -e "console.log('1 passed, 2 skipped in 0.1s')"`));
   assert.equal(JSON.parse(r.stdout).skipped, 2);
 });
+
+// g54: a hung core test (CPU 0) held T-046's gate for 35 minutes and the lead waited on a result that never came.
+test('a check past its deadline is stopped and reported red with timedOut and its last lines', () => {
+  const started = Date.now();
+  const r = runTestGate(project(), `${node} -e "console.log('test hangs_here ...'); setTimeout(() => {}, 60000)"`, { seconds: 1 });
+  assert.ok(Date.now() - started < 20000, `${Date.now() - started}ms`);
+  assert.equal(r.ok, false);
+  assert.equal(r.timedOut, true);
+  assert.equal(r.exitCode, null);
+  assert.match(r.output, /hangs_here/);
+  assert.match(r.output, /no result after 1s/);
+});
+
+test('the deadline kills the whole tree: a grandchild holding the pipes does not keep the gate waiting', () => {
+  const grandchild = `require('child_process').spawn(process.execPath, ['-e', 'setTimeout(() => {}, 60000)'], { stdio: 'inherit' }); console.log('spawned')`;
+  const started = Date.now();
+  const r = runTestGate(project(), `${node} -e "${grandchild.replace(/"/g, '\\"')}"`, { seconds: 1 });
+  assert.ok(Date.now() - started < 20000, `${Date.now() - started}ms`);
+  assert.equal(r.timedOut, true);
+  assert.match(r.output, /spawned/);
+});
+
+test('gateCheckSeconds must be a whole number of seconds, 0 or more', () => {
+  assert.throws(() => validateConfig({ ...loadConfig({ pluginRoot, projectRoot: project() }), gateCheckSeconds: -1 }), /gateCheckSeconds/);
+  assert.doesNotThrow(() => validateConfig({ ...loadConfig({ pluginRoot, projectRoot: project() }), gateCheckSeconds: 0 }));
+});
+
+test('the gate CLI reports a hung check with hung and hangNote', () => {
+  const root = project(`${node} -e "setTimeout(() => {}, 60000)"`);
+  const r = spawnSync(process.execPath, [cli, '--project', root], { encoding: 'utf8', env: { ...process.env, NAC_GATE_WAIT_SECONDS: '0', NAC_GATE_CHECK_SECONDS: '1' } });
+  assert.equal(r.status, 1);
+  const out = JSON.parse(r.stdout);
+  assert.deepEqual(out.hung, ['test']);
+  assert.match(out.hangNote, /hang/);
+});
