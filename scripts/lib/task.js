@@ -69,7 +69,7 @@ export function startTask(root, id, { worktree = false, worktreeRoot, role, path
   const pack = role ? writePack(root, { id, role, paths }) : null;
   const commit = commitPaths(root, ['team'], `chore(team): ${id} start`);
   return {
-    id, status: entry.status, base: entry.base, tree: tree.split(path.sep).join('/'), handoff: rel,
+    id, title: before.title, status: entry.status, base: entry.base, tree: tree.split(path.sep).join('/'), handoff: rel,
     ...(entry.securityNote ? { securityNote: entry.securityNote } : {}),
     ...(pack ? { pack: { path: pack.path, chars: pack.chars, notFound: pack.notFound, ...(pack.tooLarge ? { tooLarge: true, limit: pack.limit } : {}), ...(pack.note ? { note: pack.note } : {}) } } : {}),
     commit,

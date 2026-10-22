@@ -229,6 +229,10 @@ Sonraki oturum bir devam özetiyle başlar: aşama, süren iş (`git status` ile
 
 `team/brief.md`, `decisions.md`, `contracts/`, `research/`, `glossary.md` ve `config.json` commit'lenmek içindir. `team/work/` (pano, görev özetleri, devir notları, eskalasyonlar, posta kutusu) de commit'lenir; yalnız `team/work/packs/` (üretilen bağlam paketleri) git dışındadır. Lider bunu kendi commit'lerinde, `chore(team): <ne>`, her görev bittiğinde ve her lider rotasyonunda, açık yolları ekleyerek commit'ler; kod commit'lerine karıştırmaz. Kurulum eski `.gitignore` satırını `team/work/` yerine `team/work/packs/` yapar ve önce farkı gösterir.
 
+## 1.3.20 değişiklikleri
+
+- **Reddedilen görev numarası yanlış görevi başlatamaz** (g56): lider yeni bir sertleştirme görevine kullanılmış bir numara verdi; `board.js add` bunu yalnızca "already exists" diyerek reddetti, ardından gelen `task.js start` o numaradaki eski görevi başlatıp başlangıç commit'ini attı. Ret mesajı artık numarayı tutan görevi, başlığını ve durumunu yazıyor, o numaranın yeni görev için başlatılmamasını söylüyor ve bir sonraki boş numarayı veriyor (`--id` verilmeyebilir). `task.js start` görevin `title` alanını döndürüyor; uyuşmazlık hemen görünür.
+
 ## 1.3.19 değişiklikleri
 
 - **Görev kapısı görevin değiştirdiğini test eder** (g55): `gate.js --task <id>` her görevde ve her turda tüm Rust çalışma alanını koşuyordu, görev tek bir uç crate'e dokunsa bile. Artık görevin `chore(team): <id> start` commit'inden beri değişen dosyaları bulur, `cargo metadata` ile paketlere eşler, onlara bağlı her paketi ekler ve `cargo test` ile `cargo clippy`'yi yalnız bunlar için `-p` ile koşar. Kilit dosyası, kök manifest ya da bir paketin dışındaki başka bir dosya, ya da başlangıç commit'i yoksa tüm çalışma alanı koşar; belgeler ve `.claude/`, `.github/` ayarları kapsamı genişletmez. Sonuçtaki `scope` hangisi olduğunu söyler. `--full` ya da `team/config.json` içinde `gateScope: "full"` bunu kapatır; kilometre taşı ve aşama sonu kapıyı `--task` olmadan koşar.

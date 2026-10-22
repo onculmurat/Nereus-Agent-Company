@@ -243,6 +243,10 @@ The next session starts with a resume summary: phase, work in progress (with `gi
 
 `team/brief.md`, `decisions.md`, `contracts/`, `research/`, `glossary.md` and `config.json` are meant to be committed. `team/work/` (board, briefs, hand-offs, escalations, mailbox) is committed too; only `team/work/packs/` (generated context packs) is git-ignored. The lead commits it in its own commits, `chore(team): <what>`, after each task is marked done and at each lead rotation, staging explicit paths and never mixing it into a code commit. Setup changes an older `.gitignore` line `team/work/` to `team/work/packs/` and shows the diff first.
 
+## Changes in 1.3.20
+
+- **A refused task id cannot start the wrong task** (g56): the lead gave a new hardening task an id that was already taken; `board.js add` refused it with only "already exists", and the next `task.js start` started the old task with that id and committed its start. The refusal now names the task that holds the id, its title and status, says not to start that id for the new task, and gives the next free id (`--id` can be left out). `task.js start` returns the task's `title`, so a mismatch shows at once.
+
 ## Changes in 1.3.19
 
 - **The task gate tests what the task changed** (g55): `gate.js --task <id>` ran the whole Rust workspace for every task and every round, also when the task touched one leaf crate. It now finds the files changed since the task's `chore(team): <id> start` commit, maps them to workspace packages with `cargo metadata`, adds every package that depends on them, and runs `cargo test` and `cargo clippy` with `-p` for those only. A lock file, root manifest or anything else outside a package, or no start commit, runs the whole workspace; documents and `.claude/`, `.github/` settings do not widen it. `scope` in the result says which. `--full` or `gateScope: "full"` in `team/config.json` turns it off; the milestone and phase end run the gate without `--task`.

@@ -131,7 +131,12 @@ export function addEntry(root, { id, title, owner, model, code, security, module
   checkCodeOwner(owner, code);
   const entryId = id ?? nextId('T', board.entries.map((e) => e.id));
   if (!ID_RE.test(entryId)) throw new Error(`Invalid board id "${entryId}"`);
-  if (board.entries.some((e) => e.id === entryId)) throw new Error(`Board entry ${entryId} already exists`);
+  const taken = board.entries.find((e) => e.id === entryId);
+  // g56: the lead picked T-092 for a new task, add refused it, and task.js start then started the existing T-092
+  if (taken) {
+    const free = nextId('T', board.entries.map((e) => e.id));
+    throw new Error(`Board entry ${entryId} already exists: "${taken.title}" (${taken.status}). The new task was not added; do not start ${entryId} for it. Add it again without --id (it gets the next free id, ${free}).`);
+  }
   const hard = hardening === 'yes' ? planHardening(root, board, { module, decision }) : {};
   const entry = { id: entryId, title, owner, status: 'todo', rounds: 0, model, commits: [], handoff: '', ...(code === 'no' ? { code: 'no' } : {}), ...(size ? { size } : {}), ...(SECURITY_TAGS.includes(security) ? { security } : {}), ...(module ? { module: checkModuleName(module) } : {}), ...hard };
   const note = autoTagSecurity(root, entry, { explicit: security });

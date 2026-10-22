@@ -181,6 +181,7 @@ test('g33: task.js start sets in-progress, writes the hand-off skeleton with the
   const base = p.git('rev-parse', '--short', 'HEAD');
   const out = json(node('task.js', ['start', 'T-001'], p.root));
   assert.equal(out.status, 'in-progress');
+  assert.equal(out.title, 'first');
   assert.equal(out.base, base);
   assert.equal(out.handoff, 'team/work/handoffs/T-001.md');
   assert.match(fs.readFileSync(path.join(p.root, out.handoff), 'utf8'), new RegExp(`Base: ${base}`));
