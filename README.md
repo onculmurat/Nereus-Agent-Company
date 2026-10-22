@@ -246,6 +246,7 @@ The next session starts with a resume summary: phase, work in progress (with `gi
 ## Changes in 1.3.16
 
 - **The lead's start context stays under the hook limit** (g51): Claude Code saves hook context over 10,000 characters to a file and shows the session only a short preview. With the owner proxy section the lead's start context grew to about 10.3 KB, so since 2026-10-20 nearly every lead start and compaction got only the first ~2 KB: the lead prompt, the rules, the proxy and the resume never reached the lead, and a new lead said "NAC is not loaded" because the marker `NAC-LEAD-ACTIVE` sat past the preview. The marker now comes first, then the owner proxy, the resume and the resolved rules. When everything would pass 9,000 characters, the lead prompt is replaced by a line telling the lead to read `prompts/lead.md` in full first, and a resume still too long is cut with a note.
+- **A reply to another session is recorded under its real recipient** (g52): when the lead answered the owner proxy it copied the incoming session address (`uds:\.pipe...`) into `to`, and the mailbox record said `to: unknown`. On the `owner-proxy` thread such an address is now recorded as the proxy from `team/config.json`, elsewhere as `peer-session`; a `name [ref]` recipient keeps its name.
 
 ## Changes in 1.3.15
 

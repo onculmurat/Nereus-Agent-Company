@@ -232,6 +232,7 @@ Sonraki oturum bir devam özetiyle başlar: aşama, süren iş (`git status` ile
 ## 1.3.16 değişiklikleri
 
 - **Liderin başlangıç bağlamı hook sınırının altında kalır** (g51): Claude Code 10.000 karakteri aşan hook bağlamını dosyaya yazar, oturuma yalnız kısa bir önizleme gösterir. Vekil bölümü eklenince liderin başlangıç bağlamı ~10,3 KB'a çıktı; 2026-10-20'den beri neredeyse her lider başlangıcı ve sıkıştırması yalnız ilk ~2 KB'ı aldı: lider talimatı, kurallar, vekil ve resume lidere ulaşmadı, `NAC-LEAD-ACTIVE` işareti önizlemenin dışında kaldığı için yeni lider "NAC yüklü değil" dedi. İşaret artık en başta, ardından vekil, resume ve kurallar gelir. Toplam 9.000 karakteri geçecekse lider talimatının yerine "önce `prompts/lead.md`'yi tümüyle oku" satırı konur; yine sığmayan resume notla kesilir.
+- **Başka oturuma cevap gerçek alıcıyla kaydedilir** (g52): lider vekile cevap verirken gelen oturum adresini (`uds:\.pipe...`) `to` alanına kopyaladı, posta kaydı `to: unknown` dedi. `owner-proxy` thread'inde böyle bir adres artık `team/config.json`'daki vekil olarak, başka yerde `peer-session` olarak kaydedilir; `ad [ref]` biçimli alıcı adını korur.
 
 ## 1.3.15 değişiklikleri
 

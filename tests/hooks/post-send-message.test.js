@@ -103,3 +103,24 @@ test('outside a NAC project nothing is written and exit is 0', async () => {
   assert.equal(r.status, 0);
   assert.equal(r.stdout, '');
 });
+
+// g52: the lead answered the owner proxy by copying the cross-session `from` address (uds:\.\pipe\...) into `to`;
+// the record said to: unknown. A peer address names the proxy on its thread, and a "name [ref]" keeps the name.
+test('a cross-session address on the owner-proxy thread is recorded as the owner proxy; "name [ref]" keeps the name', async () => {
+  const root = makeProject();
+  fs.writeFileSync(path.join(root, 'team', 'config.json'), JSON.stringify({ ownerProxy: { session: 'agent-team-e4' } }));
+  const send = async (to, message) => {
+    const p = await fixture('post-send-message-teammate', { cwd: root });
+    delete p.agent_id;
+    delete p.agent_type;
+    p.tool_use_id = `toolu_${Math.random().toString(16).slice(2)}`;
+    p.tool_input = { ...p.tool_input, to, message };
+    runHook('post-send-message', p);
+  };
+  await send('uds:\\.\pipe\LOCAL\cc-msg-3d07', '[thread:owner-proxy from:team-lead] status');
+  await send('agent-team-e4 [e8a532]', '[thread:owner-proxy from:team-lead] second');
+  await send('uds:\\.\pipe\LOCAL\cc-msg-9a', 'other thread');
+  assert.equal(listInbox(root, 'agent-team-e4', { state: 'read' }).length, 2);
+  assert.equal(listInbox(root, 'peer-session', { state: 'read' }).length, 1);
+  assert.equal(listInbox(root, 'unknown', { state: 'read' }).length, 0);
+});
