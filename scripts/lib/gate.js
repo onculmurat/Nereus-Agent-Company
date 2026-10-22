@@ -244,3 +244,83 @@ export function checkDocGate(root, id) {
   if (!criteria || criteria.split('\n').slice(1).every((l) => !l.trim())) problems.push('The report has no acceptance criteria section (a heading naming them, with content).');
   return result({ file, verdict });
 }
+
+// g55: with --task the gate tests only what the task changed. A Rust gate ran the whole workspace (6 crates, 10-20
+// minutes) for every task and every round, also when the task touched one leaf crate. The task's base is its
+// `chore(team): <id> start` commit; the changed files since then (committed and not, team/ left out) map to their
+// workspace packages, and the packages that depend on them are added, so a change still meets every test it can
+// break. `cargo test` and `cargo clippy` then run with -p for those packages; the other checks run as they are.
+// Anything outside a package (root manifests, lock file, .cargo, CI) or no base found means the whole workspace.
+// The milestone and phase end run the gate without --task.
+// Files no test or lint reads: documents, editor and agent settings, CI definitions.
+const NOT_BUILT = /^(?:\.claude\/|\.github\/|\.vscode\/|\.gitignore$|\.gitattributes$)|(^|\/)(docs?\/|[^/]+\.md$)/i;
+
+export function taskBase(tree, id) {
+  try {
+    const sha = execFileSync('git', ['log', '-1', '--format=%H', '--fixed-strings', `--grep=chore(team): ${id} start`], { cwd: tree, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+    return sha || null;
+  } catch {
+    return null;
+  }
+}
+
+export function changedFiles(tree, base) {
+  const git = (...args) => execFileSync('git', args, { cwd: tree, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
+  const committed = git('diff', '--name-only', base, '--').split('\n');
+  const untracked = git('ls-files', '--others', '--exclude-standard').split('\n');
+  return [...new Set([...committed, ...untracked].map((f) => f.trim()).filter((f) => f && !f.startsWith('team/')))];
+}
+
+// packages: [{ name, dir (relative, '/'-separated), deps: [workspace package names] }]
+export function cargoPackages(tree) {
+  const meta = JSON.parse(execFileSync('cargo', ['metadata', '--format-version', '1', '--no-deps'], { cwd: tree, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], maxBuffer: 64 * 1024 * 1024, timeout: 120000 }));
+  const names = new Set(meta.packages.map((p) => p.name));
+  return meta.packages.map((p) => ({
+    name: p.name,
+    dir: path.relative(tree, path.dirname(p.manifest_path)).split(path.sep).join('/'),
+    deps: [...new Set(p.dependencies.filter((d) => d.path && names.has(d.name)).map((d) => d.name))],
+  }));
+}
+
+// Returns { packages } with the changed packages and their dependents, or { full: <reason> }.
+export function scopePackages(files, packages) {
+  if (files.length === 0) return { full: 'no changed files since the task start' };
+  const owner = (file) => packages.filter((p) => p.dir === '' || file === p.dir || file.startsWith(`${p.dir}/`)).sort((a, b) => b.dir.length - a.dir.length)[0];
+  const changed = new Set();
+  for (const file of files) {
+    const p = owner(file);
+    if (p && p.dir !== '') changed.add(p.name);
+    else if (!NOT_BUILT.test(file)) return { full: `${file} is outside a workspace package` };
+  }
+  if (changed.size === 0) return { full: 'only documents and settings changed' };
+  let grew = true;
+  while (grew) {
+    grew = false;
+    for (const p of packages) if (!changed.has(p.name) && p.deps.some((d) => changed.has(d))) { changed.add(p.name); grew = true; }
+  }
+  if (changed.size >= packages.length) return { full: 'every workspace package is changed or depends on a changed one' };
+  return { packages: packages.map((p) => p.name).filter((n) => changed.has(n)) };
+}
+
+const CARGO_SCOPED = /^(\s*cargo\s+(?:test|clippy))\b(.*)$/;
+export function scopeCommand(command, packages) {
+  const m = CARGO_SCOPED.exec(command);
+  if (!m) return command;
+  const rest = m[2].replace(/\s--(?:workspace|all)(?=\s|$)/g, '');
+  return `${m[1]}${packages.map((p) => ` -p ${p}`).join('')}${rest}`;
+}
+
+// The scope for `gate.js --task`: { checks, scope } where scope is { base, packages } or { full: reason }.
+export function scopeChecks(tree, id, checks) {
+  if (!checks.some((c) => CARGO_SCOPED.test(c.command)) || !fs.existsSync(path.join(tree, 'Cargo.toml'))) return { checks, scope: { full: 'no cargo test or clippy check' } };
+  const base = taskBase(tree, id);
+  if (!base) return { checks, scope: { full: `no "chore(team): ${id} start" commit to diff from` } };
+  let scope;
+  try {
+    scope = scopePackages(changedFiles(tree, base), cargoPackages(tree));
+  } catch (e) {
+    return { checks, scope: { full: `could not read the workspace: ${e.message.split('\n')[0]}` } };
+  }
+  if (scope.full) return { checks, scope };
+  return { checks: checks.map((c) => ({ ...c, command: scopeCommand(c.command, scope.packages) })), scope: { base: base.slice(0, 7), packages: scope.packages } };
+}
