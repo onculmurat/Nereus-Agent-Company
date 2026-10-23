@@ -187,6 +187,10 @@ export function buildPack(root, { id, role, base, gate, round, findings, paths, 
   const parts = [`# Pack: ${id} for ${role}\n\n${budgetLine(root)}${hardeningNote(root, id)}`, `## Task brief\n\n${brief.trimEnd()}`];
 
   const spec = readIf(p.spec);
+  // g57: a Spec line that yields no reference is reported, not dropped in silence
+  if (/^\s*[-*]?\s*spec\s*:/im.test(brief) && refs.specSections.length === 0 && refs.contracts.length === 0) {
+    notFound.push('the Spec line names no section the pack can read: write sections as numbers (Spec: 6.1, 6.6) and contracts as <name>.md <section>');
+  }
   for (const n of refs.specSections) {
     const s = spec === null ? null : extractSection(spec, n);
     if (s) parts.push(`## Spec ${n}\n\n${s}`);

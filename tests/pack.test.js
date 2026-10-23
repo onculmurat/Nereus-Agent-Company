@@ -110,6 +110,17 @@ test('parseRefs reads spec sections, contract refs, threat ids and decision ids 
   assert.deepEqual(r.decisions, ['D-086', 'D-087', 'D-999']);
 });
 
+test('g57: parseRefs reads plain section numbers after "Spec:" and contracts named as files', () => {
+  const r = parseRefs('# T-048\n\n- Spec: 6.1, 6.6; storage-schema.md 4; contracts/mcp-tools.md 3.5 kurallari; threat-model T3.\n- Adim 2 ve faz 3.\n');
+  assert.deepEqual(r.specSections, ['6.1', '6.6']);
+  assert.deepEqual(r.contracts, [{ name: 'storage-schema', section: '4' }, { name: 'mcp-tools', section: '3.5' }]);
+  assert.deepEqual(r.threats, ['T3']);
+});
+
+test('g57: parseRefs reads a CRLF brief with whole-number sections', () => {
+  assert.deepEqual(parseRefs('# T-066\r\n\r\n- Spec: 1, 6.7, 11.\r\n').specSections, ['1', '6.7', '11']);
+});
+
 test('parseRefs finds nothing in a brief without references', () => {
   assert.deepEqual(parseRefs('# T-1\n\nJust text, step 2 and phase 3.\n'), { specSections: [], contracts: [], threats: [], decisions: [] });
 });
@@ -145,6 +156,15 @@ test('references that cannot be found are listed under Not found and do not fail
   const tail = text.split('\n## Not found\n')[1];
   assert.ok(tail, 'has a Not found section');
   for (const n of notFound) assert.ok(tail.includes(`- ${n}`), n);
+});
+
+test('g57: a Spec line the pack cannot read is listed under Not found', () => {
+  const root = makeProject();
+  fs.mkdirSync(path.join(root, 'team', 'work', 'tasks'), { recursive: true });
+  fs.writeFileSync(path.join(root, 'team', 'work', 'tasks', 'T-1.md'), '# T-1\n\n- Spec: bolum alti, guvenlik kisimlari\n');
+  const { notFound } = buildPack(root, { id: 'T-1', role: 'code-reviewer' });
+  assert.equal(notFound.length, 1);
+  assert.match(notFound[0], /Spec line names no section/);
 });
 
 test('a pack with every reference found has no Not found section', () => {

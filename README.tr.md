@@ -229,6 +229,11 @@ Sonraki oturum bir devam özetiyle başlar: aşama, süren iş (`git status` ile
 
 `team/brief.md`, `decisions.md`, `contracts/`, `research/`, `glossary.md` ve `config.json` commit'lenmek içindir. `team/work/` (pano, görev özetleri, devir notları, eskalasyonlar, posta kutusu) de commit'lenir; yalnız `team/work/packs/` (üretilen bağlam paketleri) git dışındadır. Lider bunu kendi commit'lerinde, `chore(team): <ne>`, her görev bittiğinde ve her lider rotasyonunda, açık yolları ekleyerek commit'ler; kod commit'lerine karıştırmaz. Kurulum eski `.gitignore` satırını `team/work/` yerine `team/work/packs/` yapar ve önce farkı gösterir.
 
+## 1.3.21 değişiklikleri
+
+- **Paket, görev tanımlarının gerçekte yazdığı spec atıflarını okuyor** (g57): `pack.js` spec bölümünü yalnız kalın numara (`**6.1**`), sözleşmeyi yalnız `ad 4` biçiminde tanıyordu. `Spec: 6.1, 6.6; storage-schema.md 4` yazan görev tanımları (bir projede 73'ün 68'i) spec bölümleri olmadan ve "Not found" listesinde tek satır olmadan gidiyordu; rol spec'i kendisi arıyordu. Artık `Spec:` sonrasındaki düz numaralar ve dosya adıyla yazılan sözleşmeler (`storage-schema.md 4`, `contracts/mcp-tools.md 3.5`) sayılıyor; hiçbir atıf çıkmayan bir Spec satırı "Not found" altında yazılıyor.
+- **Silmeyle ilgili ürün sorusu artık sahip-yalnız değil** (g58): sahip-yalnız denetimi "sil" ile başlayan her kelimeyi ve yalın "delete" kelimesini yakalıyordu. Silinmiş notların bir sınıra sayılıp sayılmayacağını soran bir soru "sahibin verisini silme" diye reddedildi ve lider gece sahibi kutuda bekledi. Silme artık yalnız neyin silindiği yazıyorsa sahip-yalnız (veri, dosya, dal, depo, veritabanı, yedek, geçmiş; Türkçede "sil"den önce gelen isim) ve ret mesajı hangi kelimelerin eşleştiğini söylüyor.
+
 ## 1.3.20 değişiklikleri
 
 - **Reddedilen görev numarası yanlış görevi başlatamaz** (g56): lider yeni bir sertleştirme görevine kullanılmış bir numara verdi; `board.js add` bunu yalnızca "already exists" diyerek reddetti, ardından gelen `task.js start` o numaradaki eski görevi başlatıp başlangıç commit'ini attı. Ret mesajı artık numarayı tutan görevi, başlığını ve durumunu yazıyor, o numaranın yeni görev için başlatılmamasını söylüyor ve bir sonraki boş numarayı veriyor (`--id` verilmeyebilir). `task.js start` görevin `title` alanını döndürüyor; uyuşmazlık hemen görünür.
