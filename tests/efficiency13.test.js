@@ -117,3 +117,18 @@ test('decide --by proxy records the proxy and refuses owner-only questions (g49)
   assert.equal(run('decide', merge, '--answer=yes').status, 0, 'the owner still decides it directly');
   assert.notEqual(run('decide', ask('Other'), '--answer=x', '--by', 'someone').status, 0);
 });
+
+test('g58: a product question about deleted notes stays with the proxy; deleting data, files or backups does not', () => {
+  const root = makeProject();
+  fs.writeFileSync(path.join(root, 'team', 'config.json'), JSON.stringify({ ownerProxy: { session: 'pv-77' } }));
+  const run = (...a) => spawnSync(process.execPath, [decisionsCli, ...a, '--project', root], { encoding: 'utf8' });
+  const ask = (title, impact = 'i') => JSON.parse(run('ask', `--title=${title}`, '--source=spec 6.1 tombstone (deleted=1, purge ile kalkar)', '--status=s', `--impact=${impact}`, '--blocking', 'yes', '--thread', 't-1', '--options=a|b', '--recommend=a').stdout).id;
+  const product = ask('T-094: silinmis (tombstone) notlar toplam sinira sayilir mi', 'Sayilirsa cok silme yapan proje purge olmadan not ekleyemez');
+  const ok = run('decide', product, '--answer=a', '--by', 'proxy');
+  assert.equal(ok.status, 0, ok.stderr);
+  for (const title of ['Eski yedekleri silelim mi?', 'Delete the old backup files?', 'Drop the database before the import?']) {
+    const r = run('decide', ask(title), '--answer=yes', '--by', 'proxy');
+    assert.notEqual(r.status, 0, title);
+    assert.match(r.stderr, /stay with the owner \(matched "/, title);
+  }
+});

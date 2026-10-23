@@ -243,6 +243,11 @@ The next session starts with a resume summary: phase, work in progress (with `gi
 
 `team/brief.md`, `decisions.md`, `contracts/`, `research/`, `glossary.md` and `config.json` are meant to be committed. `team/work/` (board, briefs, hand-offs, escalations, mailbox) is committed too; only `team/work/packs/` (generated context packs) is git-ignored. The lead commits it in its own commits, `chore(team): <what>`, after each task is marked done and at each lead rotation, staging explicit paths and never mixing it into a code commit. Setup changes an older `.gitignore` line `team/work/` to `team/work/packs/` and shows the diff first.
 
+## Changes in 1.3.21
+
+- **The pack reads the spec references briefs actually write** (g57): `pack.js` took a spec section only in bold (`**6.1**`) and a contract only as `name 4`. Briefs that wrote `Spec: 6.1, 6.6; storage-schema.md 4` (68 of 73 in one project) went out without their spec sections and without a word in "Not found", so the role looked the spec up itself. Plain numbers after `Spec:` and contracts named as files (`storage-schema.md 4`, `contracts/mcp-tools.md 3.5`) now count, and a Spec line that yields no reference is listed under "Not found".
+- **A product question about deleting is no longer owner-only** (g58): the owner-only check matched any word starting with "sil" or the bare word "delete". A question on whether deleted notes count toward a limit was refused as "deleting the owner's data", and the lead waited in a box for the owner at night. Deleting is owner-only now when it names what is deleted (data, files, a branch, a repo, a database, backups, history; in Turkish the noun before "sil"), and the refusal says which words matched.
+
 ## Changes in 1.3.20
 
 - **A refused task id cannot start the wrong task** (g56): the lead gave a new hardening task an id that was already taken; `board.js add` refused it with only "already exists", and the next `task.js start` started the old task with that id and committed its start. The refusal now names the task that holds the id, its title and status, says not to start that id for the new task, and gives the next free id (`--id` can be left out). `task.js start` returns the task's `title`, so a mismatch shows at once.

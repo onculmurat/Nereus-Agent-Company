@@ -18,7 +18,11 @@ export function proxyContext(config, today = localDate()) {
 // g47: after a compaction the lead opened an AskUserQuestion box although ownerProxy was set; the proxy's SendMessage
 // answer waited in the queue behind the box and the lead stood still for hours. With an active proxy the box is refused,
 // except for the owner-only actions and when the lead states that the proxy is not reachable.
-export const OWNER_ONLY = /\b(push|merge|deploy|publish|delete|release)\b|yay[ıi]n|canl[ıi]ya|\bsil/i;
+// g58: "\bsil" and a bare "delete" matched a product question (Q-175: do deleted notes count toward the note limit) as
+// deleting the owner's data; the proxy answer was refused and the lead waited 54 minutes in a box at night. Deleting
+// now counts only with what is deleted: data, files, a branch, a repo, a database, backups.
+const DELETE_DATA = /\b(delete|remove|wipe|purge|drop|rm)\b[^.;\n]{0,40}\b(data|files?|folders?|director(?:y|ies)|branch(?:es)?|repo(?:sitory)?|database|backups?|history)\b|\b(veri|dosya|klas[öo]r|dal|depo|yedek|veritaban|ge[çc]mi[şs])\w*\b[^.;\n]{0,40}\bsil/;
+export const OWNER_ONLY = new RegExp(String.raw`\b(push|merge|deploy|publish|release)\b|yay[ıi]n|canl[ıi]ya|${DELETE_DATA.source}`, 'i');
 const OWNER_DIRECT = /owner direct:/i;
 
 export function checkAskUser(config, input, today = localDate()) {
@@ -37,6 +41,7 @@ export function proxyDecideProblem(config, question, today = localDate()) {
   if (!p) return 'no ownerProxy is set in team/config.json; the owner answers this question';
   if (p.until && p.until < today) return `the owner proxy ${p.session} expired on ${p.until}; the owner answers this question`;
   if (question.irreversible === 'yes') return 'an irreversible or spending go-step stays with the owner';
-  if (OWNER_ONLY.test(`${question.title ?? ''} ${question.source ?? ''} ${question.impact ?? ''}`)) return 'push, merge, deploy, publish and deleting the owner\'s data stay with the owner';
+  const owner = OWNER_ONLY.exec(`${question.title ?? ''} ${question.source ?? ''} ${question.impact ?? ''}`);
+  if (owner) return `push, merge, deploy, publish and deleting the owner's data stay with the owner (matched "${owner[0]}")`;
   return undefined;
 }
