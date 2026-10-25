@@ -114,7 +114,36 @@ export function runTestGate(root, command, { seconds = DEFAULT_GATE_CHECK_SECOND
   if (run.timedOut) {
     return { ok: false, exitCode: null, timedOut: true, skipped: parseSkipped(all), output: `${tail}\n[NAC gate: no result after ${seconds}s; the check was stopped with its process tree. A hang, not a red assertion: the lines above show where it stopped.]` };
   }
-  return knownRedCheck({ ok: run.status === 0, exitCode: run.status, skipped: parseSkipped(all), output: tail }, all, knownRed);
+  return withFailures(knownRedCheck({ ok: run.status === 0, exitCode: run.status, skipped: parseSkipped(all), output: tail }, all, knownRed), all);
+}
+
+// g65: with --no-fail-fast the output is long and its tail names only the red test binaries (Memory Agent T-060:
+// "2 targets failed: hygiene, unsafe_policy"), so a round went on finding the test names. A red check names its
+// failed tests and the first lines of each one's panic from cargo's "---- <name> stdout ----" block.
+const FAILURE_LINES = 8;
+const FAILURES_SHOWN = 10;
+export function failureExcerpts(output, names) {
+  const lines = output.split('\n');
+  const out = {};
+  for (const name of names.slice(0, FAILURES_SHOWN)) {
+    const at = lines.findIndex((l) => l.trim() === `---- ${name} stdout ----`);
+    if (at < 0) continue;
+    const body = [];
+    for (const l of lines.slice(at + 1)) {
+      if (/^---- \S+ stdout ----$/.test(l.trim()) || /^(failures|successes):\s*$/.test(l.trim()) || body.length === FAILURE_LINES) break;
+      if (l.trim()) body.push(l.trimEnd());
+    }
+    out[name] = body.join('\n');
+  }
+  return out;
+}
+
+function withFailures(result, all) {
+  if (result.ok || result.timedOut) return result;
+  const failed = failedTests(all);
+  if (!failed.length) return result;
+  const failures = failureExcerpts(all, failed);
+  return { ...result, failed, ...(Object.keys(failures).length ? { failures } : {}) };
 }
 
 // g64: names of the failed tests in a test run's output (cargo "test x ... FAILED", pytest "FAILED path::x"), and

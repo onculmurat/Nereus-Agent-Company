@@ -6,7 +6,7 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { makeProject } from './helpers.js';
-import { runTestGate, runGate, retryRed, failedTests, noFailFast } from '../scripts/lib/gate.js';
+import { runTestGate, runGate, retryRed, failedTests, noFailFast, failureExcerpts } from '../scripts/lib/gate.js';
 import os from 'node:os';
 import { loadConfig, validateConfig } from '../scripts/lib/config.js';
 
@@ -91,4 +91,24 @@ test('g64: gate.js reports knownRed with its note', () => {
   const out = JSON.parse(r.stdout);
   assert.deepEqual(out.knownRed, ['data_dir::c4_broad_write_acl_warns']);
   assert.match(out.knownRedNote, /environmental/);
+});
+
+// Seen live (Memory Agent T-060): with --no-fail-fast the tail said only "2 targets failed: hygiene, unsafe_policy";
+// the lead could not see which tests were red and the round's developer first had to find their names.
+test('g65: a red test check names its failed tests and the first lines of each panic', () => {
+  const out = ['running 2 tests', 'test a::ok_one ... ok', 'test a::bad_one ... FAILED', '', 'failures:', '', '---- a::bad_one stdout ----',
+    "thread 'a::bad_one' panicked at src/a.rs:10:5:", 'assertion failed: x == y', '', 'failures:', '    a::bad_one'];
+  assert.deepEqual(failureExcerpts(out.join('\n'), ['a::bad_one']), { 'a::bad_one': "thread 'a::bad_one' panicked at src/a.rs:10:5:\nassertion failed: x == y" });
+  const r = runTestGate(makeProject(), cargoLike(out));
+  assert.equal(r.ok, false);
+  assert.deepEqual(r.failed, ['a::bad_one']);
+  assert.match(r.failures['a::bad_one'], /assertion failed/);
+});
+
+test('g65: gate.js lists the failed tests as check: test', () => {
+  const root = makeProject();
+  fs.writeFileSync(path.join(root, 'team', 'config.json'), JSON.stringify({ gateCommands: [{ name: 'test', command: cargoLike(['test hygiene::clean ... FAILED']) }], gateRetry: 0 }));
+  const r = spawnSync(process.execPath, [path.join(pluginRoot, 'scripts', 'gate.js'), '--project', root], { encoding: 'utf8', env: { ...process.env, NAC_GATE_WAIT_SECONDS: '0' } });
+  assert.equal(r.status, 1);
+  assert.deepEqual(JSON.parse(r.stdout).failed, ['test: hygiene::clean']);
 });
