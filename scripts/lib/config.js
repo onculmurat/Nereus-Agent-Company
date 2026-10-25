@@ -98,6 +98,24 @@ export function validateConfig(cfg) {
   if (cfg.gateWaitSeconds !== undefined && (!Number.isInteger(cfg.gateWaitSeconds) || cfg.gateWaitSeconds < 0)) throw new Error(`gateWaitSeconds must be a whole number of seconds, 0 or more; got ${JSON.stringify(cfg.gateWaitSeconds)}`);
   if (cfg.gateCheckSeconds !== undefined && (!Number.isInteger(cfg.gateCheckSeconds) || cfg.gateCheckSeconds < 0)) throw new Error(`gateCheckSeconds must be a whole number of seconds, 0 (no deadline) or more; got ${JSON.stringify(cfg.gateCheckSeconds)}`);
   if (cfg.gateScope !== undefined && !['task', 'full'].includes(cfg.gateScope)) throw new Error(`gateScope must be "task" or "full"; got ${JSON.stringify(cfg.gateScope)}`);
+  checkDeleteRoots(cfg.deleteRoots);
   const age = cfg.cleanup?.closedThreadMaxAgeDays;
   if (!Number.isInteger(age) || age < 0) throw new Error(`cleanup.closedThreadMaxAgeDays must be a whole number of days, 0 or more; got ${JSON.stringify(age)}`);
+}
+
+// g62: extra folders the destructive guard lets roles delete inside (the owner's scratch and build folders). Never
+// a drive root, the home folder or a folder above it. Returns the list, or [] when the key is not set.
+export function checkDeleteRoots(list) {
+  if (list === undefined) return [];
+  if (!Array.isArray(list)) throw new Error(`deleteRoots must be a list of absolute folder paths; got ${JSON.stringify(list)}`);
+  for (const d of list) {
+    const abs = typeof d === 'string' && path.isAbsolute(d);
+    const resolved = abs ? path.resolve(d) : '';
+    const toHome = abs ? path.relative(resolved, os.homedir()) : '';
+    const holdsHome = toHome === '' || (!toHome.startsWith('..') && !path.isAbsolute(toHome));
+    if (!abs || path.parse(resolved).root === resolved || holdsHome) {
+      throw new Error(`deleteRoots entries must be absolute folders that are not a drive root, the home folder or above it; got ${JSON.stringify(d)}`);
+    }
+  }
+  return list;
 }
