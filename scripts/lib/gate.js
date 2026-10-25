@@ -105,7 +105,7 @@ export function parseSkipped(output) {
 // g54: each check has a deadline (gateCheckSeconds, 1200 by default; 0 = none). A check past it is stopped with its
 // process tree and reported red with timedOut and its last lines, so the lead sees a hang and where it stopped
 // instead of waiting on a gate that never returns.
-export function runTestGate(root, command, { seconds = DEFAULT_GATE_CHECK_SECONDS, knownRed = [] } = {}) {
+export function runTestGate(root, command, { seconds = DEFAULT_GATE_CHECK_SECONDS, knownRed = [], expect = [] } = {}) {
   const r = spawnSync(process.execPath, [RUNNER, String(seconds), root, command], { encoding: 'utf8', maxBuffer: 256 * 1024 * 1024, windowsHide: true });
   let run;
   try { run = JSON.parse(r.stdout); } catch { return { ok: false, exitCode: null, skipped: 0, output: r.error?.message ?? `${r.stdout ?? ''}${r.stderr ?? ''}`.trim() }; }
@@ -114,7 +114,22 @@ export function runTestGate(root, command, { seconds = DEFAULT_GATE_CHECK_SECOND
   if (run.timedOut) {
     return { ok: false, exitCode: null, timedOut: true, skipped: parseSkipped(all), output: `${tail}\n[NAC gate: no result after ${seconds}s; the check was stopped with its process tree. A hang, not a red assertion: the lines above show where it stopped.]` };
   }
+  // g69: an isolated rerun is green only when every expected test ran and passed; a filter that matched nothing exits 0
+  const missing = expect.filter((name) => !new RegExp(`^test ${escapeRe(name)} \\.\\.\\. ok\\s*$`, 'm').test(all));
+  if (run.status === 0 && missing.length) return { ok: false, exitCode: 0, skipped: parseSkipped(all), notRun: missing, output: `${tail}\n[NAC gate: ${missing.join(', ')} did not run in the isolated rerun.]` };
   return withFailures(knownRedCheck({ ok: run.status === 0, exitCode: run.status, skipped: parseSkipped(all), output: tail }, all, knownRed), all);
+}
+
+const escapeRe = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+// g69: the rerun of a red cargo test check ran the whole check again under the same parallel load, so a timing test
+// went red twice (Memory Agent T-062: two masker ReDoS budget tests, a developer dispatch for a base red). The rerun
+// now runs only the failed tests, one at a time; null when the check is not cargo test or a name is unusual.
+export function isolatedCommand(command, names) {
+  if (!/^\s*cargo\s+test\b/.test(command) || !names.length || !names.every((n) => /^[\w:]+$/.test(n))) return null;
+  const filter = `${names.join(' ')} --exact --test-threads=1`;
+  const at = command.indexOf(' -- ');
+  return at < 0 ? `${command} -- ${filter}` : `${command.slice(0, at)} -- ${filter} ${command.slice(at + 4)}`;
 }
 
 // g65: with --no-fail-fast the output is long and its tail names only the red test binaries (Memory Agent T-060:
@@ -179,6 +194,7 @@ export function noFailFast(command) {
 
 // g64: a red check runs again (gateRetry times, 1 by default) before it counts; green on a later run is a flake, not
 // a round (Memory Agent T-097: a parallel task's cargo held the package lock, the developer found nothing to fix).
+// g69: a red cargo test check with named failures reruns only those tests, one at a time (isolatedCommand).
 export function retryRed(root, checks, first, { retries = 1, ...opts } = {}) {
   if (first.ok || retries < 1) return first;
   let result = first;
@@ -186,8 +202,12 @@ export function retryRed(root, checks, first, { retries = 1, ...opts } = {}) {
   for (let i = 0; i < retries; i++) {
     const red = result.checks.filter((c) => !c.ok && !c.timedOut).map((c) => c.name);
     if (!red.length) break;
-    const again = new Map(checks.filter((c) => red.includes(c.name)).map((c) => [c.name, { name: c.name, ...runTestGate(root, c.command, opts) }]));
-    for (const [name, c] of again) if (c.ok) flaky.push(name);
+    const again = new Map(checks.filter((c) => red.includes(c.name)).map((c) => {
+      const failed = result.checks.find((r) => r.name === c.name).failed ?? [];
+      const alone = isolatedCommand(c.command, failed);
+      return [c.name, alone ? { name: c.name, ...runTestGate(root, alone, { ...opts, expect: failed }), isolated: failed } : { name: c.name, ...runTestGate(root, c.command, opts) }];
+    }));
+    for (const [name, c] of again) if (c.ok) flaky.push(c.isolated ? `${name} (${c.isolated.join(', ')} alone)` : name);
     result = combine(result.checks.map((c) => again.get(c.name) ?? c));
   }
   return flaky.length ? { ...result, flaky, flakyNote: `${flaky.join(', ')} was red and then green with no change: a flake (load, a lock, timing), not a round. Record a finding when it repeats.` } : result;

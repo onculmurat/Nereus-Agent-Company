@@ -243,6 +243,10 @@ The next session starts with a resume summary: phase, work in progress (with `gi
 
 `team/brief.md`, `decisions.md`, `contracts/`, `research/`, `glossary.md` and `config.json` are meant to be committed. `team/work/` (board, briefs, hand-offs, escalations, mailbox) is committed too; only `team/work/packs/` (generated context packs) is git-ignored. The lead commits it in its own commits, `chore(team): <what>`, after each task is marked done and at each lead rotation, staging explicit paths and never mixing it into a code commit. Setup changes an older `.gitignore` line `team/work/` to `team/work/packs/` and shows the diff first.
 
+## Changes in 1.3.30
+
+- **The rerun of a red test check runs only the failed tests, one at a time** (g69): a red check ran again in full under the same parallel load (g64), so a timing test went red twice: a budget test failed in the first run, another one in the rerun, and the task spent a developer dispatch on a red that passed alone. A red `cargo test` check that names its failed tests now reruns only them with `--exact --test-threads=1`; green is `flaky` (the entry says which tests ran alone) and not a round. The rerun counts as green only when every one of those tests ran and passed (`notRun` names a test the filter missed). Other commands, a build error or a hang rerun as before.
+
 ## Changes in 1.3.29
 
 - **An owner-only word used as a noun no longer sends a question to the owner** (g68): the proxy check matched "release" in "release work goes on" in a question about adding a hardening task, refused the proxy answer, and the owner had to answer a planning question while the lead waited. Release, publish and deploy that name work, a phase or a time ("release tasks", "a release blocker", "before release", "the pre-release checklist", "yayın görevleri", "yayından önce") are no longer the owner's action; "merge PR #12 into main", "publish v1.0", "push the branch" and deleting the owner's data still are.
