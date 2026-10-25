@@ -64,6 +64,7 @@ export function readBoard(root) {
     ...(f.agent ? { agent: f.agent } : {}),
     ...(Number(f.foldins) > 0 ? { foldins: Number(f.foldins) } : {}),
     ...(f.approach ? { approach: f.approach, roundsBase: Number(f.roundsbase ?? 0) } : {}),
+    ...(f.basefixes ? { baseFixes: f.basefixes.split(',').map((s) => s.trim()).filter(Boolean) } : {}),
     ...(f.code === 'no' ? { code: 'no' } : {}),
     ...(SIZES.includes(f.size) ? { size: f.size } : {}),
     ...(SECURITY_TAGS.includes(f.security) ? { security: f.security } : {}),
@@ -97,6 +98,7 @@ export function writeBoard(root, board) {
     ...(e.agent ? { agent: e.agent } : {}),
     ...(e.foldins > 0 ? { foldins: e.foldins } : {}),
     ...(e.approach ? { approach: e.approach, roundsbase: e.roundsBase ?? 0 } : {}),
+    ...(e.baseFixes?.length ? { basefixes: e.baseFixes.join(', ') } : {}),
     ...(e.code === 'no' ? { code: 'no' } : {}),
     ...(SIZES.includes(e.size) ? { size: e.size } : {}),
     ...(SECURITY_TAGS.includes(e.security) ? { security: e.security } : {}),
@@ -316,6 +318,17 @@ export function countFoldIn(root, id, { foldInRounds, reset = false }) {
   }
   writeBoard(root, board);
   return { id, action, foldIns: entry.foldins ?? 0, cap: foldInRounds };
+}
+
+// g66: a red that is on the task's base too came in before the task (Memory Agent T-060: F-625, a cli test from
+// T-096 that the scoped gate never built for Linux). Fixing it in the task is not a round and never raises the model.
+export function recordBaseFix(root, id, finding) {
+  const board = readBoard(root);
+  const entry = board.entries.find((e) => e.id === id);
+  if (!entry) throw new Error(`No board entry ${id}`);
+  entry.baseFixes = [...new Set([...(entry.baseFixes ?? []), finding])];
+  writeBoard(root, board);
+  return { entry, next: { action: 'retry', model: entry.model }, note: `${finding} was red before ${id}: fix it in the task on the same model, in its own commit; not a round.` };
 }
 
 // Counts one more unresolved round on an entry and applies the escalation ladder.

@@ -229,6 +229,10 @@ Sonraki oturum bir devam özetiyle başlar: aşama, süren iş (`git status` ile
 
 `team/brief.md`, `decisions.md`, `contracts/`, `research/`, `glossary.md` ve `config.json` commit'lenmek içindir. `team/work/` (pano, görev özetleri, devir notları, eskalasyonlar, posta kutusu) de commit'lenir; yalnız `team/work/packs/` (üretilen bağlam paketleri) git dışındadır. Lider bunu kendi commit'lerinde, `chore(team): <ne>`, her görev bittiğinde ve her lider rotasyonunda, açık yolları ekleyerek commit'ler; kod commit'lerine karıştırmaz. Kurulum eski `.gitignore` satırını `team/work/` yerine `team/work/packs/` yapar ve önce farkı gösterir.
 
+## 1.3.28 değişiklikleri
+
+- **Kapsamlı kapı tüm paketleri okuyan kontrolleri de koşuyor, görevden önce gelen kırmızı round değil** (g66): bir görev cli testine `cfg(windows)` olmadan yalnız Windows'ta derlenen bir çağrı ekledi. Kapısı cli ve ona bağımlı paketlerle sınırlıydı (g55); her paketi Linux için derleyen test (cli'ye bağımlı olmayan core'da) hiç koşmadı ve kırmızı tabana geçti. Sonraki görevin kapısı onu buldu, round saydı ve bu round tek satırlık bir düzeltme için geliştiriciyi Opus'a yükseltti. `team/config.json` içindeki `gateAlwaysRun` (`{ name, command }` listesi) kapsamlı kapının kendi kontrollerinin yanında koştuğu kontrolleri tutuyor; `scope.alwaysRun` onları adlandırıyor, tam kapı onları zaten kapsadığı için eklemiyor. `board.js round <id> --reason base --finding <F-id>` görevin tabanında da kırmızı olan bir hatayı kaydediyor: görev onu aynı modelle kendi commit'inde düzeltiyor, round sayısı ve model değişmiyor, kayıt `basefixes` altında listeleniyor.
+
 ## 1.3.27 değişiklikleri
 
 - **Kırmızı kapı düşen testlerin adını veriyor** (g65): `--no-fail-fast` ile (1.3.26) test çıktısı uzun ve sonu yalnızca kırmızı test dosyalarını söylüyordu ("2 targets failed: hygiene, unsafe_policy"); lider hangi testlerin düştüğünü göremedi, turun geliştiricisi önce onları bulmak zorunda kaldı. Kırmızı test kontrolü artık düşen testleri `checks[].failed` içinde, her birinin panic satırlarının başını `checks[].failures` içinde veriyor; sonuçta da her kırmızı kontrol için `check: test` biçiminde `failed` var.

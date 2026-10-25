@@ -100,6 +100,7 @@ export function validateConfig(cfg) {
   if (cfg.gateScope !== undefined && !['task', 'full'].includes(cfg.gateScope)) throw new Error(`gateScope must be "task" or "full"; got ${JSON.stringify(cfg.gateScope)}`);
   if (cfg.gateRetry !== undefined && (!Number.isInteger(cfg.gateRetry) || cfg.gateRetry < 0 || cfg.gateRetry > 3)) throw new Error(`gateRetry must be 0 to 3 (runs of a red check before it counts); got ${JSON.stringify(cfg.gateRetry)}`);
   checkKnownRed(cfg.gateKnownRed);
+  checkAlwaysRun(cfg.gateAlwaysRun, cfg.gateCommands);
   checkDeleteRoots(cfg.deleteRoots);
   const age = cfg.cleanup?.closedThreadMaxAgeDays;
   if (!Number.isInteger(age) || age < 0) throw new Error(`cleanup.closedThreadMaxAgeDays must be a whole number of days, 0 or more; got ${JSON.stringify(age)}`);
@@ -113,6 +114,21 @@ export function checkKnownRed(list) {
   for (const e of list) {
     const ok = e && typeof e === 'object' && [e.test, e.finding, e.reason].every((v) => typeof v === 'string' && v.trim());
     if (!ok) throw new Error(`gateKnownRed entries need a non-empty test, finding and reason; got ${JSON.stringify(e)}`);
+  }
+  return list;
+}
+
+// g66: checks a task-scoped gate always runs, beside the scoped ones: a test that reads every package's files (a
+// cross-target build policy) is in no package the task changed, so the scoped gate skipped it and a red reached the base.
+export function checkAlwaysRun(list, gateCommands) {
+  if (list === undefined) return [];
+  if (!Array.isArray(list)) throw new Error(`gateAlwaysRun must be a list of { name, command }; got ${JSON.stringify(list)}`);
+  const names = new Set((gateCommands ?? []).map((c) => c?.name));
+  for (const e of list) {
+    const ok = e && typeof e === 'object' && typeof e.name === 'string' && e.name.trim() && typeof e.command === 'string' && e.command.trim();
+    if (!ok) throw new Error(`gateAlwaysRun entries need a non-empty name and command; got ${JSON.stringify(e)}`);
+    if (names.has(e.name)) throw new Error(`gateAlwaysRun has the name "${e.name}" twice or also in gateCommands`);
+    names.add(e.name);
   }
   return list;
 }

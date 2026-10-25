@@ -13,7 +13,7 @@ The lead never fixes a role's output itself. Every fix goes back to the role tha
 node "<scripts>/board.js" round <id> --reason <gate|review|stuck>
 ```
 
-`--reason` is required: `gate` for a red test gate, `review` for a blocking review finding, `stuck` for a role that reports itself stuck. A dispatch that stopped at its turn budget is not a round and `--reason budget` is refused (g46): re-dispatch the same role on the same model with a fresh pack for the remainder, or split the task. A raised model therefore always follows a real failure, never a long task.
+`--reason` is required: `gate` for a red test gate, `review` for a blocking review finding, `stuck` for a role that reports itself stuck. A red that is red on the task's base too is not a round: `--reason base --finding <F-id>` records it and leaves the round count and the model unchanged (g66). A dispatch that stopped at its turn budget is not a round and `--reason budget` is refused (g46): re-dispatch the same role on the same model with a fresh pack for the remainder, or split the task. A raised model therefore always follows a real failure, never a long task.
 
 It prints `{ entry, next }`. Act on `next.action`:
 

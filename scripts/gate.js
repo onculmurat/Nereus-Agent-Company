@@ -4,7 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { runCli, UsageError } from './lib/cli.js';
 import { loadConfig, validateConfig } from './lib/config.js';
-import { runGate, gateChecks, isCodeless, checkDocGate, waitForIdle, fixable, fixGate, scopeChecks, noFailFast, retryRed, DEFAULT_GATE_WAIT_SECONDS, DEFAULT_GATE_CHECK_SECONDS } from './lib/gate.js';
+import { runGate, gateChecks, isCodeless, checkDocGate, waitForIdle, fixable, fixGate, scopeChecks, noFailFast, retryRed, alwaysRunChecks, DEFAULT_GATE_WAIT_SECONDS, DEFAULT_GATE_CHECK_SECONDS } from './lib/gate.js';
 import { taskTree } from './lib/board.js';
 
 const usage = `Usage:
@@ -28,6 +28,8 @@ const usage = `Usage:
                       (default 1, 0 to 3); red then green is reported in flaky and is not a round (g64)
                       a red test check names its failed tests in failed (check: test) and the first lines of each
                       one's panic in checks[].failures (g65)
+                      a scoped gate also runs gateAlwaysRun ({ name, command } list in team/config.json), checks that read
+                      every package (a cross-target build policy test) and so are in no changed package (g66)
   gate.js --task <id> --full
                       the same over the whole workspace (also gateScope: "full" in team/config.json); the milestone
                       and phase end run gate.js without --task
@@ -57,7 +59,9 @@ runCli(usage, { task: { type: 'string' }, fix: { type: 'boolean' }, full: { type
     ? scopeChecks(tree, values.task, allChecks)
     : { checks: allChecks, scope: { full: values.task === undefined ? 'no --task' : values.full ? '--full' : 'gateScope: full' } };
   // g64: cargo test runs every test binary, so a known environmental red does not hide the tests after it
-  const checks = scoped.checks.map((c) => ({ ...c, command: noFailFast(c.command) }));
+  // g66: gateAlwaysRun checks run beside a scoped gate; a full gate already runs the whole workspace
+  const always = alwaysRunChecks(scoped.scope, config.gateAlwaysRun);
+  const checks = [...scoped.checks, ...always].map((c) => ({ ...c, command: noFailFast(c.command) }));
   const knownRed = config.gateKnownRed ?? [];
   // g31: wait while another run of a check program loads the machine; report it when it outlasts gateWaitSeconds
   // (NAC_GATE_WAIT_SECONDS overrides it for one run; the test suite sets 0)
@@ -85,5 +89,5 @@ runCli(usage, { task: { type: 'string' }, fix: { type: 'boolean' }, full: { type
     ...(known.length ? { knownRed: known, knownRedNote: `only gateKnownRed tests failed (${known.join(', ')}): environmental, each a recorded finding; the check counts as green.` } : {}),
     ...(stale.length ? { knownRedPassed: stale, knownRedPassedNote: `${stale.join(', ')} passed: remove it from gateKnownRed in team/config.json and close its finding.` } : {}),
   };
-  return { ...result, tree, scope: scoped.scope, ...(failed.length ? { failed } : {}), ...knownNote, ...hang, ...(idle.waited ? { waited: idle.waited } : {}), ...busy };
+  return { ...result, tree, scope: always.length ? { ...scoped.scope, alwaysRun: always.map((c) => c.name) } : scoped.scope, ...(failed.length ? { failed } : {}), ...knownNote, ...hang, ...(idle.waited ? { waited: idle.waited } : {}), ...busy };
 });

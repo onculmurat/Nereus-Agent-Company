@@ -6,7 +6,7 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { makeProject } from './helpers.js';
-import { runTestGate, runGate, retryRed, failedTests, noFailFast, failureExcerpts } from '../scripts/lib/gate.js';
+import { runTestGate, runGate, retryRed, failedTests, noFailFast, failureExcerpts, alwaysRunChecks } from '../scripts/lib/gate.js';
 import os from 'node:os';
 import { loadConfig, validateConfig } from '../scripts/lib/config.js';
 
@@ -111,4 +111,38 @@ test('g65: gate.js lists the failed tests as check: test', () => {
   const r = spawnSync(process.execPath, [path.join(pluginRoot, 'scripts', 'gate.js'), '--project', root], { encoding: 'utf8', env: { ...process.env, NAC_GATE_WAIT_SECONDS: '0' } });
   assert.equal(r.status, 1);
   assert.deepEqual(JSON.parse(r.stdout).failed, ['test: hygiene::clean']);
+});
+
+// Seen live (Memory Agent T-060): T-096 added a Windows-only call to a cli test without cfg(windows). Its gate was
+// scoped to cli and its dependents, so core's unsafe_policy test (it builds every package for Linux) never ran; the
+// red reached the base, cost T-060 a round, and that round raised the model to Opus for a one-line fix.
+test('g66: a scoped gate adds the gateAlwaysRun checks, a full gate does not', () => {
+  const list = [{ name: 'policy', command: 'cargo test -p core --test unsafe_policy' }];
+  assert.deepEqual(alwaysRunChecks({ base: 'abc1234', packages: ['cli'] }, list), list);
+  assert.deepEqual(alwaysRunChecks({ full: 'no --task' }, list), []);
+  assert.deepEqual(alwaysRunChecks({ base: 'abc1234', packages: ['cli'] }, undefined), []);
+});
+
+test('g66: gateAlwaysRun entries need a name and a command, and a name not used by gateCommands', () => {
+  const base = loadConfig({ pluginRoot, userConfigPath: path.join(os.tmpdir(), 'none.json') });
+  const gateCommands = [{ name: 'test', command: 'cargo test' }];
+  assert.doesNotThrow(() => validateConfig({ ...base, gateCommands, gateAlwaysRun: [{ name: 'policy', command: 'cargo test -p core --test unsafe_policy' }] }));
+  assert.throws(() => validateConfig({ ...base, gateCommands, gateAlwaysRun: [{ name: 'test', command: 'x' }] }), /twice or also in gateCommands/);
+  assert.throws(() => validateConfig({ ...base, gateAlwaysRun: [{ name: 'p' }] }), /name and command/);
+});
+
+test('g66: round --reason base records the finding, keeps the round count and the model', () => {
+  const root = makeProject();
+  const run = (...a) => spawnSync(process.execPath, [path.join(pluginRoot, 'scripts', 'board.js'), '--project', root, ...a], { encoding: 'utf8' });
+  assert.equal(run('add', '--title', 'Installer', '--owner', 'backend-developer', '--model', 'sonnet').status, 0);
+  assert.equal(run('round', 'T-001', '--reason', 'gate').status, 0);
+  const r = run('round', 'T-001', '--reason', 'base', '--finding', 'F-625');
+  assert.equal(r.status, 0, r.stderr);
+  const out = JSON.parse(r.stdout);
+  assert.equal(out.entry.rounds, 1);
+  assert.equal(out.entry.model, 'sonnet');
+  assert.deepEqual(out.entry.baseFixes, ['F-625']);
+  assert.match(out.note, /not a round/);
+  assert.match(fs.readFileSync(path.join(root, 'team', 'work', 'board.md'), 'utf8'), /- basefixes: F-625/);
+  assert.notEqual(run('round', 'T-001', '--reason', 'base').status, 0);
 });

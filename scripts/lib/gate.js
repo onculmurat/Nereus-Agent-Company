@@ -389,6 +389,12 @@ export function scopeCommand(command, packages) {
   return `${m[1]}${packages.map((p) => ` -p ${p}`).join('')}${rest}`;
 }
 
+// g66: the gateAlwaysRun checks a gate runs beside its own: all of them when the gate is scoped to packages, none
+// when it runs the whole workspace (they are part of it then).
+export function alwaysRunChecks(scope, list = []) {
+  return scope?.packages ? list : [];
+}
+
 // The scope for `gate.js --task`: { checks, scope } where scope is { base, packages } or { full: reason }.
 export function scopeChecks(tree, id, checks) {
   if (!checks.some((c) => CARGO_SCOPED.test(c.command)) || !fs.existsSync(path.join(tree, 'Cargo.toml'))) return { checks, scope: { full: 'no cargo test or clippy check' } };
