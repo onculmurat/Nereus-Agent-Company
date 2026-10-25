@@ -24,12 +24,25 @@ export function proxyContext(config, today = localDate()) {
 const DELETE_DATA = /\b(delete|remove|wipe|purge|drop|rm)\b[^.;\n]{0,40}\b(data|files?|folders?|director(?:y|ies)|branch(?:es)?|repo(?:sitory)?|database|backups?|history)\b|\b(veri|dosya|klas[öo]r|dal|depo|yedek|veritaban|ge[çc]mi[şs])\w*\b[^.;\n]{0,40}\bsil/;
 export const OWNER_ONLY = new RegExp(String.raw`\b(push|merge|deploy|publish|release)\b|yay[ıi]n|canl[ıi]ya|${DELETE_DATA.source}`, 'i');
 const OWNER_DIRECT = /owner direct:/i;
+// g68: the action words also matched as nouns (Q-188: "before the release tasks T-062 to T-067"); the proxy answer to
+// a planning question was refused and the owner had to answer it. A release, publish or deploy that names work, a
+// phase or a time ("release tasks", "before release", "yayın görevleri", "yayından önce") is not the owner's action.
+const NOUN_USE = new RegExp([
+  String.raw`\b(?:pre-?)?(?:release|publish|deploy)(?:-| )(?:tasks?|work|group|phase|notes?|blockers?|checklist|plan|candidates?|scope|docs?|pipeline|matrix|criteria|readiness|risks?)\b`,
+  String.raw`\b(?:before|after|until|ahead of|for|toward|towards)\s+(?:the\s+)?(?:first\s+|free\s+|v?\d[\w.]*\s+)?(?:release|publish|deploy)\b`,
+  String.raw`\bpre-?release\b`,
+  String.raw`yay[ıi]n(?:a|dan|ın|in)?\s*(?:g[öo]rev|[öo]ncesi|sonras[ıi]|kalan|hatt|i[şs]|matris|kriter|risk|grub|haz[ıi]rl)\w*`,
+  String.raw`yay[ıi]ndan\s+(?:[öo]nce|sonra)`,
+].join('|'), 'gi');
+export function ownerOnlyMatch(text) {
+  return OWNER_ONLY.exec(String(text ?? '').replace(NOUN_USE, ' '));
+}
 
 export function checkAskUser(config, input, today = localDate()) {
   const p = config.ownerProxy;
   if (!p || (p.until && p.until < today)) return undefined;
   const text = (input?.questions ?? []).map((q) => `${q?.header ?? ''} ${q?.question ?? ''}`).join('\n');
-  if (OWNER_ONLY.test(text) || OWNER_DIRECT.test(text)) return undefined;
+  if (ownerOnlyMatch(text) || OWNER_DIRECT.test(text)) return undefined;
   return { block: `NAC proxy guard (g47): the owner set ${p.session} as owner proxy, and an AskUserQuestion box waits for a key press the proxy cannot give. Register the question with decisions.js ask, send it to ${p.session} by SendMessage (thread owner-proxy) and end your turn; the answer arrives as a message. Push, merge, deploy, publish and deleting the owner's data still go to the owner in a box. When ListAgents does not show ${p.session}, start the question text with "Owner direct: <reason>".` };
 }
 
@@ -41,7 +54,7 @@ export function proxyDecideProblem(config, question, today = localDate()) {
   if (!p) return 'no ownerProxy is set in team/config.json; the owner answers this question';
   if (p.until && p.until < today) return `the owner proxy ${p.session} expired on ${p.until}; the owner answers this question`;
   if (question.irreversible === 'yes') return 'an irreversible or spending go-step stays with the owner';
-  const owner = OWNER_ONLY.exec(`${question.title ?? ''} ${question.source ?? ''} ${question.impact ?? ''}`);
+  const owner = ownerOnlyMatch(`${question.title ?? ''} ${question.source ?? ''} ${question.impact ?? ''}`);
   if (owner) return `push, merge, deploy, publish and deleting the owner's data stay with the owner (matched "${owner[0]}")`;
   return undefined;
 }
