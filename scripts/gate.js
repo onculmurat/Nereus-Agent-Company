@@ -4,7 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { runCli, UsageError } from './lib/cli.js';
 import { loadConfig, validateConfig } from './lib/config.js';
-import { runGate, gateChecks, isCodeless, checkDocGate, waitForIdle, fixable, fixGate, scopeChecks, DEFAULT_GATE_WAIT_SECONDS, DEFAULT_GATE_CHECK_SECONDS } from './lib/gate.js';
+import { runGate, gateChecks, isCodeless, checkDocGate, waitForIdle, fixable, fixGate, scopeChecks, noFailFast, retryRed, DEFAULT_GATE_WAIT_SECONDS, DEFAULT_GATE_CHECK_SECONDS } from './lib/gate.js';
 import { taskTree } from './lib/board.js';
 
 const usage = `Usage:
@@ -22,6 +22,10 @@ const usage = `Usage:
                       with --task, cargo test and cargo clippy run only on the packages changed since the task's
                       "chore(team): <id> start" commit and the packages that depend on them; anything outside a package
                       runs the whole workspace; scope in the result says which (g55)
+                      cargo test runs with --no-fail-fast; a test check red only on gateKnownRed tests (team/config.json:
+                      { test, finding, reason } each) counts as green and names them in knownRed; a listed test that passes
+                      is named in knownRedPassed; a build error is never a known red. A red check runs again gateRetry times
+                      (default 1, 0 to 3); red then green is reported in flaky and is not a round (g64)
   gate.js --task <id> --full
                       the same over the whole workspace (also gateScope: "full" in team/config.json); the milestone
                       and phase end run gate.js without --task
@@ -50,7 +54,9 @@ runCli(usage, { task: { type: 'string' }, fix: { type: 'boolean' }, full: { type
   const scoped = values.task !== undefined && !values.full && config.gateScope !== 'full'
     ? scopeChecks(tree, values.task, allChecks)
     : { checks: allChecks, scope: { full: values.task === undefined ? 'no --task' : values.full ? '--full' : 'gateScope: full' } };
-  const { checks } = scoped;
+  // g64: cargo test runs every test binary, so a known environmental red does not hide the tests after it
+  const checks = scoped.checks.map((c) => ({ ...c, command: noFailFast(c.command) }));
+  const knownRed = config.gateKnownRed ?? [];
   // g31: wait while another run of a check program loads the machine; report it when it outlasts gateWaitSeconds
   // (NAC_GATE_WAIT_SECONDS overrides it for one run; the test suite sets 0)
   const env = process.env.NAC_GATE_WAIT_SECONDS;
@@ -58,8 +64,9 @@ runCli(usage, { task: { type: 'string' }, fix: { type: 'boolean' }, full: { type
   // g54: each check gets gateCheckSeconds (NAC_GATE_CHECK_SECONDS for one run); a hang comes back red with timedOut
   const limit = process.env.NAC_GATE_CHECK_SECONDS;
   const seconds = /^\d+$/.test(limit ?? '') ? Number(limit) : config.gateCheckSeconds ?? DEFAULT_GATE_CHECK_SECONDS;
-  const first = runGate(tree, checks, { seconds });
-  const result = values.fix ? fixGate(tree, checks, first, { id: values.task, seconds }) : { ...first, ...(fixable(first, checks) ? { fixable: true } : {}) };
+  // g64: a red check runs again before it counts; red then green is reported as flaky, not a round
+  const first = retryRed(tree, checks, runGate(tree, checks, { seconds, knownRed }), { retries: config.gateRetry ?? 1, seconds, knownRed });
+  const result = values.fix ? fixGate(tree, checks, first, { id: values.task, seconds, knownRed }) : { ...first, ...(fixable(first, checks) ? { fixable: true } : {}) };
   if (!result.ok) process.exitCode = 1;
   const busy = idle.busy.length
     ? { busy: idle.busy, note: `other runs of the check programs were still running after ${idle.waited}s; a red check may come from the load. Find who started them, wait for them to end and run the gate again before you count a round.` }
@@ -68,5 +75,11 @@ runCli(usage, { task: { type: 'string' }, fix: { type: 'boolean' }, full: { type
   const hang = hung.length
     ? { hung, hangNote: `${hung.join(', ')} gave no result in ${seconds}s and was stopped with its process tree. This is a hang (deadlock, a wait that never ends), not a failing assertion: find the test from the last lines of the output, run it alone, and count the fix as a round.` }
     : {};
-  return { ...result, tree, scope: scoped.scope, ...hang, ...(idle.waited ? { waited: idle.waited } : {}), ...busy };
+  const known = result.checks?.flatMap((c) => c.knownRed ?? []) ?? [];
+  const stale = result.checks?.flatMap((c) => c.knownRedPassed ?? []) ?? [];
+  const knownNote = {
+    ...(known.length ? { knownRed: known, knownRedNote: `only gateKnownRed tests failed (${known.join(', ')}): environmental, each a recorded finding; the check counts as green.` } : {}),
+    ...(stale.length ? { knownRedPassed: stale, knownRedPassedNote: `${stale.join(', ')} passed: remove it from gateKnownRed in team/config.json and close its finding.` } : {}),
+  };
+  return { ...result, tree, scope: scoped.scope, ...knownNote, ...hang, ...(idle.waited ? { waited: idle.waited } : {}), ...busy };
 });

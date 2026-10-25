@@ -105,7 +105,7 @@ export function parseSkipped(output) {
 // g54: each check has a deadline (gateCheckSeconds, 1200 by default; 0 = none). A check past it is stopped with its
 // process tree and reported red with timedOut and its last lines, so the lead sees a hang and where it stopped
 // instead of waiting on a gate that never returns.
-export function runTestGate(root, command, { seconds = DEFAULT_GATE_CHECK_SECONDS } = {}) {
+export function runTestGate(root, command, { seconds = DEFAULT_GATE_CHECK_SECONDS, knownRed = [] } = {}) {
   const r = spawnSync(process.execPath, [RUNNER, String(seconds), root, command], { encoding: 'utf8', maxBuffer: 256 * 1024 * 1024, windowsHide: true });
   let run;
   try { run = JSON.parse(r.stdout); } catch { return { ok: false, exitCode: null, skipped: 0, output: r.error?.message ?? `${r.stdout ?? ''}${r.stderr ?? ''}`.trim() }; }
@@ -114,7 +114,54 @@ export function runTestGate(root, command, { seconds = DEFAULT_GATE_CHECK_SECOND
   if (run.timedOut) {
     return { ok: false, exitCode: null, timedOut: true, skipped: parseSkipped(all), output: `${tail}\n[NAC gate: no result after ${seconds}s; the check was stopped with its process tree. A hang, not a red assertion: the lines above show where it stopped.]` };
   }
-  return { ok: run.status === 0, exitCode: run.status, skipped: parseSkipped(all), output: tail };
+  return knownRedCheck({ ok: run.status === 0, exitCode: run.status, skipped: parseSkipped(all), output: tail }, all, knownRed);
+}
+
+// g64: names of the failed tests in a test run's output (cargo "test x ... FAILED", pytest "FAILED path::x"), and
+// whether a build failed: a compile error is never a known red.
+export function failedTests(output) {
+  const names = new Set();
+  for (const m of output.matchAll(/^test (\S+) \.\.\. FAILED\s*$/gm)) names.add(m[1]);
+  for (const m of output.matchAll(/^FAILED (\S+)/gm)) names.add(m[1]);
+  return [...names];
+}
+const BUILD_FAILED = /^error(?:\[E\d+\])?: (?:could not compile|aborting due to)/m;
+const sameTest = (name, known) => name === known || name.endsWith(`::${known}`);
+
+// A red check whose only failures are gateKnownRed tests comes back ok with knownRed; a known test that passed now
+// is reported in knownRedPassed, so its entry can go.
+function knownRedCheck(result, all, knownRed) {
+  if (!knownRed.length) return result;
+  const passed = knownRed.filter((k) => new RegExp(`^test (?:\\S+::)?${k.test.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')} \\.\\.\\. ok\\s*$`, 'm').test(all)).map((k) => k.test);
+  const extra = passed.length ? { knownRedPassed: passed } : {};
+  if (result.ok || result.timedOut || BUILD_FAILED.test(all)) return { ...result, ...extra };
+  const failed = failedTests(all);
+  if (!failed.length || !failed.every((f) => knownRed.some((k) => sameTest(f, k.test)))) return { ...result, ...extra };
+  return { ...result, ok: true, knownRed: failed, ...extra };
+}
+
+// g64: cargo test stops at the first red test binary, so a known environmental red hid every test after it
+// (Memory Agent T-058: the gate stopped at data_dir c4_broad_write_acl_warns). The gate runs them all.
+export function noFailFast(command) {
+  const m = /^(\s*cargo\s+test)\b(.*)$/.exec(command);
+  if (!m || /\s--no-fail-fast\b/.test(m[2])) return command;
+  return `${m[1]} --no-fail-fast${m[2]}`;
+}
+
+// g64: a red check runs again (gateRetry times, 1 by default) before it counts; green on a later run is a flake, not
+// a round (Memory Agent T-097: a parallel task's cargo held the package lock, the developer found nothing to fix).
+export function retryRed(root, checks, first, { retries = 1, ...opts } = {}) {
+  if (first.ok || retries < 1) return first;
+  let result = first;
+  const flaky = [];
+  for (let i = 0; i < retries; i++) {
+    const red = result.checks.filter((c) => !c.ok && !c.timedOut).map((c) => c.name);
+    if (!red.length) break;
+    const again = new Map(checks.filter((c) => red.includes(c.name)).map((c) => [c.name, { name: c.name, ...runTestGate(root, c.command, opts) }]));
+    for (const [name, c] of again) if (c.ok) flaky.push(name);
+    result = combine(result.checks.map((c) => again.get(c.name) ?? c));
+  }
+  return flaky.length ? { ...result, flaky, flakyNote: `${flaky.join(', ')} was red and then green with no change: a flake (load, a lock, timing), not a round. Record a finding when it repeats.` } : result;
 }
 
 // g18: the gate runs every configured check, not only the tests. gateCommands is an ordered list of
@@ -127,7 +174,10 @@ export function gateChecks(config) {
 // Runs all checks in order (a red one does not stop the later ones) and reports each. The top-level fields keep
 // the single-command shape: exitCode and output come from the first red check, or from the last one when all pass.
 export function runGate(root, checks, opts) {
-  const checks_ = checks.map((c) => ({ name: c.name, ...runTestGate(root, c.command, opts) }));
+  return combine(checks.map((c) => ({ name: c.name, ...runTestGate(root, c.command, opts) })));
+}
+
+function combine(checks_) {
   const red = checks_.filter((c) => !c.ok);
   const shown = red[0] ?? checks_[checks_.length - 1];
   const output = checks_.length === 1 ? shown.output : (red.length ? red : [shown]).map((c) => `[${c.name}]\n${c.output}`).join('\n');
@@ -158,7 +208,7 @@ export const fixable = (result, checks) => !result.ok && result.checks.filter((c
 // Runs the fix commands of the red checks in `tree`, commits what they changed as style(<id>) and runs the gate
 // again. Refused when a red check has no fix or the tree holds uncommitted changes outside team/ (they would be swept
 // into the style commit).
-export function fixGate(tree, checks, first, { id, seconds }) {
+export function fixGate(tree, checks, first, { id, seconds, knownRed = [] }) {
   const git = (...args) => execFileSync('git', args, { cwd: tree, stdio: ['ignore', 'pipe', 'pipe'], encoding: 'utf8' }).trim();
   if (first.ok) return { ...first, fixed: [] };
   if (!fixable(first, checks)) throw new Error(`gate --fix: red checks without a fix command: ${first.checks.filter((c) => !c.ok && !fixCommand(checks.find((k) => k.name === c.name))).map((c) => c.name).join(', ')}; this is a round for the implementer`);
@@ -174,7 +224,7 @@ export function fixGate(tree, checks, first, { id, seconds }) {
     git('commit', '-q', '-m', `style(${id}): ${red.map((c) => c.name).join(', ')} (gate --fix)`);
     commit = git('rev-parse', '--short', 'HEAD');
   }
-  const again = runGate(tree, checks, { seconds });
+  const again = runGate(tree, checks, { seconds, knownRed });
   return { ...again, fixed: red.map((c) => c.name), fixCommit: commit };
 }
 
