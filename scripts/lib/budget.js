@@ -88,3 +88,36 @@ export function budgetCommitBlock(turns, budget) {
   if (turns < budget) return null;
   return `NAC turn budget: you are at your budget (${turns} of ${budget} turns), so you do not commit now (g61): there are no turns left to run the full tests, and a red commit misleads the next dispatch. Leave the changes uncommitted; the lead's next pack carries the diff and lists new files. Write your report and stop.`;
 }
+
+// g63: in Memory Agent T-058 the usage limit cut off two reviewers mid-run (18:50, reset 21:40). Claude Code keeps a
+// stopped subagent's transcript, and SendMessage to its agent id continues it with its context; a fresh pack makes
+// a role that had done real work read everything again and redo it. The limit stop is the last line of the role's
+// transcript: a synthetic assistant message with isApiErrorMessage and error rate_limit.
+export const RESUME_MIN_TURNS = 10;
+
+export function agentStop(file) {
+  if (!file || !fs.existsSync(file)) return null;
+  let last = null;
+  for (const line of fs.readFileSync(file, 'utf8').split('\n')) {
+    if (!line.includes('"assistant"')) continue;
+    try {
+      const e = JSON.parse(line);
+      if (e.type === 'assistant') last = e;
+    } catch {
+      // a line being written is skipped
+    }
+  }
+  const limit = Boolean(last?.isApiErrorMessage && (last.error === 'rate_limit' || /hit your .*limit/i.test(JSON.stringify(last.message?.content ?? ''))));
+  const text = limit ? (last.message?.content ?? []).map((c) => c.text ?? '').join(' ').trim() : null;
+  // the synthetic message is not a model turn
+  return { turns: countTurns(file) - (limit ? 1 : 0), stoppedBy: limit ? 'limit' : null, message: text };
+}
+
+// Resume when the role was cut off by the limit after real work and still has turns left before the warning line
+// (a resumed role keeps its turn count); otherwise a fresh pack. Neither is a review round.
+export function resumeAdvice({ turns, stoppedBy }, budget) {
+  if (stoppedBy !== 'limit') return { advice: 'none', why: 'the role did not stop on the usage limit' };
+  if (turns < RESUME_MIN_TURNS) return { advice: 'fresh', why: `only ${turns} turns before the limit: a fresh pack costs about the same and carries the current code` };
+  if (turns >= budget - WARN_TURNS) return { advice: 'fresh', why: `${turns} of ${budget} turns used: a resumed role keeps its count and would stop at the budget almost at once` };
+  return { advice: 'resume', why: `${turns} turns of work before the limit: continuing keeps what it read and did` };
+}

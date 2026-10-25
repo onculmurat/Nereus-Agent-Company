@@ -229,6 +229,10 @@ Sonraki oturum bir devam özetiyle başlar: aşama, süren iş (`git status` ile
 
 `team/brief.md`, `decisions.md`, `contracts/`, `research/`, `glossary.md` ve `config.json` commit'lenmek içindir. `team/work/` (pano, görev özetleri, devir notları, eskalasyonlar, posta kutusu) de commit'lenir; yalnız `team/work/packs/` (üretilen bağlam paketleri) git dışındadır. Lider bunu kendi commit'lerinde, `chore(team): <ne>`, her görev bittiğinde ve her lider rotasyonunda, açık yolları ekleyerek commit'ler; kod commit'lerine karıştırmaz. Kurulum eski `.gitignore` satırını `team/work/` yerine `team/work/packs/` yapar ve önce farkı gösterir.
 
+## 1.3.25 değişiklikleri
+
+- **Kullanım limitine takılan rol baştan başlatılmıyor, sürdürülüyor** (g63): kullanım limiti bir rolü çalışırken durdurduğunda lider onu yeni paketle yeniden dağıtıyordu; gerçek iş yapmış rol her şeyi yeniden okuyup tekrar yapıyordu. Claude Code duran alt ajanın kaydını saklıyor ve ajan kimliğine SendMessage onu bağlamıyla sürdürüyor. Yeni `agent-state.js <agentId>` rolün kaydını okuyup kaç tur kullandığını, limitin durdurup durdurmadığını ve ne yapılacağını söylüyor: en az 10 tur iş yapmış ve tur bütçesine yakın değilse `resume` (sıfırlanınca SendMessage), değilse `fresh` (yeni paket). Görev döngüsü yeniden dağıtmadan önce bunu çalıştırmayı ve limit durmasının asla round sayılmadığını söylüyor.
+
 ## 1.3.24 değişiklikleri
 
 - **Tur bütçesinde commit yok** (g61): ikinci bütçe durmasında bir geliştirici, var olan 12 testin 7'si kırmızıyken fark etmeden commit attı; sonraki dağıtım önce kırmızının kendisinden mi geldiğini bulmak zorunda kaldı. Bütçeye ulaşan rolün tüm testleri koşacak turu kalmadığı için yeni bir `PreToolUse` hook'u (`budget-commit-guard.js`) `turnBudget` tur kullanmış NAC rolünün `git commit` komutunu reddediyor; lider ve NAC dışı ajanlar denetlenmiyor. Bütçe uyarısı artık değişiklikleri commit etmeden bırakmayı söylüyor; her paket görev ağacındaki commit edilmemiş değişen ve yeni dosyaları "Uncommitted work in the tree" altında listeliyor, böylece sonraki dağıtım `--base` olsun olmasın onlardan başlıyor.

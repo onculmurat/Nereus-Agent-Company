@@ -243,6 +243,10 @@ The next session starts with a resume summary: phase, work in progress (with `gi
 
 `team/brief.md`, `decisions.md`, `contracts/`, `research/`, `glossary.md` and `config.json` are meant to be committed. `team/work/` (board, briefs, hand-offs, escalations, mailbox) is committed too; only `team/work/packs/` (generated context packs) is git-ignored. The lead commits it in its own commits, `chore(team): <what>`, after each task is marked done and at each lead rotation, staging explicit paths and never mixing it into a code commit. Setup changes an older `.gitignore` line `team/work/` to `team/work/packs/` and shows the diff first.
 
+## Changes in 1.3.25
+
+- **A role the usage limit cut off is continued, not started again** (g63): when the usage limit stopped a role mid-run, the lead re-dispatched it with a fresh pack, so a role that had done real work read everything again and redid it. Claude Code keeps a stopped subagent's transcript, and SendMessage to its agent id continues it with its context. The new `agent-state.js <agentId>` reads the role's transcript and says how many turns it used, whether the limit stopped it, and what to do: `resume` (SendMessage after the reset) when it had at least 10 turns of work and is not near its turn budget, `fresh` (a new pack) otherwise. The task loop says to run it before re-dispatching, and that a limit stop is never a round.
+
 ## Changes in 1.3.24
 
 - **No commit at the turn budget** (g61): at its second budget stop a developer committed work with 7 of 12 existing tests red, without noticing, and the next dispatch first had to find out whether the red was its own. A role at the budget has no turns left to run the full tests, so a new `PreToolUse` hook (`budget-commit-guard.js`) refuses `git commit` from a NAC role once it has used `turnBudget` turns; the lead and non-NAC agents are not checked. The budget notice now says to leave the changes uncommitted, and every pack lists the uncommitted changed and new files of the task tree under "Uncommitted work in the tree", so the next dispatch starts from them with or without `--base`.
