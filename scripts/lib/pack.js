@@ -112,6 +112,20 @@ function changedTestFiles(root, base, paths) {
   }
 }
 
+// g61: a role at its budget does not commit, so its work is in the working tree only; the pack names those files
+// (changed and new) whether or not it has a diff section.
+function uncommittedFiles(root, paths) {
+  const git = (args) => execFileSync('git', args, { cwd: root, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, stdio: ['ignore', 'pipe', 'pipe'] }).split('\0').filter(Boolean);
+  try {
+    const changed = git(['diff', '--name-only', '-z', 'HEAD', '--', ...pathspecs(paths)]).map((f) => `${f} (changed)`);
+    const fresh = git(['ls-files', '--others', '--exclude-standard', '-z', '--', ...pathspecs(paths)]).map((f) => `${f} (new)`);
+    return [...changed, ...fresh];
+  } catch {
+    return [];
+  }
+}
+const uncommittedSection = (files) => `## Uncommitted work in the tree\n\nThese files are changed or new and not committed, for example by a dispatch that stopped at its turn budget (g61). Start from them: run the tests, and commit only when they are green:\n\n${files.map((f) => `- ${f}`).join('\n')}`;
+
 function gitDiff(root, base, paths, leaveOut = []) {
   if (!BASE_RE.test(base)) throw new Error(`Invalid base "${base}"`);
   try {
@@ -228,6 +242,8 @@ export function buildPack(root, { id, role, base, gate, round, findings, paths, 
     parts.push(`## Diff against ${base}\n\n${fence}diff\n${diff}\n${fence}`);
     if (leaveOut?.length) parts.push(leftOutSection(leaveOut));
   }
+  const open = uncommittedFiles(taskTree(root, id), paths);
+  if (open.length) parts.push(uncommittedSection(open));
   if (gate !== undefined) {
     const tail = gateTail(gate);
     const fence = fenceFor(tail);

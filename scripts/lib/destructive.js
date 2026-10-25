@@ -1,7 +1,7 @@
 // Destructive-command guard: finds recursive deletes in a Bash or PowerShell command and blocks the ones whose target
 // could be outside the project and the OS temp folder. It reads the command text only; it cannot see what a script
 // or a program the agent runs does inside. The rule: a recursive delete (rm -r, Remove-Item -Recurse, rmdir /s,
-// rd /s, del /s, rimraf, find -delete) is allowed only on paths inside the project root or the temp folder.
+// rd /s, del /s, rimraf, find -delete) is allowed only on paths inside the project root or the temp folder (or a deleteRoots folder from the config, g62).
 // A target it cannot resolve (variable, command substitution, glob that can match "..") is blocked, not guessed.
 // Also covered: git clean -x/-X, deletes written as inline code (node -e, python -c, perl -e, ruby -e), PowerShell
 // -EncodedCommand (decoded first), and script files run by name (bash x.sh, node x.js, ./x.sh, pwsh x.ps1) that sit
@@ -187,7 +187,8 @@ function makeEnv(opts) {
     }
   };
   const root = canon(P.resolve(opts.root));
-  const tmpDirs = (opts.tmpDirs ?? [os.tmpdir(), ...(platform === 'win32' ? [] : ['/tmp', '/var/tmp'])]).map((d) => canon(P.resolve(d)));
+  // g62: deleteRoots from the config (the owner's own scratch and build folders) count like the temp folder
+  const tmpDirs = [...(opts.tmpDirs ?? [os.tmpdir(), ...(platform === 'win32' ? [] : ['/tmp', '/var/tmp'])]), ...(opts.deleteRoots ?? [])].map((d) => canon(P.resolve(d)));
   const home = canon(P.resolve(opts.home ?? os.homedir()));
   return { platform, P, canon, root, tmpDirs, home, tmpPrimary: tmpDirs[0] };
 }
@@ -261,7 +262,7 @@ function targetProblem(raw, ctx, { allowRoots = false } = {}) {
   if (same(P, abs, env.home)) return `${raw} is the home directory (${abs})`;
   const inProject = within(P, env.root, abs);
   const inTmp = env.tmpDirs.some((t) => within(P, t, abs));
-  if (!inProject && !inTmp) return `${abs} is outside the project and the temp folder`;
+  if (!inProject && !inTmp) return `${abs} is outside the project and the temp folder${env.tmpDirs.length > 1 ? 's' : ''}`;
   if (!glob && !allowRoots && (same(P, abs, env.root) || env.tmpDirs.some((t) => same(P, t, abs)))) return `${abs} is the project root or the temp folder itself`;
   return null;
 }
@@ -613,7 +614,7 @@ export function checkDestructive(command, opts) {
   const reason = analyzeText(String(command), style, { env, cwd }, 0);
   if (!reason) return null;
   const shown = String(command).replace(/\s+/g, ' ').trim().slice(0, 160);
-  return `NAC destructive-command guard: blocked a recursive delete (${shown}): ${reason}. Recursive deletes are allowed only inside the project (${env.root}) and the temp folder. Do not retry in another form. If this delete is really needed, stop and ask the lead, who asks the owner.`;
+  return `NAC destructive-command guard: blocked a recursive delete (${shown}): ${reason}. Recursive deletes are allowed only inside the project (${env.root}), the temp folder${env.tmpDirs.length > 1 ? ` and deleteRoots in team/config.json` : ''}. Do not retry in another form. If this delete is really needed, stop and ask the lead, who asks the owner.`;
 }
 
 // Used when the check itself failed: block only commands that mention a delete verb at all.

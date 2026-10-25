@@ -45,7 +45,7 @@ test('g36: budgetNotice is silent early, warns in the last 5 turns, and says sto
   assert.match(budgetNotice(35, 40), /finish the step you are on/);
   assert.match(budgetNotice(40, 40), /reached your budget of 40 turns/);
   assert.match(budgetNotice(42, 40), /Stop now/);
-  assert.match(budgetNotice(42, 40), /commit only if your tests pass/);
+  assert.match(budgetNotice(42, 40), /do not commit \(g61\)/);
   assert.match(budgetNotice(42, 40), /what is done, what is left/);
 });
 

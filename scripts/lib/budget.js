@@ -31,7 +31,7 @@ export function countTurns(file) {
 
 export function budgetNotice(turns, budget) {
   if (turns >= budget) {
-    return `NAC turn budget: you have reached your budget of ${budget} turns (${turns} used); the hard stop comes a few turns later and cuts you off without a report. Stop now: commit only if your tests pass (your own paths), otherwise leave the changes uncommitted, and write your report: what is done, what is left, the files changed and what you need.`;
+    return `NAC turn budget: you have reached your budget of ${budget} turns (${turns} used); the hard stop comes a few turns later and cuts you off without a report. Stop now: do not commit (g61), leave the changes uncommitted (the lead's next pack carries them), and write your report: what is done, what is left, the files changed, which tests pass and which fail, and what you need.`;
   }
   if (turns >= budget - WARN_TURNS) {
     return `NAC turn budget: ${turns} of ${budget} turns; ${budget - turns} left. Do not start new work: finish the step you are on, then commit (tests green) and report.`;
@@ -76,4 +76,15 @@ export function clearBudgetStop(root, role) {
   if (!stops[role]) return;
   delete stops[role];
   fs.writeFileSync(stopsFile(root), `${JSON.stringify(stops, null, 1)}\n`);
+}
+
+// g61: at its second budget stop in T-058 (Memory Agent) the developer committed 0ea2311 with 7 of 12 existing
+// pre_tool_use tests red, without noticing; the next dispatch first had to find out whether the red was its own.
+// A role at the budget has no turns left to run the full tests, so it does not commit at all.
+const GIT_COMMIT = /(?:^|[\s;&|(])git(?:\.exe)?(?:\s+(?:-C\s+(?:"[^"]*"|'[^']*'|\S+)|-c\s+\S+|--[\w-]+(?:=\S+)?))*\s+commit(?![\w-])/i;
+export const isGitCommit = (command) => GIT_COMMIT.test(String(command));
+
+export function budgetCommitBlock(turns, budget) {
+  if (turns < budget) return null;
+  return `NAC turn budget: you are at your budget (${turns} of ${budget} turns), so you do not commit now (g61): there are no turns left to run the full tests, and a red commit misleads the next dispatch. Leave the changes uncommitted; the lead's next pack carries the diff and lists new files. Write your report and stop.`;
 }
