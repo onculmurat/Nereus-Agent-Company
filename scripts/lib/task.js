@@ -18,6 +18,8 @@ import { scopeRecord } from './scope.js';
 
 // g34: with compaction configured the lead rotates after every task, so each task starts on a small context.
 export const COMPACTION_ROTATE_EVERY = 1;
+// Roles that write code: their tasks close only with a recorded code-reviewer pass (g59).
+const CODE_OWNERS = ['backend-developer', 'frontend-developer', 'database-engineer', 'test-engineer'];
 
 // g15: with compaction configured the lead rotates by hand-off and autocompact; /clear is for projects without it.
 export function rotationWay(root) {
@@ -93,6 +95,11 @@ export function closeTask(root, id, { commit, singleCommit, findings = [], leadN
   const e = entryOf(root, id);
   const rel = handoffRel(e);
   if (!fs.existsSync(path.resolve(root, rel))) throw new Error(`${rel} does not exist; write the task's hand-off before done`);
+  // g59: Memory Agent closed 71 of 84 code tasks with no code-reviewer verdict on the board (T-051 among them), so a
+  // review that asked for changes could close in silence
+  if (e.code !== 'no' && CODE_OWNERS.includes(String(e.owner).replace(/^.*:/, '')) && e.reviews?.['code-reviewer'] !== 'pass') {
+    throw new Error(`${id} is a code task and has no code-reviewer pass${e.reviews?.['code-reviewer'] ? ` (latest verdict: ${e.reviews['code-reviewer']})` : ''}. When code-reviewer returns APPROVED, record it: board.js review ${id} --role code-reviewer --verdict pass; then close again`);
+  }
   if (!Array.isArray(findings)) throw new Error('--findings must hold a JSON array of findings');
   for (const [i, f] of findings.entries()) {
     const missing = ['module', 'file', 'line', 'severity', 'class', 'text'].filter((k) => f?.[k] === undefined || f[k] === '');
