@@ -8,6 +8,7 @@ import { loadConfig, validateConfig } from './lib/config.js';
 import { listFindings } from './lib/findings.js';
 import { ensureCostFile } from './lib/cost.js';
 import { rotationWay, rotationEvery } from './lib/task.js';
+import { readBudgetStops } from './lib/budget.js';
 
 const usage = `Usage:
   board.js show
@@ -89,6 +90,11 @@ const commands = {
     need(v, 'reason');
     if (v.reason === 'budget') throw new UsageError(`A turn-budget stop is not a round (g46): re-dispatch the same role on the same model with a fresh pack (pack.js ${id} --role <role>) for the remainder, or split the task on the board. Count a round only for a red gate, a blocking review finding or a stuck role.`);
     checkYesNo('reason', v.reason, ['gate', 'review', 'stuck']);
+    if (v.reason === 'stuck') {
+      const owner = String(readBoard(root).entries.find((e) => e.id === id)?.owner ?? '').replace(/^.*:/, '');
+      const stop = readBudgetStops(root)[owner];
+      if (stop) throw new UsageError(`${id}: the last ${owner} dispatch stopped at its turn budget (${stop.turns} turns, ${stop.at}); a budget stop is not a stuck round (g60, g46). Re-dispatch ${owner} with a fresh pack (pack.js ${id} --role ${owner}) for the remainder, or split the task on the board. The fresh pack clears this record; count stuck only when the next dispatch makes no progress on the same problem.`);
+    }
     const pluginRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
     const config = loadConfig({ pluginRoot, projectRoot: root });
     validateConfig(config);

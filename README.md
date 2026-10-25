@@ -243,6 +243,10 @@ The next session starts with a resume summary: phase, work in progress (with `gi
 
 `team/brief.md`, `decisions.md`, `contracts/`, `research/`, `glossary.md` and `config.json` are meant to be committed. `team/work/` (board, briefs, hand-offs, escalations, mailbox) is committed too; only `team/work/packs/` (generated context packs) is git-ignored. The lead commits it in its own commits, `chore(team): <what>`, after each task is marked done and at each lead rotation, staging explicit paths and never mixing it into a code commit. Setup changes an older `.gitignore` line `team/work/` to `team/work/packs/` and shows the diff first.
 
+## Changes in 1.3.23
+
+- **A turn-budget stop cannot be counted as a stuck round** (g60): `board.js round --reason budget` was refused (g46), so the lead wrote `--reason stuck` instead; in one project three budget stops (a developer at 40 turns, code not yet building) were counted as rounds, which spends the round cap and can escalate a task early. The `turn-budget` hook now records the stop per role (`team/work/budget-stops.json`, in the main tree when the role works in a worktree). While it stands, `board.js round <id> --reason stuck` for a task owned by that role is refused and names the fresh-pack re-dispatch; `pack.js` for that role clears it. `--reason gate` and `--reason review` are unchanged.
+
 ## Changes in 1.3.22
 
 - **A code task closes only with its code review recorded** (g59): `task.js close` checked the security-reviewer pass of a `security: contract` task and nothing else, and the task loop never said to record the code-reviewer verdict. In one project 71 of 84 code tasks closed with no code-reviewer verdict on the board, so a review that asked for changes could have closed in silence. A task owned by a code role (backend-developer, frontend-developer, database-engineer, test-engineer) now closes only after `board.js review <id> --role code-reviewer --verdict pass`; the refusal names that command and the latest verdict. `code: no` tasks and tasks of other roles are unchanged, and so is `board.js update --status done`.

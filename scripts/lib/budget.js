@@ -2,6 +2,7 @@
 // hard stop with no report and no commit. The PostToolUse hook counts the turns from the role's transcript.
 import fs from 'node:fs';
 import path from 'node:path';
+import { execFileSync } from 'node:child_process';
 
 export const WARN_TURNS = 5;
 
@@ -36,4 +37,43 @@ export function budgetNotice(turns, budget) {
     return `NAC turn budget: ${turns} of ${budget} turns; ${budget - turns} left. Do not start new work: finish the step you are on, then commit (tests green) and report.`;
   }
   return null;
+}
+
+// g60: Memory Agent counted three budget stops as `board.js round --reason stuck` (T-053 twice, T-054b), which
+// spends the round cap on a stop that is not a round (g46). The hook records each stop per role; a fresh pack for
+// that role clears it, and round --reason stuck is refused while it stands.
+const stopsFile = (root) => path.join(mainTree(root), 'team', 'work', 'budget-stops.json');
+
+// A role in a worktree writes its stop where the lead's board.js reads it: the main tree.
+function mainTree(root) {
+  try {
+    const common = execFileSync('git', ['rev-parse', '--path-format=absolute', '--git-common-dir'], { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+    const main = path.dirname(common);
+    return fs.existsSync(path.join(main, 'team', 'config.json')) ? main : root;
+  } catch {
+    return root;
+  }
+}
+
+export function readBudgetStops(root) {
+  try {
+    return JSON.parse(fs.readFileSync(stopsFile(root), 'utf8'));
+  } catch {
+    return {};
+  }
+}
+
+export function recordBudgetStop(root, { role, agentId, turns, now = new Date() }) {
+  const stops = readBudgetStops(root);
+  if (stops[role]?.agentId === agentId) return;
+  stops[role] = { agentId, turns, at: now.toISOString() };
+  fs.mkdirSync(path.dirname(stopsFile(root)), { recursive: true });
+  fs.writeFileSync(stopsFile(root), `${JSON.stringify(stops, null, 1)}\n`);
+}
+
+export function clearBudgetStop(root, role) {
+  const stops = readBudgetStops(root);
+  if (!stops[role]) return;
+  delete stops[role];
+  fs.writeFileSync(stopsFile(root), `${JSON.stringify(stops, null, 1)}\n`);
 }

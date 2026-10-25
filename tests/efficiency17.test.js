@@ -3,9 +3,12 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
-import { makeProject } from './helpers.js';
+import { spawnSync } from 'node:child_process';
+import { makeProject, makeGitProject } from './helpers.js';
 import { runHook, pluginRoot } from './hooks/run-hook.js';
-import { countTurns, budgetNotice } from '../scripts/lib/budget.js';
+import { countTurns, budgetNotice, readBudgetStops, recordBudgetStop } from '../scripts/lib/budget.js';
+import { addEntry, readBoard } from '../scripts/lib/board.js';
+import { writePack } from '../scripts/lib/pack.js';
 
 // Seen live (T-081): backend-developer used all 45 turns (budget 40 + 5 for the report), stopped by maxTurns
 // with three new files uncommitted and no report; the pack's "Budget: 40 model turns" line was the only signal.
@@ -68,4 +71,49 @@ test('g36: the hook is registered after SendMessage for every tool', () => {
   const entry = hooks.find((m) => m.hooks.some((h) => /turn-budget\.js/.test(h.command)));
   assert.ok(entry);
   assert.equal(entry.matcher, undefined);
+});
+
+// 1.3.23: g60, Memory Agent counted three budget stops as `board.js round --reason stuck` (T-053 twice, T-054b).
+test('g60: the hook records a budget stop per role, and only at the budget', () => {
+  const below = session(39);
+  runHook('turn-budget', below.payload);
+  assert.deepEqual(readBudgetStops(below.root), {});
+  const { root, payload } = session(40);
+  runHook('turn-budget', payload);
+  const stop = readBudgetStops(root)['backend-developer'];
+  assert.equal(stop.agentId, 'a1b2c3');
+  assert.equal(stop.turns, 40);
+});
+
+test('g60: round --reason stuck is refused after a budget stop until a fresh pack for the role', () => {
+  const { root, payload } = session(40);
+  const e = addEntry(root, { title: 'x', owner: 'backend-developer', model: 'sonnet' });
+  fs.mkdirSync(path.join(root, 'team', 'work', 'tasks'), { recursive: true });
+  fs.writeFileSync(path.join(root, 'team', 'work', 'tasks', `${e.id}.md`), `# ${e.id}: x
+`);
+  runHook('turn-budget', payload);
+  const round = (reason) => spawnSync(process.execPath, [path.join(pluginRoot, 'scripts', 'board.js'), 'round', e.id, '--reason', reason, '--project', root], { encoding: 'utf8' });
+  const stuck = round('stuck');
+  assert.notEqual(stuck.status, 0);
+  assert.match(stuck.stderr, /turn budget .*not a stuck round \(g60/);
+  assert.match(stuck.stderr, /pack\.js T-\d+ --role backend-developer/);
+  assert.equal(readBoard(root).entries[0].rounds, 0);
+  assert.equal(round('gate').status, 0, 'a red gate still counts');
+  writePack(root, { id: e.id, role: 'code-reviewer' });
+  assert.ok(readBudgetStops(root)['backend-developer'], 'another role\'s pack leaves the record');
+  writePack(root, { id: e.id, role: 'backend-developer' });
+  assert.deepEqual(readBudgetStops(root), {});
+  const ok = round('stuck');
+  assert.equal(ok.status, 0, ok.stderr);
+});
+
+test('g60: a role in a worktree records its stop in the main tree', () => {
+  const { root, git } = makeGitProject();
+  git('add', 'team/config.json');
+  git('commit', '-q', '-m', 'team');
+  const wt = path.join(path.dirname(root), `${path.basename(root)}-wt`);
+  git('worktree', 'add', '-q', '-b', 'wt', wt);
+  recordBudgetStop(wt, { role: 'backend-developer', agentId: 'a1', turns: 40 });
+  assert.ok(readBudgetStops(root)['backend-developer']);
+  assert.ok(!fs.existsSync(path.join(wt, 'team', 'work', 'budget-stops.json')));
 });

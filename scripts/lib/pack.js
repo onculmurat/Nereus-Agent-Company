@@ -11,6 +11,7 @@ import { readBoard, taskTree } from './board.js';
 import { TEST_RE } from './findings.js';
 import { parseRefs } from './refs.js';
 import { codeMap } from './scope.js';
+import { clearBudgetStop } from './budget.js';
 
 const ID_RE = /^[A-Za-z0-9-]{1,64}$/;
 const ROLE_RE = /^[a-z][a-z0-9-]{0,63}$/;
@@ -253,6 +254,8 @@ export function writePack(root, opts) {
   fs.mkdirSync(dir, { recursive: true });
   const file = path.join(dir, `${opts.id}-${opts.role}${opts.round === undefined ? '' : `-r${opts.round}`}.md`);
   fs.writeFileSync(file, text);
+  // g60: a fresh pack is the re-dispatch after a budget stop
+  if (opts.role) clearBudgetStop(root, opts.role);
   const over = Math.round((text.length / limit - 1) * 100);
   let note;
   if (testsLeftOut) note = `Test files left out of the pack (${testsLeftOut.join(', ')}); name them in the prompt so the role reads them in the repository.`;

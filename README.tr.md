@@ -229,6 +229,10 @@ Sonraki oturum bir devam özetiyle başlar: aşama, süren iş (`git status` ile
 
 `team/brief.md`, `decisions.md`, `contracts/`, `research/`, `glossary.md` ve `config.json` commit'lenmek içindir. `team/work/` (pano, görev özetleri, devir notları, eskalasyonlar, posta kutusu) de commit'lenir; yalnız `team/work/packs/` (üretilen bağlam paketleri) git dışındadır. Lider bunu kendi commit'lerinde, `chore(team): <ne>`, her görev bittiğinde ve her lider rotasyonunda, açık yolları ekleyerek commit'ler; kod commit'lerine karıştırmaz. Kurulum eski `.gitignore` satırını `team/work/` yerine `team/work/packs/` yapar ve önce farkı gösterir.
 
+## 1.3.23 değişiklikleri
+
+- **Tur bütçesi durması "takıldı" round'u olarak sayılamıyor** (g60): `board.js round --reason budget` reddediliyordu (g46); lider bunun yerine `--reason stuck` yazdı. Bir projede üç bütçe durması (geliştirici 40 turda, kod henüz derlenmiyor) round sayıldı; bu round sınırını harcıyor ve görevi erken yükseltebiliyor. `turn-budget` hook'u artık durmayı rol başına kaydediyor (`team/work/budget-stops.json`; rol worktree'deyse ana ağaçta). Kayıt durdukça o rolün görevi için `board.js round <id> --reason stuck` reddediliyor ve taze paketle yeniden dağıtımı söylüyor; o rol için `pack.js` kaydı siliyor. `--reason gate` ve `--reason review` değişmedi.
+
 ## 1.3.22 değişiklikleri
 
 - **Kod görevi ancak kod incelemesi kaydedilince kapanıyor** (g59): `task.js close` yalnız `security: contract` görevinin security-reviewer onayını arıyordu; görev döngüsü de code-reviewer kararını kaydetmeyi söylemiyordu. Bir projede biten 84 kod görevinin 71'i board'da code-reviewer kararı olmadan kapandı; değişiklik isteyen bir inceleme de sessizce kapanabilirdi. Kod rolüne (backend-developer, frontend-developer, database-engineer, test-engineer) ait görev artık `board.js review <id> --role code-reviewer --verdict pass` sonrası kapanıyor; ret mesajı bu komutu ve son kararı söylüyor. `code: no` görevler, diğer rollerin görevleri ve `board.js update --status done` değişmedi.
