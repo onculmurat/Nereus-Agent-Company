@@ -3,7 +3,7 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { runCli, need, UsageError } from './lib/cli.js';
-import { readBoard, addEntry, updateEntry, recordReview, recordModuleReview, phaseCloseProblems, setPhase, incrementRound, commitsWith, rotationDue, markRotated, countFoldIn } from './lib/board.js';
+import { readBoard, addEntry, updateEntry, recordReview, recordModuleReview, phaseCloseProblems, setPhase, incrementRound, recordBaseFix, commitsWith, rotationDue, markRotated, countFoldIn } from './lib/board.js';
 import { loadConfig, validateConfig } from './lib/config.js';
 import { listFindings } from './lib/findings.js';
 import { ensureCostFile } from './lib/cost.js';
@@ -28,6 +28,9 @@ const usage = `Usage:
   board.js review --module <m> --role <role> --verdict <pass|fail>
                                          module review: covers the module's security-tagged tasks that are done now
   board.js round <id> --reason <gate|review|stuck> [--approach <decision-id>]
+  board.js round <id> --reason base --finding <F-id>
+                                         a red that is red on the task's base too (it came in before the task): fixed in
+                                         the task but not a round, so it never raises the model; needs its finding (g66)
                                          count one unresolved round; prints {entry, next} (next.action: retry|raise-model|to-lead|to-owner)
                                          --reason: a red gate, a blocking review finding, or a role stuck; --reason budget is refused (g46):
                                          a dispatch that hit its turn budget is the same round, re-dispatch it with a fresh pack
@@ -89,6 +92,10 @@ const commands = {
     if (!id) throw new UsageError('Missing entry id');
     need(v, 'reason');
     if (v.reason === 'budget') throw new UsageError(`A turn-budget stop is not a round (g46): re-dispatch the same role on the same model with a fresh pack (pack.js ${id} --role <role>) for the remainder, or split the task on the board. Count a round only for a red gate, a blocking review finding or a stuck role.`);
+    if (v.reason === 'base') {
+      if (!/^F-\d+$/.test(v.finding ?? '')) throw new UsageError("--reason base needs --finding <F-id>: the finding that records the red on the task's base");
+      return recordBaseFix(root, id, v.finding);
+    }
     checkYesNo('reason', v.reason, ['gate', 'review', 'stuck']);
     if (v.reason === 'stuck') {
       const owner = String(readBoard(root).entries.find((e) => e.id === id)?.owner ?? '').replace(/^.*:/, '');
@@ -123,7 +130,7 @@ const commands = {
 
 const options = {
   title: { type: 'string' }, owner: { type: 'string' }, model: { type: 'string' }, id: { type: 'string' },
-  status: { type: 'string' }, code: { type: 'string' }, security: { type: 'string' }, module: { type: 'string' }, role: { type: 'string' }, verdict: { type: 'string' }, commit: { type: 'string' }, handoff: { type: 'string' }, reset: { type: 'boolean' }, approach: { type: 'string' }, reason: { type: 'string' }, hardening: { type: 'string' }, decision: { type: 'string' }, size: { type: 'string' }, worktree: { type: 'string' }, agent: { type: 'string' }, 'single-commit': { type: 'string' },
+  status: { type: 'string' }, code: { type: 'string' }, security: { type: 'string' }, module: { type: 'string' }, role: { type: 'string' }, verdict: { type: 'string' }, commit: { type: 'string' }, handoff: { type: 'string' }, reset: { type: 'boolean' }, approach: { type: 'string' }, reason: { type: 'string' }, finding: { type: 'string' }, hardening: { type: 'string' }, decision: { type: 'string' }, size: { type: 'string' }, worktree: { type: 'string' }, agent: { type: 'string' }, 'single-commit': { type: 'string' },
 };
 
 runCli(usage, options, (ctx) => {

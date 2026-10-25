@@ -243,6 +243,10 @@ The next session starts with a resume summary: phase, work in progress (with `gi
 
 `team/brief.md`, `decisions.md`, `contracts/`, `research/`, `glossary.md` and `config.json` are meant to be committed. `team/work/` (board, briefs, hand-offs, escalations, mailbox) is committed too; only `team/work/packs/` (generated context packs) is git-ignored. The lead commits it in its own commits, `chore(team): <what>`, after each task is marked done and at each lead rotation, staging explicit paths and never mixing it into a code commit. Setup changes an older `.gitignore` line `team/work/` to `team/work/packs/` and shows the diff first.
 
+## Changes in 1.3.28
+
+- **A scoped gate also runs the checks that read every package, and a red from before the task is not a round** (g66): a task added a Windows-only call to a cli test without `cfg(windows)`. Its gate was scoped to cli and the packages that depend on it (g55), so the test that builds every package for Linux (in core, which does not depend on cli) never ran, and the red reached the base. The next task's gate found it, counted a round, and that round raised the developer to Opus for a one-line fix. `gateAlwaysRun` in `team/config.json` (`{ name, command }` list) holds checks a scoped gate runs beside its own; `scope.alwaysRun` names them, and a full gate leaves them out because it already covers them. `board.js round <id> --reason base --finding <F-id>` records a red that is red on the task's base too: the task fixes it in its own commit on the same model, the round count and the model stay as they are, and the entry lists it under `basefixes`.
+
 ## Changes in 1.3.27
 
 - **A red gate names its failed tests** (g65): with `--no-fail-fast` (1.3.26) the test output is long and its tail named only the red test binaries ("2 targets failed: hygiene, unsafe_policy"), so the lead could not see which tests failed and the round's developer first had to find them. A red test check now lists its failed tests in `checks[].failed` with the first lines of each one's panic in `checks[].failures`, and the result has `failed` as `check: test` for every red check.
