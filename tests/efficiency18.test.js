@@ -7,7 +7,7 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { makeGitProject } from './helpers.js';
 import { pluginRoot } from './hooks/run-hook.js';
-import { addEntry, readBoard } from '../scripts/lib/board.js';
+import { addEntry, readBoard, recordReview } from '../scripts/lib/board.js';
 import { addFinding, listFindings } from '../scripts/lib/findings.js';
 import { briefFiles, codeMap, classify, MAP_MAX_CHARS } from '../scripts/lib/scope.js';
 import { buildPack } from '../scripts/lib/pack.js';
@@ -25,6 +25,7 @@ function project(brief) {
   write(p.root, 'crates/core/src/status.rs', RUST);
   write(p.root, 'crates/core/src/lib.rs', 'pub mod status;\n');
   addEntry(p.root, { id: 'T-001', title: 'status', owner: 'backend-developer', model: 'sonnet', size: 'S' });
+  recordReview(p.root, 'T-001', { role: 'code-reviewer', verdict: 'pass' });
   write(p.root, 'team/work/tasks/T-001.md', brief);
   commitAll(p, 'seed');
   return p;

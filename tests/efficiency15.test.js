@@ -6,7 +6,7 @@ import path from 'node:path';
 import { spawn, spawnSync } from 'node:child_process';
 import { makeGitProject } from './helpers.js';
 import { runHook, pluginRoot } from './hooks/run-hook.js';
-import { addEntry, updateEntry, readBoard } from '../scripts/lib/board.js';
+import { addEntry, updateEntry, readBoard, recordReview } from '../scripts/lib/board.js';
 import { addQuestion } from '../scripts/lib/decisions.js';
 import { compactDecision } from '../scripts/lib/compact.js';
 import { checkPrograms, busyProcesses, waitForIdle } from '../scripts/lib/gate.js';
@@ -163,7 +163,7 @@ test('g31: every agent file says tests and builds run in the foreground', () => 
 });
 
 // g33: about a third of the lead's calls were bookkeeping. task.js start and close do each step's bookkeeping in one call.
-function taskProject({ compaction = false } = {}) {
+function taskProject({ compaction = false, review = true } = {}) {
   const p = makeGitProject();
   p.commit('seed.txt');
   if (compaction) {
@@ -172,6 +172,7 @@ function taskProject({ compaction = false } = {}) {
   }
   addEntry(p.root, { id: 'T-001', title: 'first', owner: 'backend-developer', model: 'sonnet', size: 'S', module: 'core' });
   addEntry(p.root, { id: 'T-002', title: 'second', owner: 'backend-developer', model: 'sonnet', size: 'S' });
+  if (review) for (const id of ['T-001', 'T-002']) recordReview(p.root, id, { role: 'code-reviewer', verdict: 'pass' });
   commitAll(p, 'board');
   return p;
 }
@@ -220,6 +221,34 @@ test('g33: task.js close records findings, done, cost and commits team/ in one c
   assert.equal(out.rotate, false);
   assert.equal(p.git('log', '-1', '--format=%s'), 'chore(team): T-001 done');
   assert.equal(p.git('status', '--porcelain', '--', 'team'), '');
+});
+
+// g59: T-051 closed with its code review passed but never recorded; a review asking for changes would close the same way.
+test('g59: close refuses a code task without a code-reviewer pass and names the command; a fail is not a pass', () => {
+  const p = taskProject({ review: false });
+  json(node('task.js', ['start', 'T-001'], p.root));
+  const sha = p.commit('code.txt');
+  const r = node('task.js', ['close', 'T-001', '--commit', sha], p.root);
+  assert.equal(r.status, 1);
+  assert.match(r.stderr, /T-001 is a code task and has no code-reviewer pass. .*board.js review T-001 --role code-reviewer --verdict pass/);
+  assert.equal(readBoard(p.root).entries.find((e) => e.id === 'T-001').status, 'in-progress');
+  recordReview(p.root, 'T-001', { role: 'code-reviewer', verdict: 'fail' });
+  assert.match(node('task.js', ['close', 'T-001', '--commit', sha], p.root).stderr, /(latest verdict: fail)/);
+  recordReview(p.root, 'T-001', { role: 'code-reviewer', verdict: 'pass' });
+  assert.equal(json(node('task.js', ['close', 'T-001', '--commit', sha], p.root)).status, 'done');
+});
+
+test('g59: a code: no task and a task owned by a non-code role close without a code review', () => {
+  const p = makeGitProject();
+  p.commit('seed.txt');
+  addEntry(p.root, { id: 'T-001', title: 'spike', owner: 'backend-developer', model: 'sonnet', size: 'S', code: 'no' });
+  addEntry(p.root, { id: 'T-002', title: 'plan', owner: 'planner', model: 'sonnet', size: 'S' });
+  commitAll(p, 'board');
+  for (const id of ['T-001', 'T-002']) {
+    json(node('task.js', ['start', id], p.root));
+    const sha = p.commit(`${id}.txt`);
+    assert.equal(json(node('task.js', ['close', id, '--commit', sha], p.root)).status, 'done', id);
+  }
 });
 
 test('g33: a malformed finding stops close before anything is recorded', () => {

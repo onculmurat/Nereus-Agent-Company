@@ -243,6 +243,10 @@ The next session starts with a resume summary: phase, work in progress (with `gi
 
 `team/brief.md`, `decisions.md`, `contracts/`, `research/`, `glossary.md` and `config.json` are meant to be committed. `team/work/` (board, briefs, hand-offs, escalations, mailbox) is committed too; only `team/work/packs/` (generated context packs) is git-ignored. The lead commits it in its own commits, `chore(team): <what>`, after each task is marked done and at each lead rotation, staging explicit paths and never mixing it into a code commit. Setup changes an older `.gitignore` line `team/work/` to `team/work/packs/` and shows the diff first.
 
+## Changes in 1.3.22
+
+- **A code task closes only with its code review recorded** (g59): `task.js close` checked the security-reviewer pass of a `security: contract` task and nothing else, and the task loop never said to record the code-reviewer verdict. In one project 71 of 84 code tasks closed with no code-reviewer verdict on the board, so a review that asked for changes could have closed in silence. A task owned by a code role (backend-developer, frontend-developer, database-engineer, test-engineer) now closes only after `board.js review <id> --role code-reviewer --verdict pass`; the refusal names that command and the latest verdict. `code: no` tasks and tasks of other roles are unchanged, and so is `board.js update --status done`.
+
 ## Changes in 1.3.21
 
 - **The pack reads the spec references briefs actually write** (g57): `pack.js` took a spec section only in bold (`**6.1**`) and a contract only as `name 4`. Briefs that wrote `Spec: 6.1, 6.6; storage-schema.md 4` (68 of 73 in one project) went out without their spec sections and without a word in "Not found", so the role looked the spec up itself. Plain numbers after `Spec:` and contracts named as files (`storage-schema.md 4`, `contracts/mcp-tools.md 3.5`) now count, and a Spec line that yields no reference is listed under "Not found".

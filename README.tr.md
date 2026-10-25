@@ -229,6 +229,10 @@ Sonraki oturum bir devam özetiyle başlar: aşama, süren iş (`git status` ile
 
 `team/brief.md`, `decisions.md`, `contracts/`, `research/`, `glossary.md` ve `config.json` commit'lenmek içindir. `team/work/` (pano, görev özetleri, devir notları, eskalasyonlar, posta kutusu) de commit'lenir; yalnız `team/work/packs/` (üretilen bağlam paketleri) git dışındadır. Lider bunu kendi commit'lerinde, `chore(team): <ne>`, her görev bittiğinde ve her lider rotasyonunda, açık yolları ekleyerek commit'ler; kod commit'lerine karıştırmaz. Kurulum eski `.gitignore` satırını `team/work/` yerine `team/work/packs/` yapar ve önce farkı gösterir.
 
+## 1.3.22 değişiklikleri
+
+- **Kod görevi ancak kod incelemesi kaydedilince kapanıyor** (g59): `task.js close` yalnız `security: contract` görevinin security-reviewer onayını arıyordu; görev döngüsü de code-reviewer kararını kaydetmeyi söylemiyordu. Bir projede biten 84 kod görevinin 71'i board'da code-reviewer kararı olmadan kapandı; değişiklik isteyen bir inceleme de sessizce kapanabilirdi. Kod rolüne (backend-developer, frontend-developer, database-engineer, test-engineer) ait görev artık `board.js review <id> --role code-reviewer --verdict pass` sonrası kapanıyor; ret mesajı bu komutu ve son kararı söylüyor. `code: no` görevler, diğer rollerin görevleri ve `board.js update --status done` değişmedi.
+
 ## 1.3.21 değişiklikleri
 
 - **Paket, görev tanımlarının gerçekte yazdığı spec atıflarını okuyor** (g57): `pack.js` spec bölümünü yalnız kalın numara (`**6.1**`), sözleşmeyi yalnız `ad 4` biçiminde tanıyordu. `Spec: 6.1, 6.6; storage-schema.md 4` yazan görev tanımları (bir projede 73'ün 68'i) spec bölümleri olmadan ve "Not found" listesinde tek satır olmadan gidiyordu; rol spec'i kendisi arıyordu. Artık `Spec:` sonrasındaki düz numaralar ve dosya adıyla yazılan sözleşmeler (`storage-schema.md 4`, `contracts/mcp-tools.md 3.5`) sayılıyor; hiçbir atıf çıkmayan bir Spec satırı "Not found" altında yazılıyor.
