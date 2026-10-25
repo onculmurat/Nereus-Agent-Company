@@ -229,6 +229,10 @@ Sonraki oturum bir devam özetiyle başlar: aşama, süren iş (`git status` ile
 
 `team/brief.md`, `decisions.md`, `contracts/`, `research/`, `glossary.md` ve `config.json` commit'lenmek içindir. `team/work/` (pano, görev özetleri, devir notları, eskalasyonlar, posta kutusu) de commit'lenir; yalnız `team/work/packs/` (üretilen bağlam paketleri) git dışındadır. Lider bunu kendi commit'lerinde, `chore(team): <ne>`, her görev bittiğinde ve her lider rotasyonunda, açık yolları ekleyerek commit'ler; kod commit'lerine karıştırmaz. Kurulum eski `.gitignore` satırını `team/work/` yerine `team/work/packs/` yapar ve önce farkı gösterir.
 
+## 1.3.30 değişiklikleri
+
+- **Kırmızı test kontrolünün tekrarı yalnız düşen testleri, birer birer koşuyor** (g69): kırmızı kontrol aynı paralel yük altında baştan koşuyordu (g64), bu yüzden bir zamanlama testi iki kez kırmızı çıktı: ilk koşuda bir süre testi, tekrarda başka biri düştü ve görev tek başına geçen bir kırmızı için geliştirici çağırdı. Düşen testlerini adlandıran kırmızı bir `cargo test` kontrolü artık yalnız onları `--exact --test-threads=1` ile tekrar koşuyor; yeşil çıkarsa `flaky` (kayıt hangi testlerin tek başına koştuğunu söylüyor) ve round değil. Tekrar yalnız bu testlerin her biri koşup geçtiyse yeşil sayılıyor (`notRun`, süzgecin kaçırdığı testi adlandırıyor). Diğer komutlar, derleme hatası ya da takılma eskisi gibi baştan koşuyor.
+
 ## 1.3.29 değişiklikleri
 
 - **İsim olarak geçen sahip-yalnız kelime soruyu artık sahibe göndermiyor** (g68): vekil kontrolü, bir sağlamlaştırma görevi ekleme sorusundaki "release work goes on" içinde "release" kelimesini eşleştirdi, vekil cevabını reddetti; lider beklerken bir planlama sorusunu sahip cevaplamak zorunda kaldı. İşi, bir fazı ya da zamanı adlandıran release, publish ve deploy ("release tasks", "a release blocker", "before release", "the pre-release checklist", "yayın görevleri", "yayından önce") artık sahibin eylemi sayılmıyor; "merge PR #12 into main", "publish v1.0", "push the branch" ve sahibin verisini silmek hâlâ sayılıyor.
