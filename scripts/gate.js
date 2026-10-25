@@ -26,6 +26,8 @@ const usage = `Usage:
                       { test, finding, reason } each) counts as green and names them in knownRed; a listed test that passes
                       is named in knownRedPassed; a build error is never a known red. A red check runs again gateRetry times
                       (default 1, 0 to 3); red then green is reported in flaky and is not a round (g64)
+                      a red test check names its failed tests in failed (check: test) and the first lines of each
+                      one's panic in checks[].failures (g65)
   gate.js --task <id> --full
                       the same over the whole workspace (also gateScope: "full" in team/config.json); the milestone
                       and phase end run gate.js without --task
@@ -75,11 +77,13 @@ runCli(usage, { task: { type: 'string' }, fix: { type: 'boolean' }, full: { type
   const hang = hung.length
     ? { hung, hangNote: `${hung.join(', ')} gave no result in ${seconds}s and was stopped with its process tree. This is a hang (deadlock, a wait that never ends), not a failing assertion: find the test from the last lines of the output, run it alone, and count the fix as a round.` }
     : {};
+  // g65: the failed test names of every red check, so the lead and the developer start from them
+  const failed = result.checks?.flatMap((c) => (c.failed ?? []).map((t) => `${c.name}: ${t}`)) ?? [];
   const known = result.checks?.flatMap((c) => c.knownRed ?? []) ?? [];
   const stale = result.checks?.flatMap((c) => c.knownRedPassed ?? []) ?? [];
   const knownNote = {
     ...(known.length ? { knownRed: known, knownRedNote: `only gateKnownRed tests failed (${known.join(', ')}): environmental, each a recorded finding; the check counts as green.` } : {}),
     ...(stale.length ? { knownRedPassed: stale, knownRedPassedNote: `${stale.join(', ')} passed: remove it from gateKnownRed in team/config.json and close its finding.` } : {}),
   };
-  return { ...result, tree, scope: scoped.scope, ...knownNote, ...hang, ...(idle.waited ? { waited: idle.waited } : {}), ...busy };
+  return { ...result, tree, scope: scoped.scope, ...(failed.length ? { failed } : {}), ...knownNote, ...hang, ...(idle.waited ? { waited: idle.waited } : {}), ...busy };
 });
