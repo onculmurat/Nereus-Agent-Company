@@ -229,6 +229,10 @@ Sonraki oturum bir devam özetiyle başlar: aşama, süren iş (`git status` ile
 
 `team/brief.md`, `decisions.md`, `contracts/`, `research/`, `glossary.md` ve `config.json` commit'lenmek içindir. `team/work/` (pano, görev özetleri, devir notları, eskalasyonlar, posta kutusu) de commit'lenir; yalnız `team/work/packs/` (üretilen bağlam paketleri) git dışındadır. Lider bunu kendi commit'lerinde, `chore(team): <ne>`, her görev bittiğinde ve her lider rotasyonunda, açık yolları ekleyerek commit'ler; kod commit'lerine karıştırmaz. Kurulum eski `.gitignore` satırını `team/work/` yerine `team/work/packs/` yapar ve önce farkı gösterir.
 
+## 1.3.53 değişiklikleri
+
+- **Cevaplanmış soru compaction'ı engellemez** (g95): Memory Agent'ta Q-207 20:40'ta cevaplandı ama kaydedilmedi, görevi T-110a bittikten sonra da açık kaldı. Açık sahip sorusu sert koşul olduğundan her otomatik compaction'ı 220K tavanına kadar engelledi; 100K pencereyle otomatik compaction hiç çalışmadı. `task` alanındaki görevi panoda done olan açık soru artık yumuşak koşuldur: compaction devir notu onu listeler, erteleme sınırı (`softMargin`) compaction'ın çalışmasına izin verir.
+
 ## 1.3.52 değişiklikleri
 
 - **Test geçici artıkları silinir** (g94): her test koşusu kendi geçici klasörünü bırakır ve bunları silen bir şey yoktu. Memory Agent'ta iki günde yaklaşık 14.000 `fakeclaude-*` (8 GB) ve 48.000 `nim-*` (17 GB) klasörü birikti. Bunları `testTempDirs` listesine (team/config.json) `"<mutlak klasör>/<önek>*"` olarak yazın. Önek en az 3 karakter olmalı; klasör sürücü kökü, ev klasörü ya da onun üstü olamaz. `task.js close` 6 saatten eski olanları siler, böylece paralel bir görevin taze koşusu kendi klasörünü korur, ve `testTempRemoved` bildirir. `worktree.js prune --shared` hiçbir derleme çalışmazken hepsini siler.

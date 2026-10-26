@@ -61,7 +61,7 @@ export function compactBlockers(root) {
 // g32: soft conditions (a missing task hand-off, uncommitted team/ files, the last done task's commit) defer an auto
 // compaction only for a bounded number of tokens: the compact hand-off lists them and nothing on disk is lost. T-037
 // stayed in progress without a hand-off for hours and held every compaction back until the ceiling. An owner question
-// waiting for an answer is hard: it blocks up to the ceiling.
+// waiting for an answer is hard: it blocks up to the ceiling; one whose task is already done is soft (g95).
 export function compactConditions(root) {
   const soft = [];
   const board = readBoard(root);
@@ -83,7 +83,13 @@ export function compactConditions(root) {
   }
   // waiting for an answer in this turn: parked, deferred and queued questions are not
   const open = pendingQuestions(root).filter((q) => q.state !== 'deferred' && q.state !== 'queued');
-  const hard = open.length ? [`${open.length} owner question(s) not answered yet (${open.map((q) => q.id).join(', ')}); ask or answer them first.`] : [];
+  // g95: a question whose task is done was answered and never recorded. Memory Agent's Q-207 stayed open after T-110a
+  // shipped and held every auto compaction back for hours; it is soft, so the deferral limit lets compaction run.
+  const doneIds = new Set(board.entries.filter((e) => e.status === 'done').map((e) => e.id));
+  const stale = open.filter((q) => q.task && doneIds.has(q.task));
+  const waiting = open.filter((q) => !stale.includes(q));
+  if (stale.length) soft.push(`${stale.map((q) => `${q.id} (${q.task} is done)`).join(', ')} still open; record the answer with decisions.js decide.`);
+  const hard = waiting.length ? [`${waiting.length} owner question(s) not answered yet (${waiting.map((q) => q.id).join(', ')}); ask or answer them first.`] : [];
   return { soft, hard };
 }
 
