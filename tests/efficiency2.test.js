@@ -50,8 +50,8 @@ test('both READMEs describe the pack, worktree, rotation and skip count helpers'
 const defaults = JSON.parse(read('defaults', 'config.json'));
 const agentFiles = fs.readdirSync(path.join(pluginRoot, 'agents')).filter((f) => f.endsWith('.md'));
 
-test('turnBudget is 40 in the defaults and validated as a positive integer', () => {
-  assert.equal(defaults.turnBudget, 40);
+test('turnBudget is 50 in the defaults and validated as a positive integer', () => {
+  assert.equal(defaults.turnBudget, 50);
   assert.equal(defaults.callBudget, undefined);
   assert.doesNotThrow(() => validateConfig(defaults));
   for (const bad of [0, -1, 1.5, '40']) assert.throws(() => validateConfig({ ...defaults, turnBudget: bad }), /turnBudget/);
@@ -65,7 +65,7 @@ test('callBudget in a project config is an alias used only when turnBudget is ab
   };
   assert.equal(load({ callBudget: 25 }).turnBudget, 25);
   assert.equal(load({ callBudget: 25, turnBudget: 30 }).turnBudget, 30);
-  assert.equal(load({}).turnBudget, 40);
+  assert.equal(load({}).turnBudget, 50);
   assert.throws(() => validateConfig({ ...defaults, callBudget: 0 }), /callBudget/);
 });
 
@@ -87,7 +87,7 @@ test('the pack header states the budget from the config', () => {
   fs.writeFileSync(path.join(root, 'team', 'work', 'tasks', 'T-001.md'), '# T-001: x\n');
   const sentence = (n) => `Budget: ${n} model turns (parallel tool calls share a turn). When you reach it, stop and report what is done, what is left and what you need.`;
   const head = buildPack(root, { id: 'T-001', role: 'backend-developer' }).text.split('\n## ')[0];
-  assert.ok(head.includes(sentence(40)), head);
+  assert.ok(head.includes(sentence(50)), head);
   const cfgFile = path.join(root, 'team', 'config.json');
   fs.writeFileSync(cfgFile, JSON.stringify({ ...JSON.parse(fs.readFileSync(cfgFile, 'utf8')), turnBudget: 25 }));
   assert.ok(buildPack(root, { id: 'T-001', role: 'backend-developer' }).text.split('\n## ')[0].includes(sentence(25)));

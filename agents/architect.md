@@ -3,7 +3,7 @@ name: architect
 description: Use when the project needs a spec, a service split, a data model or interface contracts before anyone builds.
 model: opus
 tools: Read, Grep, Glob, Bash, Edit, Write, SendMessage
-maxTurns: 45
+maxTurns: 55
 ---
 
 # Architect

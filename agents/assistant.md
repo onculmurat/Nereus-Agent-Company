@@ -3,7 +3,7 @@ name: assistant
 description: Use for light work: summaries, format checks, simple classification and mailbox cleanup dry runs.
 model: haiku
 tools: Read, Grep, Glob, Bash, SendMessage
-maxTurns: 45
+maxTurns: 55
 ---
 
 # Assistant

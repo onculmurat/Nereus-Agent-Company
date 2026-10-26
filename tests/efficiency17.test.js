@@ -50,17 +50,17 @@ test('g36: budgetNotice is silent early, warns in the last 5 turns, and says sto
 });
 
 test('g36: the hook tells a NAC role its budget from its own transcript', () => {
-  const { root, payload } = session(40);
+  const { root, payload } = session(50);
   const r = runHook('turn-budget', payload);
   assert.equal(r.status, 0, r.stderr);
   assert.match(context(r), /NAC turn budget/);
-  assert.match(context(r), /reached your budget of 40 turns/);
+  assert.match(context(r), /reached your budget of 50 turns/);
   fs.writeFileSync(path.join(root, 'team', 'config.json'), JSON.stringify({ turnBudget: 60 }));
   assert.equal(runHook('turn-budget', payload).stdout, '', 'turnBudget comes from the project config');
 });
 
 test('g36: the hook says nothing to the lead, to a non-NAC agent, or below the warning line', () => {
-  const { payload } = session(40);
+  const { payload } = session(50);
   assert.equal(runHook('turn-budget', { ...payload, agent_id: undefined, agent_type: undefined }).stdout, '');
   assert.equal(runHook('turn-budget', { ...payload, agent_type: 'general-purpose' }).stdout, '');
   assert.equal(runHook('turn-budget', session(10).payload).stdout, '');
@@ -75,18 +75,18 @@ test('g36: the hook is registered after SendMessage for every tool', () => {
 
 // 1.3.23: g60, Memory Agent counted three budget stops as `board.js round --reason stuck` (T-053 twice, T-054b).
 test('g60: the hook records a budget stop per role, and only at the budget', () => {
-  const below = session(39);
+  const below = session(49);
   runHook('turn-budget', below.payload);
   assert.deepEqual(readBudgetStops(below.root), {});
-  const { root, payload } = session(40);
+  const { root, payload } = session(50);
   runHook('turn-budget', payload);
   const stop = readBudgetStops(root)['backend-developer'];
   assert.equal(stop.agentId, 'a1b2c3');
-  assert.equal(stop.turns, 40);
+  assert.equal(stop.turns, 50);
 });
 
 test('g60: round --reason stuck is refused after a budget stop until a fresh pack for the role', () => {
-  const { root, payload } = session(40);
+  const { root, payload } = session(50);
   const e = addEntry(root, { title: 'x', owner: 'backend-developer', model: 'sonnet' });
   fs.mkdirSync(path.join(root, 'team', 'work', 'tasks'), { recursive: true });
   fs.writeFileSync(path.join(root, 'team', 'work', 'tasks', `${e.id}.md`), `# ${e.id}: x

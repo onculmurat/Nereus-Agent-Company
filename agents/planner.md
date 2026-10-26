@@ -3,7 +3,7 @@ name: planner
 description: Use when an approved spec must be cut into small, testable tasks with briefs and board entries.
 model: sonnet
 tools: Read, Grep, Glob, Bash, Edit, Write, SendMessage
-maxTurns: 45
+maxTurns: 55
 ---
 
 # Planner

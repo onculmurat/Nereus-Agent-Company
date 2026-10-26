@@ -3,7 +3,7 @@ name: code-reviewer
 description: Use after each task to review its diff for spec compliance and code quality before the task counts as done.
 model: sonnet
 tools: Read, Grep, Glob, Bash, SendMessage
-maxTurns: 45
+maxTurns: 55
 ---
 
 # Code reviewer
