@@ -93,7 +93,7 @@ test('g62: deleteRoots let a recursive delete inside them, never the folder itse
   for (const c of ['rm -rf "D:/Claude Sessions/Memory Agent/tmp"', 'rm -rf "D:/Claude Sessions/Memory Agent/notlar"', 'rm -rf "D:/Claude Sessions/Memory Agent/tmp/../notlar"', 'rm -rf "D:/Claude Sessions"']) {
     const r = checkDestructive(c, { ...WIN, deleteRoots: ROOTS, toolName: 'Bash' });
     assert.ok(r, `should be blocked: ${c}`);
-    assert.match(r, /the temp folder and deleteRoots in team\/config\.json/);
+    assert.match(r, /the temp folder, the worktrees folder, gateTmp and deleteRoots in team\/config\.json/);
   }
 });
 

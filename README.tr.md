@@ -229,6 +229,11 @@ Sonraki oturum bir devam özetiyle başlar: aşama, süren iş (`git status` ile
 
 `team/brief.md`, `decisions.md`, `contracts/`, `research/`, `glossary.md` ve `config.json` commit'lenmek içindir. `team/work/` (pano, görev özetleri, devir notları, eskalasyonlar, posta kutusu) de commit'lenir; yalnız `team/work/packs/` (üretilen bağlam paketleri) git dışındadır. Lider bunu kendi commit'lerinde, `chore(team): <ne>`, her görev bittiğinde ve her lider rotasyonunda, açık yolları ekleyerek commit'ler; kod commit'lerine karıştırmaz. Kurulum eski `.gitignore` satırını `team/work/` yerine `team/work/packs/` yapar ve önce farkı gösterir.
 
+## 1.3.47 değişiklikleri
+
+- **Süreç adıyla öldürme yok** (g88): Memory Agent'ta bir geliştirici, dört görev kendi worktree'lerinde derleyip gate koşarken `pkill -f cargo` çalıştırdı; onu yalnız Claude Code'un otomatik mod sınıflandırıcısı durdurdu. Yıkıcı komut koruması artık `pkill`, `killall`, `taskkill /IM` ya da `/FI`, `Stop-Process -Name` ve `Get-Process x | Stop-Process` komutlarını engelliyor. PID ile durdurma (`kill <pid>`, `Stop-Process -Id`, `taskkill /PID`) serbest.
+- **Görevin worktree'si proje dışı değil** (g89): aynı geliştiricinin kendi worktree'sindeki (`worktreeRoot` altında) `rm -rf target` komutu proje dışı diye engellendi. Worktree klasörü (`<proje>-wt`, `worktreeRoot` varsa onun altında) artık `deleteRoots` gibi sayılıyor; klasörün kendisi ve yanındakiler yine engelli.
+
 ## 1.3.46 değişiklikleri
 
 - **Vadesi gelen sertleştirme her kapanışta anılıyor** (g87): `hardeningDue` yalnız `findingsBatch` eşiğini aşan bulgu eklenirken bir kez görünüyordu ve kolayca kayboluyordu. Memory Agent lideri kullanıcıya tüm geliştirmenin bittiğini söyledi; oysa memory modülünde 14 sayılan sertleştirme bulgusu vardı ve fazda memory sertleştirme görevi yoktu (core 24, mcp 19, cli 10 da eşiğin üstündeydi). `task.js close` artık sayılan bulgusu eşiğe ulaşan ve açık sertleştirme görevi olmayan her modülü uyarı olarak yazıyor; sıkıştırma devir notundaki sıradaki görev satırı da bunları tahtadaki diğer işlerden önce gösteriyor.

@@ -406,6 +406,7 @@ function analyzeText(text, style, ctx, depth) {
     if (!command) continue;
     const r = analyzeCommand(command, style, ctx, depth);
     if (r) return r;
+    ctx.prevVerb = command.tokens.length ? verbOf(command.tokens[0]) : null;
   }
   return null;
 }
@@ -460,6 +461,8 @@ function analyzeCommand(command, style, ctx, depth) {
   }
   if (name === 'eval' && args[0]) return analyzeText(args.map((a) => a.text).join(' '), style, { ...ctx }, depth + 1);
 
+  const kill = killProblem(name, args, command, style, ctx);
+  if (kill) return kill;
   if (name === 'find' || name === 'gfind') return analyzeFind(args, ctx);
   if (name === 'git') return analyzeGit(args);
   const code = inlineCode(name, args);
@@ -475,6 +478,19 @@ function analyzeCommand(command, style, ctx, depth) {
     if (problem) return problem;
   }
   return null;
+}
+
+// g88: a kill by process name stops every process of that name, other roles' builds and gates in their worktrees
+// included (Memory Agent T-108a: pkill -f cargo with four more tasks running). A kill by PID stays allowed.
+const KILL = 'kill: ';
+const GET_PROCESS = new Set(['get-process', 'gps']);
+function killProblem(name, args, command, style, ctx) {
+  const texts = args.map((a) => a.text.toLowerCase());
+  const byName = (name === 'pkill' || name === 'killall')
+    || (name === 'taskkill' && texts.some((t) => t === '/im' || t === '/fi'))
+    || ((name === 'stop-process' || name === 'spps' || (style === 'ps' && name === 'kill'))
+      && (texts.some((t) => /^-(?:n|na|nam|name|processname)(?::|$)/.test(t)) || (command.pipe && GET_PROCESS.has(ctx.prevVerb))));
+  return byName ? `${KILL}it stops every process with that name, including other tasks' builds and gates` : null;
 }
 
 // git clean with -x/-X (ignored files too) and -f/-d, in any order of combined or split flags; -n/--dry-run is fine.
@@ -648,7 +664,8 @@ export function checkDestructive(command, opts) {
   const reason = analyzeText(String(command), style, { env, cwd }, 0);
   if (!reason) return null;
   const shown = String(command).replace(/\s+/g, ' ').trim().slice(0, 160);
-  return `NAC destructive-command guard: blocked a recursive delete (${shown}): ${reason}. Recursive deletes are allowed only inside the project (${env.root}), the temp folder${env.tmpDirs.length > 1 ? ` and deleteRoots in team/config.json` : ''}. Do not retry in another form. If this delete is really needed, stop and ask the lead, who asks the owner.`;
+  if (reason.startsWith(KILL)) return `NAC destructive-command guard: blocked a kill by process name (${shown}): ${reason.slice(KILL.length)}. Stop only the processes you started, by PID (kill <pid>, Stop-Process -Id <pid>, taskkill /PID <pid> /T). Do not retry in another form; if a stuck process blocks you, tell the lead.`;
+  return `NAC destructive-command guard: blocked a recursive delete (${shown}): ${reason}. Recursive deletes are allowed only inside the project (${env.root}), the temp folder${env.tmpDirs.length > 1 ? ', the worktrees folder, gateTmp and deleteRoots in team/config.json' : ''}. Do not retry in another form. If this delete is really needed, stop and ask the lead, who asks the owner.`;
 }
 
 // Used when the check itself failed: block only commands that mention a delete verb at all.
