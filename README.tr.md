@@ -229,6 +229,10 @@ Sonraki oturum bir devam özetiyle başlar: aşama, süren iş (`git status` ile
 
 `team/brief.md`, `decisions.md`, `contracts/`, `research/`, `glossary.md` ve `config.json` commit'lenmek içindir. `team/work/` (pano, görev özetleri, devir notları, eskalasyonlar, posta kutusu) de commit'lenir; yalnız `team/work/packs/` (üretilen bağlam paketleri) git dışındadır. Lider bunu kendi commit'lerinde, `chore(team): <ne>`, her görev bittiğinde ve her lider rotasyonunda, açık yolları ekleyerek commit'ler; kod commit'lerine karıştırmaz. Kurulum eski `.gitignore` satırını `team/work/` yerine `team/work/packs/` yapar ve önce farkı gösterir.
 
+## 1.3.42 değişiklikleri
+
+- **Bir tutamacı bırakmak sürüm yayını değildir** (g83): index.db ve kilidini bırakmayla ilgili bir soru ("üretim yolu testlerin kanıtladığı aynı release kodunu çalıştırır") kullanıcıya ait yayın sayılıp reddedildi ve lider kullanıcıya kutu açtı. Tutamaç, kilit, dosya, bellek ya da bağlantı bırakmak ve "release code/path/logic" artık kullanıcıya ait yayın sayılmıyor; "release v1.0" ve "release the code to users" hâlâ sayılıyor.
+
 ## 1.3.41 değişiklikleri
 
 - **NAC'in kendi testleri geçici klasörlerini temizliyor** (g82): test takımı her test için bir geçici klasör açıp hiç silmiyordu (oturum geçici klasöründe ~34.000 klasör, 26 GB). `npm test` artık `tests/tmp-root.cjs` dosyasını önceden yüklüyor: bir test sürecinin `mkdtemp` ile açtığı her klasör kaydediliyor ve koşu bitince test çalıştırıcısı bunları, yanlarındaki `<klasör>-wt*` worktree'leriyle birlikte siliyor. `TMP` yerinde kalıyor: onu bir alt klasöre taşımak ya da başka test dosyaları çalışırken klasör silmek, git'in "Permission denied" ile daha sık düşmesine yol açtı. Takımı `npm test` ile çalıştırın; yalın `node --test` önceden yüklemeyi atlar.

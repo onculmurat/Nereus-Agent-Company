@@ -31,7 +31,11 @@ const OWNER_DIRECT = /owner direct:/i;
 // files; a push named as a condition or a CI trigger, and file- that only describes the next noun, are not the owner's action.
 // g78: Q-194 named the Cargo manifest flag publish = false ("a publish=false path crate") and was refused as a publish;
 // the flag keeps a crate from ever being published, so it is not the owner's action.
+// g83: Q-198 ("the production path runs the same release code the tests prove", about freeing index.db and its lock)
+// was refused as a release; releasing a handle, a lock, a file or memory is not the owner's action.
 const NOUN_USE = new RegExp([
+  String.raw`\breleases?\s+(?:the\s+|its\s+|their\s+|all\s+)?(?:file\s+)?(?:handles?|locks?|files?|resources?|memory|connections?|mutex(?:es)?|guards?|index\.db|index\.lock)\b`,
+  String.raw`\brelease\s+(?:code|path|logic|hooks?)\b`,
   String.raw`\b(?:pre-?)?(?:release|publish|deploy)(?:-| )(?:tasks?|work|group|phase|notes?|blockers?|checklist|plan|candidates?|scope|docs?|pipeline|matrix|criteria|readiness|risks?)\b`,
   String.raw`\b(?:before|after|until|ahead of|for|toward|towards)\s+(?:the\s+)?(?:first\s+|free\s+|v?\d[\w.]*\s+)?(?:release|publish|deploy)\b`,
   String.raw`\bpre-?release\b`,
