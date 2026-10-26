@@ -5,12 +5,12 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { readBoard, updateEntry, commitsWith, rotationDue, markRotated, ROTATE_EVERY } from './board.js';
-import { addWorktree, removeWorktree } from './worktree.js';
+import { addWorktree, removeWorktree, pruneTaskBuilds } from './worktree.js';
 import { writePack } from './pack.js';
 import { commitPaths } from './commit.js';
 import { ensureCostFile } from './cost.js';
 import { addFinding, validateFinding, hardeningDueModules } from './findings.js';
-import { loadConfig } from './config.js';
+import { loadConfig, checkDeleteRoots } from './config.js';
 import { buildResumeSummary, questionListsMarkdown } from './summary.js';
 import { hasCompactionSettings } from './setup.js';
 import { teamPaths } from './paths.js';
@@ -175,6 +175,17 @@ export function closeTask(root, id, { commit, singleCommit, findings = [], leadN
   } catch (err) {
     warnings.push(`hardening check skipped (${err.message})`);
   }
+  // g90: a done task's build output (target-<id> beside the worktree, deleteRoots folders named after it) goes now
+  let builds = null;
+  try {
+    const cfg = loadConfig({ pluginRoot, projectRoot: root });
+    let roots = [];
+    try { roots = checkDeleteRoots(cfg.deleteRoots); } catch { /* a bad list removes nothing there */ }
+    builds = pruneTaskBuilds(root, { worktreeRoot: cfg.worktreeRoot, deleteRoots: roots, ids: [id] });
+    if (builds.failed) warnings.push(`build dirs of ${id} not removed (${builds.failed.map((f) => f.path).join(', ')}): a process still holds them; run worktree.js prune when it ends`);
+  } catch (err) {
+    warnings.push(`build dirs of ${id} not checked (${err.message}); run worktree.js prune`);
+  }
   const rotate = rotationDue(root, rotationEvery(root, config));
   let leadHandoff = null;
   if (rotate) {
@@ -186,7 +197,7 @@ export function closeTask(root, id, { commit, singleCommit, findings = [], leadN
   return {
     id, status: entry.status, commits: entry.commits,
     findings: added.map((f) => ({ id: f.id, module: f.module, severity: f.severity, hardeningDue: f.hardeningDue })),
-    cost, rotate, ...(rotate ? { rotateBy: rotationWay(root, config), leadHandoff } : {}),
+    cost, ...(builds?.removed.length ? { buildsRemoved: builds.removed.map((p) => p.split(path.sep).join('/')) } : {}), rotate, ...(rotate ? { rotateBy: rotationWay(root, config), leadHandoff } : {}),
     commit: committed, ...(warnings.length ? { warnings } : {}),
   };
 }

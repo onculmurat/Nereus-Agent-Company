@@ -102,6 +102,7 @@ export function validateConfig(cfg) {
   if (cfg.gateCheckSeconds !== undefined && (!Number.isInteger(cfg.gateCheckSeconds) || cfg.gateCheckSeconds < 0)) throw new Error(`gateCheckSeconds must be a whole number of seconds, 0 (no deadline) or more; got ${JSON.stringify(cfg.gateCheckSeconds)}`);
   if (cfg.gateScope !== undefined && !['task', 'full'].includes(cfg.gateScope)) throw new Error(`gateScope must be "task" or "full"; got ${JSON.stringify(cfg.gateScope)}`);
   if (cfg.gateRetry !== undefined && (!Number.isInteger(cfg.gateRetry) || cfg.gateRetry < 0 || cfg.gateRetry > 3)) throw new Error(`gateRetry must be 0 to 3 (runs of a red check before it counts); got ${JSON.stringify(cfg.gateRetry)}`);
+  if (cfg.gateMinFreeGB !== undefined && (typeof cfg.gateMinFreeGB !== 'number' || !(cfg.gateMinFreeGB >= 0))) throw new Error(`gateMinFreeGB must be a number of GB, 0 (no check) or more; got ${JSON.stringify(cfg.gateMinFreeGB)}`);
   checkKnownRed(cfg.gateKnownRed);
   checkAlwaysRun(cfg.gateAlwaysRun, cfg.gateCommands);
   checkDeleteRoots(cfg.deleteRoots);

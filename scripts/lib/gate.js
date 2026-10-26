@@ -9,6 +9,9 @@ import { acceptanceCriteria } from './pack.js';
 
 const TAIL_LINES = 60;
 export const DEFAULT_GATE_WAIT_SECONDS = 300;
+export const DEFAULT_GATE_MIN_FREE_GB = 20;
+// g90: the forms a full drive takes in cargo, rustc, git and node output (Windows os error 112)
+export const diskFull = (output) => /no space left on device|ENOSPC|os error 112|not enough space on the disk/i.test(output ?? '');
 export const DEFAULT_GATE_CHECK_SECONDS = 1200;
 const RUNNER = path.join(path.dirname(fileURLToPath(import.meta.url)), 'run-bounded.js');
 
