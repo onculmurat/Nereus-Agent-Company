@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { readBoard, updateEntry, commitsWith, rotationDue, markRotated, ROTATE_EVERY } from './board.js';
-import { addWorktree, removeWorktree, pruneTaskBuilds } from './worktree.js';
+import { addWorktree, removeWorktree, pruneTaskBuilds, maintenanceState } from './worktree.js';
 import { writePack } from './pack.js';
 import { commitPaths } from './commit.js';
 import { ensureCostFile } from './cost.js';
@@ -67,7 +67,10 @@ function markRotationPending(root, handoff) {
 `);
 }
 
-export function startTask(root, id, { worktree = false, worktreeRoot, role, paths, sameSession = false, now = new Date() } = {}) {
+export function startTask(root, id, { worktree = false, worktreeRoot, role, paths, sameSession = false, config, now = new Date() } = {}) {
+  // g91: below maintenanceFreeGB no task starts until worktree.js prune --shared has freed the drive
+  const maint = config ? maintenanceState(root, config) : { due: false };
+  if (maint.due) throw new Error(maint.note);
   const pending = rotationPending(root);
   if (pending !== null && !sameSession) {
     throw new Error(`Lead rotation pending (rotateBy clear, g80): the last close wrote the lead hand-off${pending ? ` ${pending}` : ''}. Ask the owner (and the owner proxy) in one line: "Rotasyon: /clear yazıp ardından 'devam' deyin." and end your turn. The new session starts from the hand-off. If "devam" comes without /clear, run this start again with --same-session.`);
@@ -186,6 +189,12 @@ export function closeTask(root, id, { commit, singleCommit, findings = [], leadN
   } catch (err) {
     warnings.push(`build dirs of ${id} not checked (${err.message}); run worktree.js prune`);
   }
+  // g91: the routine is due: the lead starts nothing new and drains
+  let maintenance = null;
+  try {
+    const m = maintenanceState(root, loadConfig({ pluginRoot, projectRoot: root }));
+    if (m.due) { maintenance = m; warnings.push(m.note); }
+  } catch { /* no config, no routine */ }
   const rotate = rotationDue(root, rotationEvery(root, config));
   let leadHandoff = null;
   if (rotate) {
@@ -197,7 +206,7 @@ export function closeTask(root, id, { commit, singleCommit, findings = [], leadN
   return {
     id, status: entry.status, commits: entry.commits,
     findings: added.map((f) => ({ id: f.id, module: f.module, severity: f.severity, hardeningDue: f.hardeningDue })),
-    cost, ...(builds?.removed.length ? { buildsRemoved: builds.removed.map((p) => p.split(path.sep).join('/')) } : {}), rotate, ...(rotate ? { rotateBy: rotationWay(root, config), leadHandoff } : {}),
+    cost, ...(maintenance ? { maintenance } : {}), ...(builds?.removed.length ? { buildsRemoved: builds.removed.map((p) => p.split(path.sep).join('/')) } : {}), rotate, ...(rotate ? { rotateBy: rotationWay(root, config), leadHandoff } : {}),
     commit: committed, ...(warnings.length ? { warnings } : {}),
   };
 }

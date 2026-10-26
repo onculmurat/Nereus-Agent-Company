@@ -34,7 +34,8 @@ const configOf = (root) => {
 
 const commands = {
   start: ({ values: v, id, root }) => {
-    const r = startTask(root, id, { worktree: v.worktree, worktreeRoot: configOf(root).worktreeRoot, role: v.role, paths: v.paths, sameSession: v['same-session'] });
+    const config = configOf(root);
+    const r = startTask(root, id, { worktree: v.worktree, worktreeRoot: config.worktreeRoot, config, role: v.role, paths: v.paths, sameSession: v['same-session'] });
     if (r.pack?.tooLarge) {
       process.stderr.write(`WARNING: pack is ${r.pack.chars} characters, over the limit of ${r.pack.limit} (packMaxChars). Do not dispatch it as is: build it again with pack.js and --paths or a later --base.\n`);
       process.exitCode = 3;

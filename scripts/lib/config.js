@@ -103,6 +103,10 @@ export function validateConfig(cfg) {
   if (cfg.gateScope !== undefined && !['task', 'full'].includes(cfg.gateScope)) throw new Error(`gateScope must be "task" or "full"; got ${JSON.stringify(cfg.gateScope)}`);
   if (cfg.gateRetry !== undefined && (!Number.isInteger(cfg.gateRetry) || cfg.gateRetry < 0 || cfg.gateRetry > 3)) throw new Error(`gateRetry must be 0 to 3 (runs of a red check before it counts); got ${JSON.stringify(cfg.gateRetry)}`);
   if (cfg.gateMinFreeGB !== undefined && (typeof cfg.gateMinFreeGB !== 'number' || !(cfg.gateMinFreeGB >= 0))) throw new Error(`gateMinFreeGB must be a number of GB, 0 (no check) or more; got ${JSON.stringify(cfg.gateMinFreeGB)}`);
+  if (cfg.maintenanceFreeGB !== undefined && (typeof cfg.maintenanceFreeGB !== 'number' || !(cfg.maintenanceFreeGB >= 0))) throw new Error(`maintenanceFreeGB must be a number of GB, 0 (no routine) or more; got ${JSON.stringify(cfg.maintenanceFreeGB)}`);
+  if (cfg.sharedBuildDirs !== undefined) {
+    try { checkDeleteRoots(cfg.sharedBuildDirs); } catch { throw new Error(`sharedBuildDirs must be a list of absolute folders, none a drive root, the home folder or above it; got ${JSON.stringify(cfg.sharedBuildDirs)}`); }
+  }
   checkKnownRed(cfg.gateKnownRed);
   checkAlwaysRun(cfg.gateAlwaysRun, cfg.gateCommands);
   checkDeleteRoots(cfg.deleteRoots);

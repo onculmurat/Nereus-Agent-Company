@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { readBoard } from './board.js';
+import { listProcesses } from './gate.js';
 
 const ID_RE = /^[A-Za-z0-9-]{1,64}$/;
 
@@ -97,13 +98,64 @@ export function pruneTaskBuilds(root, { worktreeRoot, deleteRoots = [], ids } = 
   return { removed, ...(failed.length ? { failed } : {}) };
 }
 
+// NAC_FREE_BYTES stands in for the free space in tests (g91)
 export function freeBytes(dir) {
+  if (/^\d+$/.test(process.env.NAC_FREE_BYTES ?? '')) return Number(process.env.NAC_FREE_BYTES);
+  let d = path.resolve(dir);
+  while (!fs.existsSync(d) && path.dirname(d) !== d) d = path.dirname(d);
   try {
-    const s = fs.statfsSync(dir);
+    const s = fs.statfsSync(d);
     return s.bavail * s.bsize;
   } catch {
     return null;
   }
+}
+
+// g91: the shared build dirs (the main tree's target, a CARGO_TARGET_DIR every gate uses) grow with each build and
+// the done-task prune never touches them (Memory Agent: ~90 + 53 GB). The owner asked for a routine: below
+// maintenanceFreeGB the lead starts nothing new, lets the running work end, removes them and goes on.
+export const DEFAULT_MAINTENANCE_FREE_GB = 20;
+const GB = 1024 ** 3;
+const gbOf = (n) => Math.round(n / GB * 10) / 10;
+
+export function maintenanceState(root, config = {}) {
+  const dirs = config.sharedBuildDirs ?? [];
+  const min = config.maintenanceFreeGB ?? DEFAULT_MAINTENANCE_FREE_GB;
+  if (!dirs.length || !(min > 0)) return { due: false };
+  const free = Math.min(...[root, ...dirs].map((d) => freeBytes(d) ?? Infinity));
+  if (free >= min * GB) return { due: false, freeGB: gbOf(free) };
+  return {
+    due: true, freeGB: gbOf(free), minGB: min, dirs,
+    note: `maintenance due (g91): ${gbOf(free)} GB free, under maintenanceFreeGB ${min}. Start no new task, developer, gate or review; let the running ones finish and take their results. When nothing builds, run worktree.js prune --shared (it removes the done tasks' build dirs and sharedBuildDirs: ${dirs.join(', ')}), then go on. If it still reports maintenance due, ask the owner to free space.`,
+  };
+}
+
+const BUILD_PROCESS = /(?:^|[\\/\s"])(?:cargo|rustc|clippy-driver)(?:\.exe)?(?=["\s]|$)/i;
+const inside = (d, base) => { const r = path.relative(path.resolve(base), path.resolve(d)); return r !== '' && !r.startsWith('..') && !path.isAbsolute(r); };
+
+// Removes sharedBuildDirs, and the done tasks' build dirs, when no build runs. Each shared dir must lie inside the
+// project or a deleteRoots folder; one outside is refused, not removed.
+export function pruneShared(root, config = {}, { list = listProcesses, deleteRoots = [] } = {}) {
+  const busy = list().filter((p) => p.pid !== process.pid && BUILD_PROCESS.test(p.cmd ?? ''));
+  if (busy.length) {
+    return { ok: false, busy: busy.map((p) => ({ pid: p.pid, cmd: String(p.cmd).slice(0, 160) })), note: 'builds still run: start nothing new, wait for these to end (never stop them by name), then run prune --shared again.' };
+  }
+  const removed = [];
+  const refused = [];
+  const failed = [];
+  for (const d of config.sharedBuildDirs ?? []) {
+    if (!path.isAbsolute(d) || ![root, ...deleteRoots].some((b) => inside(d, b))) { refused.push(d); continue; }
+    if (!fs.existsSync(d)) continue;
+    try { fs.rmSync(d, { recursive: true, force: true, maxRetries: 3 }); removed.push(d); } catch (err) { failed.push({ path: d, error: err.message }); }
+  }
+  const tasks = pruneTaskBuilds(root, { worktreeRoot: config.worktreeRoot, deleteRoots });
+  const after = maintenanceState(root, config);
+  return {
+    ok: !failed.length, removed, tasksRemoved: tasks.removed,
+    ...(refused.length ? { refused, refusedNote: 'outside the project and deleteRoots: not removed' } : {}),
+    ...(failed.length ? { failed } : {}),
+    ...(after.freeGB !== undefined ? { freeGB: after.freeGB } : {}), ...(after.due ? { maintenance: after } : {}),
+  };
 }
 
 // Cherry-picks the commits of task/<id> (since it left the working branch) onto the current branch, oldest first.

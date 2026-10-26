@@ -5,7 +5,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { runCli, UsageError } from './lib/cli.js';
 import { loadConfig, validateConfig, checkDeleteRoots } from './lib/config.js';
-import { pruneTaskBuilds, freeBytes } from './lib/worktree.js';
+import { pruneTaskBuilds, freeBytes, maintenanceState } from './lib/worktree.js';
 import { runGate, gateChecks, isCodeless, checkDocGate, waitForIdle, fixable, fixGate, scopeChecks, noFailFast, retryRed, alwaysRunChecks, DEFAULT_GATE_WAIT_SECONDS, DEFAULT_GATE_CHECK_SECONDS, DEFAULT_GATE_MIN_FREE_GB, diskFull } from './lib/gate.js';
 import { taskTree } from './lib/board.js';
 
@@ -32,7 +32,7 @@ const usage = `Usage:
                       one's panic in checks[].failures (g65)
                       gateTmp (team/config.json, a folder) sets TMP, TEMP and TMPDIR for every check (g77) to a gate-<pid>-<time>
                       folder in it that is removed when the run ends (g81)
-                      below gateMinFreeGB (default 20, 0 = no check) free on the drive, the done tasks' build dirs are removed
+                      below gateMinFreeGB (default 10, 0 = no check) free on the drive, the done tasks' build dirs are removed
                       first (worktree.js prune); still below, the checks do not run: disk + diskNote, not a round. A red whose
                       output says the drive is full has diskFull (g90)
                       a scoped gate also runs gateAlwaysRun ({ name, command } list in team/config.json), checks that read
@@ -133,6 +133,8 @@ runCli(usage, { task: { type: 'string' }, fix: { type: 'boolean' }, full: { type
   };
   // g90: a red from a full drive is not the code's
   const disk = !result.ok && diskFull(result.output) ? { diskFull: true, diskNote: 'the output says the drive is full (no space left on device): the red does not come from the code and is not a round. Free space (worktree.js prune removes the build dirs of done tasks), then run the gate again.' } : {};
-  return { ...result, ...disk, ...(pruned.length ? { pruned } : {}), tree, scope: always.length ? { ...scoped.scope, alwaysRun: always.map((c) => c.name) } : scoped.scope, ...(failed.length ? { failed } : {}), ...knownNote, ...hang, ...(idle.waited ? { waited: idle.waited } : {}), ...busy };
+  // g91: the gate still runs while the queue drains; the result says the routine is due
+  const maint = maintenanceState(root, config);
+  return { ...result, ...disk, ...(maint.due ? { maintenance: maint } : {}), ...(pruned.length ? { pruned } : {}), tree, scope: always.length ? { ...scoped.scope, alwaysRun: always.map((c) => c.name) } : scoped.scope, ...(failed.length ? { failed } : {}), ...knownNote, ...hang, ...(idle.waited ? { waited: idle.waited } : {}), ...busy };
   }
 });
