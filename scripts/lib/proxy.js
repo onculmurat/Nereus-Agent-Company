@@ -29,10 +29,13 @@ const OWNER_DIRECT = /owner direct:/i;
 // phase or a time ("release tasks", "before release", "yayın görevleri", "yayından önce") is not the owner's action.
 // g70: Q-189 ("CI runs only after an owner push", "drop the 3 file-symlink tests") was refused as a push and as deleting
 // files; a push named as a condition or a CI trigger, and file- that only describes the next noun, are not the owner's action.
+// g78: Q-194 named the Cargo manifest flag publish = false ("a publish=false path crate") and was refused as a publish;
+// the flag keeps a crate from ever being published, so it is not the owner's action.
 const NOUN_USE = new RegExp([
   String.raw`\b(?:pre-?)?(?:release|publish|deploy)(?:-| )(?:tasks?|work|group|phase|notes?|blockers?|checklist|plan|candidates?|scope|docs?|pipeline|matrix|criteria|readiness|risks?)\b`,
   String.raw`\b(?:before|after|until|ahead of|for|toward|towards)\s+(?:the\s+)?(?:first\s+|free\s+|v?\d[\w.]*\s+)?(?:release|publish|deploy)\b`,
   String.raw`\bpre-?release\b`,
+  String.raw`\bpublish\s*=\s*(?:false|\[\s*\])`,
   String.raw`\b(?:before|after|until|on|without)\s+(?:an?\s+|the\s+|any\s+)?(?:owner(?:'s)?\s+|v?\S*\s*tag\s+)?push\b`,
   String.raw`\bpush\s+(?:guard|event|trigger)s?\b`,
   String.raw`yay[ıi]n(?:a|dan|ın|in)?\s*(?:g[öo]rev|[öo]ncesi|sonras[ıi]|kalan|hatt|i[şs]|matris|kriter|risk|grub|haz[ıi]rl)\w*`,
