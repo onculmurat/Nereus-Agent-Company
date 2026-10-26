@@ -243,6 +243,11 @@ The next session starts with a resume summary: phase, work in progress (with `gi
 
 `team/brief.md`, `decisions.md`, `contracts/`, `research/`, `glossary.md` and `config.json` are meant to be committed. `team/work/` (board, briefs, hand-offs, escalations, mailbox) is committed too; only `team/work/packs/` (generated context packs) is git-ignored. The lead commits it in its own commits, `chore(team): <what>`, after each task is marked done and at each lead rotation, staging explicit paths and never mixing it into a code commit. Setup changes an older `.gitignore` line `team/work/` to `team/work/packs/` and shows the diff first.
 
+## Changes in 1.3.39
+
+- **The pack names what the project's rules refuse** (g79): Memory Agent T-101 and T-102 briefs told the role to pull a module in with `#[path]`, which the project's unsafe_policy R1 refuses; T-101 lost round 1 to it. `briefForbid` in `team/config.json` (a list of `{ text, rule }`) is checked against the brief when the first pack is built; a match comes back as `briefForbidden` with a note to fix the brief before the dispatch.
+- **A `/clear` rotation is no longer left to memory** (g80): with `rotateBy: "clear"` the lead went on to the next task twice without asking the owner for `/clear`. The close now leaves a marker in `.git`; the next `task.js start` refuses once with the line to send the owner. A `/clear` or a new session removes it; `--same-session` goes on when "devam" came without `/clear`.
+
 ## Changes in 1.3.38
 
 - **The Cargo flag `publish = false` is not a publish** (g78): Memory Agent Q-194 proposed "a publish=false path crate"; the owner-only check matched "publish" and refused the proxy answer, so T-102 waited for the owner. `publish = false` (and `publish = []`) keeps a crate from ever being published and no longer counts as the owner's action.

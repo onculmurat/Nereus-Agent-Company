@@ -254,8 +254,19 @@ export function buildPack(root, { id, role, base, gate, round, findings, paths, 
 
 // Size rule: up to 25% over packMaxChars is accepted with a note. Above that, the test files of the diff are left out
 // and named in the pack (the prompt names them too); only a pack still over 125% is a stop (tooLarge).
+// g79: briefForbid in team/config.json lists text the project's own rules refuse ({ text, rule }); a brief that names
+// one gets it back as briefForbidden, so the lead checks the brief before the role spends a round on a refused way.
+export function briefForbidden(brief, forbid = []) {
+  const lines = String(brief ?? '').split(/\r?\n/);
+  return forbid.flatMap(({ text, rule }) => {
+    const line = lines.find((l) => l.includes(text));
+    return line === undefined ? [] : [{ text, rule, line: line.trim().slice(0, 200) }];
+  });
+}
+
 export function writePack(root, opts) {
-  const limit = loadConfig({ pluginRoot, projectRoot: root }).packMaxChars;
+  const config = loadConfig({ pluginRoot, projectRoot: root });
+  const limit = config.packMaxChars;
   const hard = limit * PACK_TOLERANCE;
   let { text, notFound } = buildPack(root, opts);
   let testsLeftOut;
@@ -276,5 +287,7 @@ export function writePack(root, opts) {
   let note;
   if (testsLeftOut) note = `Test files left out of the pack (${testsLeftOut.join(', ')}); name them in the prompt so the role reads them in the repository.`;
   else if (text.length > limit && text.length <= hard) note = `Pack is ${text.length} characters, over packMaxChars by ${over}% (within the 25% tolerance): accepted.`;
-  return { path: file, chars: text.length, notFound, limit, tooLarge: text.length > hard, ...(testsLeftOut ? { testsLeftOut } : {}), ...(note ? { note } : {}) };
+  const forbidden = opts.round === undefined ? briefForbidden(readIf(path.join(teamPaths(root).work, 'tasks', `${opts.id}.md`)), config.briefForbid) : [];
+  if (forbidden.length) note = [note, `The brief names ${forbidden.map((f) => `"${f.text}" (${f.rule})`).join(', ')}. If it tells the role to use it, fix the brief before you dispatch (g79).`].filter(Boolean).join(' ');
+  return { path: file, chars: text.length, notFound, limit, tooLarge: text.length > hard, ...(testsLeftOut ? { testsLeftOut } : {}), ...(forbidden.length ? { briefForbidden: forbidden } : {}), ...(note ? { note } : {}) };
 }

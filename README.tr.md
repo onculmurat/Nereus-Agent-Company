@@ -229,6 +229,11 @@ Sonraki oturum bir devam özetiyle başlar: aşama, süren iş (`git status` ile
 
 `team/brief.md`, `decisions.md`, `contracts/`, `research/`, `glossary.md` ve `config.json` commit'lenmek içindir. `team/work/` (pano, görev özetleri, devir notları, eskalasyonlar, posta kutusu) de commit'lenir; yalnız `team/work/packs/` (üretilen bağlam paketleri) git dışındadır. Lider bunu kendi commit'lerinde, `chore(team): <ne>`, her görev bittiğinde ve her lider rotasyonunda, açık yolları ekleyerek commit'ler; kod commit'lerine karıştırmaz. Kurulum eski `.gitignore` satırını `team/work/` yerine `team/work/packs/` yapar ve önce farkı gösterir.
 
+## 1.3.39 değişiklikleri
+
+- **Paket, projenin kurallarının reddettiği yolu söylüyor** (g79): Memory Agent T-101 ve T-102 brief'leri role bir modülü `#[path]` ile almasını söyledi; projenin unsafe_policy R1 kuralı bunu reddediyor ve T-101 1. turunu buna kaybetti. `team/config.json` içindeki `briefForbid` (`{ text, rule }` listesi) ilk paket kurulurken brief'e karşı denetlenir; eşleşme `briefForbidden` olarak ve gönderimden önce brief'i düzeltme notuyla döner.
+- **`/clear` rotasyonu hafızaya bırakılmıyor** (g80): `rotateBy: "clear"` ile lider iki kez sahibe `/clear` sormadan sonraki göreve geçti. Kapanış artık `.git` içine bir işaret bırakıyor; sonraki `task.js start` bir kez reddedip sahibe gönderilecek satırı veriyor. `/clear` ya da yeni oturum işareti siler; "devam" `/clear` olmadan geldiyse `--same-session` aynı oturumda sürdürür.
+
 ## 1.3.38 değişiklikleri
 
 - **Cargo'nun `publish = false` ayarı yayın sayılmıyor** (g78): Memory Agent Q-194 "publish=false path crate" önerdi; sahibe ait eylem kontrolü "publish" kelimesini eşleştirip vekil cevabını reddetti ve T-102 sahibi bekledi. `publish = false` (ve `publish = []`) bir crate'in hiç yayınlanmamasını sağlar, artık sahibin eylemi sayılmıyor.
