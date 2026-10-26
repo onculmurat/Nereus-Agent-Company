@@ -96,6 +96,7 @@ export function validateConfig(cfg) {
   }
   if (cfg.rotateEvery !== undefined && (!Number.isInteger(cfg.rotateEvery) || cfg.rotateEvery < 1)) throw new Error(`rotateEvery must be a positive integer; got ${JSON.stringify(cfg.rotateEvery)}`);
   if (cfg.gateTmp !== undefined && (typeof cfg.gateTmp !== 'string' || !cfg.gateTmp.trim())) throw new Error(`gateTmp must be a folder path; got ${JSON.stringify(cfg.gateTmp)}`);
+  if (cfg.briefForbid !== undefined && (!Array.isArray(cfg.briefForbid) || cfg.briefForbid.some((f) => typeof f?.text !== 'string' || !f.text || typeof f?.rule !== 'string'))) throw new Error(`briefForbid must be a list of { text, rule }; got ${JSON.stringify(cfg.briefForbid)}`);
   if (cfg.rotateBy !== undefined && !['clear', 'compaction'].includes(cfg.rotateBy)) throw new Error(`rotateBy must be "clear" or "compaction"; got ${JSON.stringify(cfg.rotateBy)}`);
   if (cfg.gateWaitSeconds !== undefined && (!Number.isInteger(cfg.gateWaitSeconds) || cfg.gateWaitSeconds < 0)) throw new Error(`gateWaitSeconds must be a whole number of seconds, 0 or more; got ${JSON.stringify(cfg.gateWaitSeconds)}`);
   if (cfg.gateCheckSeconds !== undefined && (!Number.isInteger(cfg.gateCheckSeconds) || cfg.gateCheckSeconds < 0)) throw new Error(`gateCheckSeconds must be a whole number of seconds, 0 (no deadline) or more; got ${JSON.stringify(cfg.gateCheckSeconds)}`);

@@ -9,7 +9,7 @@ import { startTask, noteTask, closeTask } from './lib/task.js';
 import { commitPaths } from './lib/commit.js';
 
 const usage = `Usage:
-  task.js start <id> [--worktree] [--role <role>] [--paths <p1,p2>]
+  task.js start <id> [--worktree] [--role <role>] [--paths <p1,p2>] [--same-session]
                                          board in-progress (same refusals as board.js update), the hand-off skeleton
                                          team/work/handoffs/<id>.md with the base commit, --worktree: worktree.js add and
                                          record it, --role: the role's context pack (pack.js), then one chore(team) commit
@@ -34,7 +34,7 @@ const configOf = (root) => {
 
 const commands = {
   start: ({ values: v, id, root }) => {
-    const r = startTask(root, id, { worktree: v.worktree, worktreeRoot: configOf(root).worktreeRoot, role: v.role, paths: v.paths });
+    const r = startTask(root, id, { worktree: v.worktree, worktreeRoot: configOf(root).worktreeRoot, role: v.role, paths: v.paths, sameSession: v['same-session'] });
     if (r.pack?.tooLarge) {
       process.stderr.write(`WARNING: pack is ${r.pack.chars} characters, over the limit of ${r.pack.limit} (packMaxChars). Do not dispatch it as is: build it again with pack.js and --paths or a later --base.\n`);
       process.exitCode = 3;
@@ -69,7 +69,7 @@ const commands = {
 
 const options = {
   worktree: { type: 'boolean' }, role: { type: 'string' }, paths: { type: 'string' }, text: { type: 'string' }, heading: { type: 'string' }, chore: { type: 'boolean' },
-  commit: { type: 'string' }, findings: { type: 'string' }, 'single-commit': { type: 'string' }, 'lead-note': { type: 'string' },
+  commit: { type: 'string' }, findings: { type: 'string' }, 'single-commit': { type: 'string' }, 'lead-note': { type: 'string' }, 'same-session': { type: 'boolean' },
 };
 
 runCli(usage, options, ({ values, positionals: [cmd, id], root }) => {

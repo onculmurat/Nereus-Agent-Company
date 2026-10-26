@@ -21,12 +21,12 @@ const usage = `Usage:
 runCli(usage, { role: { type: 'string' }, base: { type: 'string' }, gate: { type: 'string' }, round: { type: 'string' }, findings: { type: 'string' }, paths: { type: 'string' }, 'allow-large': { type: 'boolean' } }, ({ values: v, positionals: [id], root }) => {
   if (!id) throw new UsageError('Missing task id');
   need(v, 'role');
-  const { path: file, chars, notFound, limit, tooLarge, testsLeftOut, note } = writePack(root, { id, role: v.role, base: v.base, gate: v.gate, round: v.round === undefined ? undefined : Number(v.round), findings: v.findings, paths: v.paths });
+  const { path: file, chars, notFound, limit, tooLarge, testsLeftOut, briefForbidden, note } = writePack(root, { id, role: v.role, base: v.base, gate: v.gate, round: v.round === undefined ? undefined : Number(v.round), findings: v.findings, paths: v.paths });
   if (tooLarge && !v['allow-large']) {
     process.stderr.write(`WARNING: pack is ${chars} characters, over the limit of ${limit} (packMaxChars). Do not dispatch it as is: narrow the diff with --paths <code paths> or a later --base, then build it again. --allow-large accepts it deliberately.
 `);
     process.exitCode = 3;
   }
   if (note) process.stderr.write(`NOTE: ${note}\n`);
-  return { path: file, chars, notFound, ...(testsLeftOut ? { testsLeftOut } : {}), ...(note ? { note } : {}) };
+  return { path: file, chars, notFound, ...(testsLeftOut ? { testsLeftOut } : {}), ...(briefForbidden ? { briefForbidden } : {}), ...(note ? { note } : {}) };
 });

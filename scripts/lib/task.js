@@ -51,7 +51,27 @@ const stamp = (now) => `${localDate(now)} ${pad(now.getHours())}:${pad(now.getMi
 const headOf = (dir) => execFileSync('git', ['rev-parse', '--short', 'HEAD'], { cwd: dir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
 
 // in-progress (+ worktree), the hand-off skeleton with the base commit, the role's pack, one chore(team) commit.
-export function startTask(root, id, { worktree = false, worktreeRoot, role, paths, now = new Date() } = {}) {
+// g80: with rotateBy clear the close leaves a marker in .git (not in team/, so no commit carries it); the next start
+// stops once so the lead asks the owner for /clear. A /clear or a new session removes it (session-start); "devam"
+// without /clear is --same-session.
+const rotationMarker = (root) => path.join(root, '.git', 'nac-rotation-pending');
+export function rotationPending(root) {
+  return fs.existsSync(rotationMarker(root)) ? fs.readFileSync(rotationMarker(root), 'utf8').trim() : null;
+}
+export function clearRotationPending(root) {
+  fs.rmSync(rotationMarker(root), { force: true });
+}
+function markRotationPending(root, handoff) {
+  if (fs.existsSync(path.join(root, '.git')) && fs.statSync(path.join(root, '.git')).isDirectory()) fs.writeFileSync(rotationMarker(root), `${handoff ?? ''}
+`);
+}
+
+export function startTask(root, id, { worktree = false, worktreeRoot, role, paths, sameSession = false, now = new Date() } = {}) {
+  const pending = rotationPending(root);
+  if (pending !== null && !sameSession) {
+    throw new Error(`Lead rotation pending (rotateBy clear, g80): the last close wrote the lead hand-off${pending ? ` ${pending}` : ''}. Ask the owner (and the owner proxy) in one line: "Rotasyon: /clear yazıp ardından 'devam' deyin." and end your turn. The new session starts from the hand-off. If "devam" comes without /clear, run this start again with --same-session.`);
+  }
+  if (pending !== null) clearRotationPending(root);
   const before = entryOf(root, id);
   const wt = worktree ? addWorktree(root, id, { worktreeRoot }) : null;
   const tree = wt ? wt.path : root;
@@ -77,7 +97,7 @@ export function startTask(root, id, { worktree = false, worktreeRoot, role, path
   return {
     id, title: before.title, status: entry.status, base: entry.base, tree: tree.split(path.sep).join('/'), handoff: rel,
     ...(entry.securityNote ? { securityNote: entry.securityNote } : {}),
-    ...(pack ? { pack: { path: pack.path, chars: pack.chars, notFound: pack.notFound, ...(pack.tooLarge ? { tooLarge: true, limit: pack.limit } : {}), ...(pack.note ? { note: pack.note } : {}) } } : {}),
+    ...(pack ? { pack: { path: pack.path, chars: pack.chars, notFound: pack.notFound, ...(pack.tooLarge ? { tooLarge: true, limit: pack.limit } : {}), ...(pack.briefForbidden ? { briefForbidden: pack.briefForbidden } : {}), ...(pack.note ? { note: pack.note } : {}) } } : {}),
     commit,
   };
 }
@@ -152,6 +172,7 @@ export function closeTask(root, id, { commit, singleCommit, findings = [], leadN
   if (rotate) {
     leadHandoff = writeLeadHandoff(root, { after: entry, leadNote, now });
     markRotated(root);
+    if (rotationWay(root, config) === 'clear') markRotationPending(root, leadHandoff);
   }
   const committed = commitPaths(root, ['team'], `chore(team): ${id} done${leadHandoff ? ', lead hand-off' : ''}`);
   return {

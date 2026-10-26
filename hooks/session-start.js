@@ -11,6 +11,7 @@ import { pluginSourceDrift } from '../scripts/lib/drift.js';
 import { latestCompactHandoff } from '../scripts/lib/compact.js';
 import { proxyContext } from '../scripts/lib/proxy.js';
 import { assembleContext } from '../scripts/lib/start-context.js';
+import { clearRotationPending } from '../scripts/lib/task.js';
 
 const contextOutput = (additionalContext) => ({ output: { hookSpecificOutput: { hookEventName: 'SessionStart', additionalContext } } });
 
@@ -25,6 +26,8 @@ runHook(async (payload, root) => {
     const role = payload.agent_type ?? 'a NAC role';
     return contextOutput(`You are ${role} on a NAC team, not the team lead. Follow your agent instructions, take work only from the lead, and send questions for the owner to the lead.`);
   }
+  // g80: a /clear or a new session is the rotation the last close asked for
+  if (payload.source === 'clear' || payload.source === 'startup') { try { clearRotationPending(root); } catch {} }
   let config;
   try {
     config = loadConfig({ pluginRoot, projectRoot: root });
