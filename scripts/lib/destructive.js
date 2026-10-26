@@ -63,10 +63,31 @@ function stripBodies(text, style) {
   return out.join('\n');
 }
 
+// Bash: true at each position inside '...' (outside double quotes), where $( and ` are plain text.
+function singleQuoted(text) {
+  const inside = new Array(text.length).fill(false);
+  let quote = null;
+  for (let i = 0; i < text.length; i += 1) {
+    const c = text[i];
+    if (quote === "'") {
+      if (c === "'") quote = null;
+      else inside[i] = true;
+    } else if (c === '\\') i += 1;
+    else if (quote === '"') {
+      if (c === '"') quote = null;
+    } else if (c === '"' || c === "'") quote = c;
+  }
+  return inside;
+}
+
 // Text of $( ... ) substitutions and, for Bash, `...` substitutions, so they are checked as commands too.
+// g72: in Bash, single-quoted text has no substitutions; a JS template literal in node -e '...' read as `...` gave
+// fragments with a stray quote, and the guard blocked the edit as an unbalanced quote.
 function substitutions(text, style) {
   const found = [];
+  const inside = style === 'ps' ? [] : singleQuoted(text);
   for (let i = 0; i < text.length; i += 1) {
+    if (inside[i]) continue;
     if (text[i] === '$' && text[i + 1] === '(') {
       let depth = 1;
       let j = i + 2;
@@ -75,9 +96,13 @@ function substitutions(text, style) {
         else if (text[j] === ')') depth -= 1;
       }
       found.push(text.slice(i + 2, depth === 0 ? j - 1 : j));
+    } else if (text[i] === '`' && style !== 'ps') {
+      let j = i + 1;
+      while (j < text.length && (text[j] !== '`' || inside[j])) j += 1;
+      if (j < text.length) found.push(text.slice(i + 1, j));
+      i = j;
     }
   }
-  if (style !== 'ps') for (const m of text.matchAll(/`([^`]*)`/g)) found.push(m[1]);
   return found;
 }
 
@@ -618,4 +643,5 @@ export function checkDestructive(command, opts) {
 }
 
 // Used when the check itself failed: block only commands that mention a delete verb at all.
-export const mentionsDelete = (command) => /(?:^|[^\w-])(?:rm|rmdir|rd|del|erase|remove-item|ri|rimraf|find)(?![\w-])/i.test(String(command));
+// g72: a method call (rest.find(...), list.remove-) is not a delete command.
+export const mentionsDelete = (command) => /(?:^|[^\w.-])(?:rm|rmdir|rd|del|erase|remove-item|ri|rimraf|find)(?![\w-])/i.test(String(command));
