@@ -6,14 +6,16 @@ import { fileURLToPath } from 'node:url';
 import { runCli, need, UsageError } from './lib/cli.js';
 import { loadConfig, validateConfig } from './lib/config.js';
 import { startTask, noteTask, closeTask } from './lib/task.js';
+import { commitPaths } from './lib/commit.js';
 
 const usage = `Usage:
   task.js start <id> [--worktree] [--role <role>] [--paths <p1,p2>]
                                          board in-progress (same refusals as board.js update), the hand-off skeleton
                                          team/work/handoffs/<id>.md with the base commit, --worktree: worktree.js add and
                                          record it, --role: the role's context pack (pack.js), then one chore(team) commit
-  task.js note <id> --text <text> [--heading <h>]
+  task.js note <id> --text <text> [--heading <h>] [--chore]
                                          appends a section to the task's hand-off (gate result, review verdict, decisions)
+                                         --chore: also one chore(team) commit of team/, saves the separate git call (g67)
   task.js close <id> --commit <sha> [--findings <json-file>] [--single-commit <reason>] [--lead-note <text>]
                                          records the findings (a JSON array of {module, file, line, symbol?, severity,
                                          class, text, origin?}), done with the commit and the hand-off (same refusals as
@@ -41,7 +43,12 @@ const commands = {
   },
   note: ({ values: v, id, root }) => {
     need(v, 'text');
-    return noteTask(root, id, { text: v.text, heading: v.heading });
+    const r = noteTask(root, id, { text: v.text, heading: v.heading });
+    if (!v.chore) return r;
+    const c = commitPaths(root, ['team'], `chore(team): ${id} note${v.heading ? `: ${v.heading}` : ''}`);
+    if (!c.committed) process.stderr.write(`warning: ${c.warning}
+`);
+    return { ...r, commit: c.sha ?? null };
   },
   close: ({ values: v, id, root }) => {
     need(v, 'commit');
@@ -61,7 +68,7 @@ const commands = {
 };
 
 const options = {
-  worktree: { type: 'boolean' }, role: { type: 'string' }, paths: { type: 'string' }, text: { type: 'string' }, heading: { type: 'string' },
+  worktree: { type: 'boolean' }, role: { type: 'string' }, paths: { type: 'string' }, text: { type: 'string' }, heading: { type: 'string' }, chore: { type: 'boolean' },
   commit: { type: 'string' }, findings: { type: 'string' }, 'single-commit': { type: 'string' }, 'lead-note': { type: 'string' },
 };
 

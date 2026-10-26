@@ -6,7 +6,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { makeProject } from './helpers.js';
+import { makeProject, taskLoopText } from './helpers.js';
 import { pluginRoot } from './hooks/run-hook.js';
 import { agentStop, resumeAdvice, RESUME_MIN_TURNS } from '../scripts/lib/budget.js';
 
@@ -72,7 +72,7 @@ test('g63: agent-state.js refuses a bad or unknown agent id', () => {
 });
 
 test('g63: the task loop says to run agent-state.js and never to count a limit stop as a round', () => {
-  const skill = fs.readFileSync(path.join(pluginRoot, 'skills', 'task-loop', 'SKILL.md'), 'utf8');
+  const skill = taskLoopText();
   assert.match(skill, /agent-state\.js <agentId>/);
   assert.match(skill, /Never `board\.js round` for a limit stop \(g63\)/);
 });

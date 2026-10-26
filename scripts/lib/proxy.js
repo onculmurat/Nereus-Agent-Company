@@ -21,16 +21,20 @@ export function proxyContext(config, today = localDate()) {
 // g58: "\bsil" and a bare "delete" matched a product question (Q-175: do deleted notes count toward the note limit) as
 // deleting the owner's data; the proxy answer was refused and the lead waited 54 minutes in a box at night. Deleting
 // now counts only with what is deleted: data, files, a branch, a repo, a database, backups.
-const DELETE_DATA = /\b(delete|remove|wipe|purge|drop|rm)\b[^.;\n]{0,40}\b(data|files?|folders?|director(?:y|ies)|branch(?:es)?|repo(?:sitory)?|database|backups?|history)\b|\b(veri|dosya|klas[öo]r|dal|depo|yedek|veritaban|ge[çc]mi[şs])\w*\b[^.;\n]{0,40}\bsil/;
+const DELETE_DATA = /\b(delete|remove|wipe|purge|drop|rm)\b[^.;\n]{0,40}\b(data|files?|folders?|director(?:y|ies)|branch(?:es)?|repo(?:sitory)?|database|backups?|history)\b(?!-)|\b(veri|dosya|klas[öo]r|dal|depo|yedek|veritaban|ge[çc]mi[şs])\w*\b[^.;\n]{0,40}\bsil/;
 export const OWNER_ONLY = new RegExp(String.raw`\b(push|merge|deploy|publish|release)\b|yay[ıi]n|canl[ıi]ya|${DELETE_DATA.source}`, 'i');
 const OWNER_DIRECT = /owner direct:/i;
 // g68: the action words also matched as nouns (Q-188: "before the release tasks T-062 to T-067"); the proxy answer to
 // a planning question was refused and the owner had to answer it. A release, publish or deploy that names work, a
 // phase or a time ("release tasks", "before release", "yayın görevleri", "yayından önce") is not the owner's action.
+// g70: Q-189 ("CI runs only after an owner push", "drop the 3 file-symlink tests") was refused as a push and as deleting
+// files; a push named as a condition or a CI trigger, and file- that only describes the next noun, are not the owner's action.
 const NOUN_USE = new RegExp([
   String.raw`\b(?:pre-?)?(?:release|publish|deploy)(?:-| )(?:tasks?|work|group|phase|notes?|blockers?|checklist|plan|candidates?|scope|docs?|pipeline|matrix|criteria|readiness|risks?)\b`,
   String.raw`\b(?:before|after|until|ahead of|for|toward|towards)\s+(?:the\s+)?(?:first\s+|free\s+|v?\d[\w.]*\s+)?(?:release|publish|deploy)\b`,
   String.raw`\bpre-?release\b`,
+  String.raw`\b(?:before|after|until|on|without)\s+(?:an?\s+|the\s+|any\s+)?(?:owner(?:'s)?\s+|v?\S*\s*tag\s+)?push\b`,
+  String.raw`\bpush\s+(?:guard|event|trigger)s?\b`,
   String.raw`yay[ıi]n(?:a|dan|ın|in)?\s*(?:g[öo]rev|[öo]ncesi|sonras[ıi]|kalan|hatt|i[şs]|matris|kriter|risk|grub|haz[ıi]rl)\w*`,
   String.raw`yay[ıi]ndan\s+(?:[öo]nce|sonra)`,
 ].join('|'), 'gi');

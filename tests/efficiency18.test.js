@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { makeGitProject } from './helpers.js';
+import { makeGitProject, taskLoopText } from './helpers.js';
 import { pluginRoot } from './hooks/run-hook.js';
 import { addEntry, readBoard, recordReview } from '../scripts/lib/board.js';
 import { addFinding, listFindings } from '../scripts/lib/findings.js';
@@ -149,7 +149,7 @@ test('prose: planner Files: line, hand-off outside the code commit, obstacle rul
   for (const f of ['backend-developer', 'database-engineer', 'frontend-developer', 'test-engineer']) {
     assert.match(read('agents', `${f}.md`), /The hand-off stays on disk, outside your commit: never stage anything under `team\/`/);
   }
-  const loop = read('skills', 'task-loop', 'SKILL.md');
+  const loop = taskLoopText();
   assert.match(loop, /`turn-budget` hook counts them from its transcript/);
   assert.match(loop, /team\/metrics\/scope-<id>\.json/);
   assert.match(loop, /findings\.js amend <F-id>/);

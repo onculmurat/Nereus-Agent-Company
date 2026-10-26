@@ -6,7 +6,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { makeProject } from './helpers.js';
+import { makeProject, taskLoopText } from './helpers.js';
 import { runGate, gateChecks, detectGateCommands } from '../scripts/lib/gate.js';
 import { validateConfig, loadConfig } from '../scripts/lib/config.js';
 import { planSetup, applySetup } from '../scripts/lib/setup.js';
@@ -97,7 +97,7 @@ test('g18: setup records the detected gateCommands in team/config.json, never ov
 });
 
 test('g18: the task-loop skill states the red-check-is-a-finding rule', () => {
-  const loop = fs.readFileSync(path.join(pluginRoot, 'skills', 'task-loop', 'SKILL.md'), 'utf8');
+  const loop = taskLoopText();
   assert.match(loop, /gateCommands/);
   assert.match(loop, /red check you see is recorded as a finding/);
 });
@@ -358,7 +358,7 @@ test('g19: developer roles commit each green step and keep the hand-off current;
     assert.match(rulesOf(role), /wip/i, role);
     assert.match(rulesOf(role), /hand-off.*every commit/i, role);
   }
-  assert.match(fs.readFileSync(path.join(pluginRoot, 'skills', 'task-loop', 'SKILL.md'), 'utf8'), /resum\w+[^\n]*hand-off first/i);
+  assert.match(taskLoopText(), /resum\w+[^\n]*hand-off first/i);
 });
 
 // ---- B2 (g21) out-of-brief behaviour ----
@@ -590,7 +590,7 @@ test('g14: the resume summary warns that a hand-written lead hand-off may list s
 });
 
 test('g14: the rotation skill tells the lead to generate the question lists, not write them', () => {
-  const s = fs.readFileSync(path.join(pluginRoot, 'skills', 'task-loop', 'SKILL.md'), 'utf8');
+  const s = taskLoopText();
   assert.match(s, /decisions\.js" handoff-questions/);
 });
 
@@ -654,7 +654,7 @@ test('g15: the fifth done names how to rotate: autocompact when compaction is co
 });
 
 test('g15: the rotation skill rotates by hand-off plus autocompact when compaction is on, /clear only when it is off', () => {
-  const s = fs.readFileSync(path.join(pluginRoot, 'skills', 'task-loop', 'SKILL.md'), 'utf8');
+  const s = taskLoopText();
   const section = s.split('## Session rotation')[1].split('\n## ')[0];
   assert.match(section, /rotateBy/);
   assert.match(section, /compaction[\s\S]*autocompact|autocompact[\s\S]*compaction/i);
@@ -786,7 +786,7 @@ test('g24: board.js update --worktree is recorded and the CLI refuses a second t
 });
 
 test('g24: the task-loop skill says parallel code tasks always get their own worktree', () => {
-  const t = fs.readFileSync(path.join(pluginRoot, 'skills', 'task-loop', 'SKILL.md'), 'utf8');
+  const t = taskLoopText();
   assert.match(t, /parallel code tasks always get their own worktree/i);
   assert.match(t, /--worktree/);
   assert.match(t, /worktreeRoot/);
@@ -1048,7 +1048,7 @@ test('D-227: team-commit.js commits team/ with a pathspec and leaves a staged de
 });
 
 test('D-227: the lead skill says team commits use the team/ pathspec', () => {
-  const s = fs.readFileSync(path.join(pluginRoot, 'skills', 'task-loop', 'SKILL.md'), 'utf8');
+  const s = taskLoopText();
   assert.match(s, /team-commit\.js/);
   assert.match(s, /git commit[^\n]*-- team\//);
 });

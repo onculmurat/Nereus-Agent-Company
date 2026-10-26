@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { makeProject } from './helpers.js';
+import { makeProject, taskLoopText } from './helpers.js';
 import { addEntry, readBoard } from '../scripts/lib/board.js';
 import { checkDocGate, isCodeless } from '../scripts/lib/gate.js';
 
@@ -142,7 +142,7 @@ test('the planner sets the flag and the task loop explains the document gate', (
   const planner = read(path.join(pluginRoot, 'agents', 'planner.md'));
   assert.match(planner, /`code: no`/);
   assert.match(planner, /Output: <path>/);
-  const loop = read(path.join(pluginRoot, 'skills', 'task-loop', 'SKILL.md'));
+  const loop = taskLoopText();
   assert.match(loop, /gate\.js" --task <id>/);
   assert.match(loop, /GO-WITH-CHANGES/);
 });

@@ -6,6 +6,7 @@ import { proxyDecideProblem } from './lib/proxy.js';
 import { loadConfig } from './lib/config.js';
 import { openQuestion, readDecisions, pendingQuestions, parkedQuestions, parkQuestion, unparkQuestion, addQuestion, flushQuestions, decide, recordOutcomes, amendDecision, threadFromText } from './lib/decisions.js';
 import { isValidThread } from './lib/mailbox.js';
+import { commitPaths } from './lib/commit.js';
 import { irreversibleProblems } from './lib/irreversible.js';
 import { questionListsMarkdown } from './lib/summary.js';
 import path from 'node:path';
@@ -30,7 +31,8 @@ const usage = `Usage:
   decisions.js parked                    parked questions
   decisions.js handoff-questions         markdown lists of queued and parked questions from the log, for a hand-off (never hand-write them)
   decisions.js flush [--task <id>]       prints deferred questions as JSON groups of at most 4 (one AskUserQuestion call each), marks them open
-  decisions.js decide <Q-id> --answer <text> [--link <path or url>] [--by proxy]
+  decisions.js decide <Q-id> --answer <text> [--link <path or url>] [--by proxy] [--chore]
+                                         --chore: also one chore(team) commit of team/, saves the separate git call (g67)
                                          --by proxy: the answer came from the owner proxy (g49); refused for owner-only questions
   decisions.js record --outcome <text> [--thread <id>] [--title <t>] [--link <path or url>]
                                          an outcome without a question; the thread defaults to one made from the title
@@ -79,10 +81,19 @@ function normalize(item, i) {
   return { ...item, thread };
 }
 
+// g67: the lead ran a separate git commit after most decide calls, each one a turn that re-reads the whole context.
+function chore(v, root, what, result) {
+  if (!v.chore) return result;
+  const c = commitPaths(root, ['team'], `chore(team): ${what}`);
+  if (!c.committed) process.stderr.write(`warning: ${c.warning}
+`);
+  return { ...result, commit: c.sha ?? null };
+}
+
 runCli(usage, {
   title: { type: 'string' }, source: { type: 'string' }, status: { type: 'string' }, impact: { type: 'string' },
   blocking: { type: 'string' }, thread: { type: 'string' }, answer: { type: 'string' }, link: { type: 'string' },
-  outcome: { type: 'string' }, file: { type: 'string' }, supersedes: { type: 'string' }, date: { type: 'string' }, defer: { type: 'boolean' }, task: { type: 'string' }, options: { type: 'string' }, recommend: { type: 'string' }, 'finding-class': { type: 'string' }, irreversible: { type: 'boolean' }, by: { type: 'string' }, until: { type: 'string' },
+  outcome: { type: 'string' }, file: { type: 'string' }, supersedes: { type: 'string' }, date: { type: 'string' }, defer: { type: 'boolean' }, task: { type: 'string' }, options: { type: 'string' }, recommend: { type: 'string' }, 'finding-class': { type: 'string' }, irreversible: { type: 'boolean' }, by: { type: 'string' }, until: { type: 'string' }, chore: { type: 'boolean' },
 }, ({ values: v, positionals: [cmd, id], root }) => {
   switch (cmd) {
     case 'show':
@@ -123,9 +134,9 @@ runCli(usage, {
         const config = loadConfig({ pluginRoot, projectRoot: root });
         const problem = proxyDecideProblem(config, q);
         if (problem) throw new UsageError(`Proxy decision refused for ${id}: ${problem}.`);
-        return decide(root, id, { answer: v.answer, link: v.link, by: `owner proxy ${config.ownerProxy.session}` });
+        return chore(v, root, `${id} decided`, decide(root, id, { answer: v.answer, link: v.link, by: `owner proxy ${config.ownerProxy.session}` }));
       }
-      return decide(root, id, { answer: v.answer, link: v.link });
+      return chore(v, root, `${id} decided`, decide(root, id, { answer: v.answer, link: v.link }));
     case 'record': {
       const items = v.file === undefined ? [{ outcome: v.outcome, thread: v.thread, title: v.title, link: v.link, supersedes: v.supersedes }] : readItems(v.file);
       const made = recordOutcomes(root, items.map(normalize));

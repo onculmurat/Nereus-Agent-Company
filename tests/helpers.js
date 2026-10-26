@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 
 // Tests never write into the real ~/.claude/nac/metrics.md (cost.js saves a line there).
 process.env.NAC_METRICS_HOME ??= fs.mkdtempSync(path.join(os.tmpdir(), 'nac metrics home '));
@@ -49,4 +50,11 @@ export function makeGitProject() {
     return git('log', '-1', '--format=%h');
   };
   return { root, git, commit };
+}
+
+// g67: the task-loop skill keeps every rule in short and its full text in reference.md next to it; a rule counts as
+// stated when either file has it (the lead reads reference.md for the detail). SKILL.md's own size is checked apart.
+export function taskLoopText() {
+  const dir = fileURLToPath(new URL('../skills/task-loop/', import.meta.url));
+  return `${fs.readFileSync(path.join(dir, 'reference.md'), 'utf8')}\n${fs.readFileSync(path.join(dir, 'SKILL.md'), 'utf8')}`;
 }

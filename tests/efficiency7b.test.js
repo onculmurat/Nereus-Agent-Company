@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { makeProject, makeGitProject } from './helpers.js';
+import { makeProject, makeGitProject, taskLoopText } from './helpers.js';
 import { validateConfig } from '../scripts/lib/config.js';
 
 const pluginRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -143,7 +143,7 @@ test('security-reviewer runs once per module, over the pack and its diff', () =>
 
 test('planner and task-loop describe the hardening task and the non-blocking rule', () => {
   assert.match(read('agents', 'planner.md'), /hardening task[^\n]*module[^\n]*findings\.js pack/i);
-  const loop = read('skills', 'task-loop', 'SKILL.md');
+  const loop = taskLoopText();
   assert.match(loop, /only non-blocking findings is done/i);
   assert.match(loop, /findingsBatch/);
   assert.match(loop, /findings\.js" close/);

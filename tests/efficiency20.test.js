@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { makeGitProject } from './helpers.js';
+import { makeGitProject, taskLoopText } from './helpers.js';
 import { pluginRoot } from './hooks/run-hook.js';
 import { addEntry } from '../scripts/lib/board.js';
 import { fixCommand } from '../scripts/lib/gate.js';
@@ -77,5 +77,5 @@ test('g44 prose: developers format before commit; the task loop runs --fix, not 
   for (const f of ['backend-developer', 'database-engineer', 'frontend-developer', 'test-engineer']) {
     assert.match(fs.readFileSync(path.join(pluginRoot, 'agents', `${f}.md`), 'utf8'), /Before each commit run the project's formatter on your changes/);
   }
-  assert.match(fs.readFileSync(path.join(pluginRoot, 'skills', 'task-loop', 'SKILL.md'), 'utf8'), /`fixable: true`[\s\S]*gate\.js" --task <id> --fix[\s\S]*not a round/);
+  assert.match(taskLoopText(), /`fixable: true`[\s\S]*gate\.js" --task <id> --fix[\s\S]*not a round/);
 });

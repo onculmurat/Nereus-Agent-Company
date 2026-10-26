@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseFrontmatter } from '../scripts/lib/frontmatter.js';
+import { taskLoopText } from './helpers.js';
 
 const pluginRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = (...p) => fs.readFileSync(path.join(pluginRoot, ...p), 'utf8');
@@ -111,7 +112,7 @@ test('phase 1 research is reviewed by research-reviewer after the check passes',
 
 // Loop engineering: a deterministic test run gates every review, so a reviewer never reads code whose tests fail.
 test('task-loop runs gate.js between implement and review, and a failing gate is a round', () => {
-  const loop = read('skills', 'task-loop', 'SKILL.md');
+  const loop = taskLoopText();
   const gate = loop.indexOf('gate.js');
   const review = loop.indexOf('`code-reviewer`');
   assert.ok(gate >= 0 && review > gate, 'gate runs before the reviewer is spawned');
@@ -170,7 +171,7 @@ test('NOTICE credits superpowers', () => {
 
 // Seen live: every role started at ~14k tokens and explored files itself. Each dispatch passes a context pack instead.
 test('task-loop builds a pack before the implementer, the reviewer and every fix round', () => {
-  const loop = read('skills', 'task-loop', 'SKILL.md');
+  const loop = taskLoopText();
   assert.ok((loop.match(/pack\.js/g) ?? []).length >= 3);
   assert.match(loop, /pack\.js[^\n]*--role code-reviewer --base/);
   assert.match(loop, /Start from the pack\. Do not explore files the pack does not name/);
@@ -179,7 +180,7 @@ test('task-loop builds a pack before the implementer, the reviewer and every fix
 
 // Seen live: two implementers shared one worktree. Parallel tasks get their own worktree and a local, owner-approved integration.
 test('task-loop runs a parallel task in its own worktree and integrates it locally without a push', () => {
-  const loop = read('skills', 'task-loop', 'SKILL.md');
+  const loop = taskLoopText();
   assert.match(loop, /worktree\.js" add <id>/);
   assert.match(loop, /task\/<id>/);
   assert.match(loop, /worktree\.js" integrate <id>/);
@@ -190,7 +191,7 @@ test('task-loop runs a parallel task in its own worktree and integrates it local
 
 // Seen live: the lead session was never restarted and every call re-read an ever larger context.
 test('task-loop rotates the lead session after every task with compaction, every 5 with /clear, or at a milestone end', () => {
-  const loop = read('skills', 'task-loop', 'SKILL.md');
+  const loop = taskLoopText();
   assert.match(loop, /after every task \(g34\)/);
   assert.match(loop, /after every 5 tasks/);
   assert.match(loop, /rotate: true/);
@@ -202,7 +203,7 @@ test('task-loop rotates the lead session after every task with compaction, every
 
 // Seen live: a test printed "skip" and passed. The gate counts runner-reported skips; the review rule catches the rest.
 test('task-loop makes the lead explain every skip before done and says the review rule catches print-and-pass skips', () => {
-  const loop = read('skills', 'task-loop', 'SKILL.md');
+  const loop = taskLoopText();
   assert.match(loop, /`skipped`[^\n]*greater than 0|`skipped > 0`/);
   assert.match(loop, /reason for each skip[^\n]*hand-off[^\n]*before[^\n]*done/i);
   assert.match(loop, /hide[^\n]*stdout of passing tests/i);
