@@ -107,6 +107,10 @@ export function validateConfig(cfg) {
   if (cfg.sharedBuildDirs !== undefined) {
     try { checkDeleteRoots(cfg.sharedBuildDirs); } catch { throw new Error(`sharedBuildDirs must be a list of absolute folders, none a drive root, the home folder or above it; got ${JSON.stringify(cfg.sharedBuildDirs)}`); }
   }
+  if (cfg.testTempDirs !== undefined) {
+    const bad = !Array.isArray(cfg.testTempDirs) ? cfg.testTempDirs : cfg.testTempDirs.find((p) => { const t = parseTestTemp(p); if (!t) return true; try { checkDeleteRoots([t.dir]); return false; } catch { return true; } });
+    if (bad !== undefined) throw new Error(`testTempDirs must be a list of "<absolute folder>/<prefix>*" (prefix of 3 or more characters, no other wildcard; the folder not a drive root, the home folder or above it); got ${JSON.stringify(bad)}`);
+  }
   checkKnownRed(cfg.gateKnownRed);
   checkAlwaysRun(cfg.gateAlwaysRun, cfg.gateCommands);
   checkDeleteRoots(cfg.deleteRoots);
@@ -139,6 +143,12 @@ export function checkAlwaysRun(list, gateCommands) {
     names.add(e.name);
   }
   return list;
+}
+
+// g94: a testTempDirs entry, "<absolute dir>/<prefix>*" with a prefix of 3 or more characters; null when malformed
+export function parseTestTemp(pattern) {
+  const m = typeof pattern === 'string' ? /^(.+)[\\/]([^\\/*?]{3,})\*$/.exec(pattern) : null;
+  return m && path.isAbsolute(m[1]) ? { dir: m[1], prefix: m[2] } : null;
 }
 
 // g62: extra folders the destructive guard lets roles delete inside (the owner's scratch and build folders). Never

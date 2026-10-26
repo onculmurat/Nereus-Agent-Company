@@ -243,6 +243,10 @@ The next session starts with a resume summary: phase, work in progress (with `gi
 
 `team/brief.md`, `decisions.md`, `contracts/`, `research/`, `glossary.md` and `config.json` are meant to be committed. `team/work/` (board, briefs, hand-offs, escalations, mailbox) is committed too; only `team/work/packs/` (generated context packs) is git-ignored. The lead commits it in its own commits, `chore(team): <what>`, after each task is marked done and at each lead rotation, staging explicit paths and never mixing it into a code commit. Setup changes an older `.gitignore` line `team/work/` to `team/work/packs/` and shows the diff first.
 
+## Changes in 1.3.52
+
+- **Test temp leftovers are removed** (g94): every test run leaves its own temp folder, and nothing removed them. In two days Memory Agent had about 14,000 `fakeclaude-*` folders (8 GB) and 48,000 `nim-*` folders (17 GB). Name them in `testTempDirs` (team/config.json) as `"<absolute folder>/<prefix>*"`. The prefix must be 3 or more characters, and the folder must not be a drive root, the home folder or above it. `task.js close` removes the ones older than 6 hours, so a parallel task's fresh run keeps its own, and reports `testTempRemoved`. `worktree.js prune --shared` removes them all when no build runs.
+
 ## Changes in 1.3.51
 
 - **A close names the task's open agents** (g93): in Memory Agent, T-108a's round 1 developer stayed open for two hours after the task closed. NAC does not see the lead's agents, so `task.js close` now returns `agentsNote`. It tells the lead to stop every agent of the task still open, using TaskStop with the agent id and never the process name. The task-loop reference states the same.

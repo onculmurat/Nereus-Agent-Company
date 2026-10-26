@@ -5,6 +5,7 @@ import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { readBoard } from './board.js';
 import { listProcesses } from './gate.js';
+import { parseTestTemp } from './config.js';
 
 const ID_RE = /^[A-Za-z0-9-]{1,64}$/;
 
@@ -130,10 +131,37 @@ export function maintenanceState(root, config = {}) {
   };
 }
 
+// g94: test runs leave one temp folder each (fakeclaude-*, nim-*) and nothing removes them: Memory Agent had ~36 GB
+// of them in two days. A testTempDirs entry names a folder and a name prefix, "<dir>/<prefix>*". task.js close removes
+// the ones older than TEST_TEMP_MIN_AGE_H (a parallel task's fresh run keeps its own); prune --shared, with no build
+// running, removes them all.
+export const TEST_TEMP_MIN_AGE_H = 6;
+
+export function pruneTestTemp(config = {}, { minAgeMs = TEST_TEMP_MIN_AGE_H * 3600e3, now = Date.now() } = {}) {
+  let removed = 0;
+  const failed = [];
+  for (const pattern of config.testTempDirs ?? []) {
+    const t = parseTestTemp(pattern);
+    if (!t) continue;
+    let names = [];
+    try { names = fs.readdirSync(t.dir); } catch { continue; }
+    for (const name of names.filter((n) => n.startsWith(t.prefix))) {
+      const p = path.join(t.dir, name);
+      try {
+        if (minAgeMs > 0 && now - fs.statSync(p).mtimeMs < minAgeMs) continue;
+        fs.rmSync(p, { recursive: true, force: true, maxRetries: 3 });
+        removed++;
+      } catch (err) { failed.push({ path: p, error: err.message }); }
+    }
+  }
+  // tens of thousands of folders: report a count and the first few failures, not every path
+  return { removed, ...(failed.length ? { failed: failed.slice(0, 5), failedCount: failed.length } : {}) };
+}
+
 const BUILD_PROCESS = /(?:^|[\\/\s"])(?:cargo|rustc|clippy-driver)(?:\.exe)?(?=["\s]|$)/i;
 const inside = (d, base) => { const r = path.relative(path.resolve(base), path.resolve(d)); return r !== '' && !r.startsWith('..') && !path.isAbsolute(r); };
 
-// Removes sharedBuildDirs, and the done tasks' build dirs, when no build runs. Each shared dir must lie inside the
+// Removes sharedBuildDirs, the done tasks' build dirs and the testTempDirs leftovers (g94), when no build runs. Each shared dir must lie inside the
 // project or a deleteRoots folder; one outside is refused, not removed.
 export function pruneShared(root, config = {}, { list = listProcesses, deleteRoots = [] } = {}) {
   const busy = list().filter((p) => p.pid !== process.pid && BUILD_PROCESS.test(p.cmd ?? ''));
@@ -149,9 +177,11 @@ export function pruneShared(root, config = {}, { list = listProcesses, deleteRoo
     try { fs.rmSync(d, { recursive: true, force: true, maxRetries: 3 }); removed.push(d); } catch (err) { failed.push({ path: d, error: err.message }); }
   }
   const tasks = pruneTaskBuilds(root, { worktreeRoot: config.worktreeRoot, deleteRoots });
+  const temp = pruneTestTemp(config, { minAgeMs: 0 });
   const after = maintenanceState(root, config);
   return {
-    ok: !failed.length, removed, tasksRemoved: tasks.removed,
+    ok: !failed.length, removed, tasksRemoved: tasks.removed, testTempRemoved: temp.removed,
+    ...(temp.failed ? { testTempFailed: temp.failedCount } : {}),
     ...(refused.length ? { refused, refusedNote: 'outside the project and deleteRoots: not removed' } : {}),
     ...(failed.length ? { failed } : {}),
     ...(after.freeGB !== undefined ? { freeGB: after.freeGB } : {}), ...(after.due ? { maintenance: after } : {}),

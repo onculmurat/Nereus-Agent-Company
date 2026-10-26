@@ -18,6 +18,7 @@ const usage = `Usage:
                                          t105a); task.js close does it for the closed task, gate.js when the drive runs low (g90)
   worktree.js prune --shared             maintenance (g91): when no cargo/rustc runs, removes sharedBuildDirs (team/config.json, each
                                          inside the project or a deleteRoots folder) and the done tasks' build dirs; builds running: busy, exit 1.
+                                         Also removes every testTempDirs leftover ("<dir>/<prefix>*", g94; task.js close removes those older than 6 h).
                                          Due when the drive has less than maintenanceFreeGB (default 20, 0 = off) free: task.js start refuses then
   (all accept --project <dir>; default: nearest directory with team/config.json)
 `;
