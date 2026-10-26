@@ -42,20 +42,29 @@ const isPrefixOf = (t, names, min = 1) => {
 // ---- text handling ---------------------------------------------------------------------------------------------
 
 // Heredoc and here-string bodies are data, not commands.
+// g85: a PowerShell here-string kept its opening @' on the line, a lone quote, so every command with a here-string and a
+// delete verb was blocked as an unbalanced quote (Memory Agent T-078 close: $j = @'...'@, then Remove-Item). The opener
+// now stands as an empty string, and what follows the closing '@ on its line (| Out-File x) is still a command.
 function stripBodies(text, style) {
   const lines = text.replace(/\r\n/g, '\n').split('\n');
   const out = [];
   let end = null;
   for (const line of lines) {
     if (end) {
-      if (style === 'ps' ? line.startsWith(end) : line.trim() === end) end = null;
+      if (style === 'ps' ? line.startsWith(end) : line.trim() === end) {
+        if (style === 'ps') out[out.length - 1] += line.slice(end.length);
+        end = null;
+      }
       continue;
     }
-    out.push(line);
     if (style === 'ps') {
       const h = /@(['"])\s*$/.exec(line);
-      if (h) end = `${h[1]}@`;
+      if (h) {
+        out.push(`${line.slice(0, h.index)}${h[1]}${h[1]}`);
+        end = `${h[1]}@`;
+      } else out.push(line);
     } else {
+      out.push(line);
       const h = /<<-?\s*(['"]?)([A-Za-z_]\w*)\1/.exec(line);
       if (h && !/<<</.test(line)) end = h[2];
     }

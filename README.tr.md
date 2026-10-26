@@ -229,6 +229,10 @@ Sonraki oturum bir devam özetiyle başlar: aşama, süren iş (`git status` ile
 
 `team/brief.md`, `decisions.md`, `contracts/`, `research/`, `glossary.md` ve `config.json` commit'lenmek içindir. `team/work/` (pano, görev özetleri, devir notları, eskalasyonlar, posta kutusu) de commit'lenir; yalnız `team/work/packs/` (üretilen bağlam paketleri) git dışındadır. Lider bunu kendi commit'lerinde, `chore(team): <ne>`, her görev bittiğinde ve her lider rotasyonunda, açık yolları ekleyerek commit'ler; kod commit'lerine karıştırmaz. Kurulum eski `.gitignore` satırını `team/work/` yerine `team/work/packs/` yapar ve önce farkı gösterir.
 
+## 1.3.44 değişiklikleri
+
+- **PowerShell here-string'i silmeyi dengesiz tırnak diye engellemiyor** (g85): silme koruması here-string'in açılış `@'` işaretini satırda tek başına bir tırnak olarak bırakıyordu; here-string ve silme kelimesi içeren her PowerShell komutu engelleniyordu (Memory Agent T-078 kapanışı: bulgu JSON'u `$j = @'...'@` içinde, ardından geçici dosyanın `Remove-Item` ile silinmesi). Açılış artık boş bir dize sayılıyor; kapanış `'@` satırında ardından gelen komut yine denetleniyor.
+
 ## 1.3.43 değişiklikleri
 
 - **Silme koruması gateTmp içindeki silmeye izin veriyor** (g84): gate'in geçici klasöründeki test artıklarını silen bir rol (Memory Agent T-106: `rm -rf D:/nac-tmp/t032b-fi-docs-*`) proje ve geçici klasör dışında sayılıp engellendi. `team/config.json` içindeki `gateTmp` artık bir `deleteRoots` klasörü gibi sayılıyor: içindeki silmeler serbest, klasörün kendisi ve yanındakiler değil. Sürücü kökü ya da ev klasörü olan bir `gateTmp` hiçbir şey eklemiyor.
