@@ -58,7 +58,7 @@ After a restart, quota stop or new session, read its hand-off first (`team/work/
 
 ## Session rotation
 
-With compaction (`autoCompactWindow`) the lead rotates after every task (g34); with `/clear` every 5 tasks; `rotateEvery` overrides. `task.js close` writes the lead hand-off itself when the rotation is due (`rotate: true`, `rotateBy`, `leadHandoff`), so give every close a `--lead-note`. By hand (milestone end): the lead hand-off with the output of `decisions.js handoff-questions` (never hand-written lists), `board.js rotated`, `team-commit.js`. `compaction`: carry on, do not ask for `/clear`. `clear`: tell the owner to run `/clear`, then "devam". Detail: reference.md "Session rotation".
+With compaction (`autoCompactWindow`) the lead rotates after every task (g34); with `/clear` every 5 tasks; `rotateEvery` overrides, and `rotateBy` in `team/config.json` picks the way (g76: `clear` starts the next task at ~37k, a compaction at ~62k). `task.js close` writes the lead hand-off itself when the rotation is due (`rotate: true`, `rotateBy`, `leadHandoff`), so give every close a `--lead-note`. By hand (milestone end): the lead hand-off with the output of `decisions.js handoff-questions` (never hand-written lists), `board.js rotated`, `team-commit.js`. `compaction`: carry on, do not ask for `/clear`. `clear`: tell the owner (and the owner proxy) to run `/clear`, then "devam"; wait, and if "devam" comes without `/clear`, carry on in this session. Detail: reference.md "Session rotation".
 
 ## Parallel tasks
 

@@ -22,7 +22,9 @@ export const COMPACTION_ROTATE_EVERY = 1;
 const CODE_OWNERS = ['backend-developer', 'frontend-developer', 'database-engineer', 'test-engineer'];
 
 // g15: with compaction configured the lead rotates by hand-off and autocompact; /clear is for projects without it.
-export function rotationWay(root) {
+// g76: rotateBy in the config wins; a compaction leaves the summary and the reloaded files (~62k), /clear starts at ~37k.
+export function rotationWay(root, config = {}) {
+  if (config.rotateBy) return config.rotateBy;
   try {
     return hasCompactionSettings(root) ? 'compaction' : 'clear';
   } catch {
@@ -30,9 +32,11 @@ export function rotationWay(root) {
   }
 }
 
-// rotateEvery from the config wins; else every task with compaction, every 5 tasks with /clear (an owner step each time).
+// rotateEvery from the config wins; else every task with compaction or a rotateBy the owner set, every 5 tasks with
+// /clear (an owner step each time).
 export function rotationEvery(root, config = {}) {
   if (config.rotateEvery !== undefined) return config.rotateEvery;
+  if (config.rotateBy) return COMPACTION_ROTATE_EVERY;
   return rotationWay(root) === 'compaction' ? COMPACTION_ROTATE_EVERY : ROTATE_EVERY;
 }
 
@@ -153,7 +157,7 @@ export function closeTask(root, id, { commit, singleCommit, findings = [], leadN
   return {
     id, status: entry.status, commits: entry.commits,
     findings: added.map((f) => ({ id: f.id, module: f.module, severity: f.severity, hardeningDue: f.hardeningDue })),
-    cost, rotate, ...(rotate ? { rotateBy: rotationWay(root), leadHandoff } : {}),
+    cost, rotate, ...(rotate ? { rotateBy: rotationWay(root, config), leadHandoff } : {}),
     commit: committed, ...(warnings.length ? { warnings } : {}),
   };
 }

@@ -95,6 +95,7 @@ export function validateConfig(cfg) {
     if (c.softMargin !== undefined && (!Number.isInteger(c.softMargin) || c.softMargin < 1)) throw new Error(`compaction.softMargin must be a positive integer; got ${JSON.stringify(c.softMargin)}`);
   }
   if (cfg.rotateEvery !== undefined && (!Number.isInteger(cfg.rotateEvery) || cfg.rotateEvery < 1)) throw new Error(`rotateEvery must be a positive integer; got ${JSON.stringify(cfg.rotateEvery)}`);
+  if (cfg.rotateBy !== undefined && !['clear', 'compaction'].includes(cfg.rotateBy)) throw new Error(`rotateBy must be "clear" or "compaction"; got ${JSON.stringify(cfg.rotateBy)}`);
   if (cfg.gateWaitSeconds !== undefined && (!Number.isInteger(cfg.gateWaitSeconds) || cfg.gateWaitSeconds < 0)) throw new Error(`gateWaitSeconds must be a whole number of seconds, 0 or more; got ${JSON.stringify(cfg.gateWaitSeconds)}`);
   if (cfg.gateCheckSeconds !== undefined && (!Number.isInteger(cfg.gateCheckSeconds) || cfg.gateCheckSeconds < 0)) throw new Error(`gateCheckSeconds must be a whole number of seconds, 0 (no deadline) or more; got ${JSON.stringify(cfg.gateCheckSeconds)}`);
   if (cfg.gateScope !== undefined && !['task', 'full'].includes(cfg.gateScope)) throw new Error(`gateScope must be "task" or "full"; got ${JSON.stringify(cfg.gateScope)}`);

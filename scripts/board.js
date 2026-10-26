@@ -80,7 +80,7 @@ const commands = {
       config = loadConfig({ pluginRoot: path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..'), projectRoot: root });
     } catch { /* the default rotation then */ }
     const rotate = rotationDue(root, rotationEvery(root, config));
-    return { ...entry, rotate, ...(rotate ? { rotateBy: rotationWay(root) } : {}), ...(cost ? { cost: { file: cost.file, created: cost.created } } : {}) };
+    return { ...entry, rotate, ...(rotate ? { rotateBy: rotationWay(root, config) } : {}), ...(cost ? { cost: { file: cost.file, created: cost.created } } : {}) };
   },
   review: ({ values: v, positionals: [, id], root }) => {
     need(v, 'role', 'verdict');
