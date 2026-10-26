@@ -37,9 +37,9 @@ export function addWorktree(root, id, opts) {
 }
 
 // g50: a build dir kept outside the worktree (a full drive, a second profile) lives beside it as target-<id>[-suffix];
-// remove deletes those with the worktree. Ids are checked, so the match never leaves the worktree base.
+// remove deletes those with the worktree. g81: the task's tmp-<id> folders beside it go too (T-060, T-097, T-099 stayed). Ids are checked, so the match never leaves the worktree base.
 function removeBuildDirs(base, id) {
-  const name = new RegExp(`^target-${id.replace(/-/g, '\\-')}(?:-.*)?$`, 'i');
+  const name = new RegExp(`^(?:target|tmp)-${id.replace(/-/g, '\\-')}(?:-.*)?$`, 'i');
   let entries = [];
   try { entries = fs.readdirSync(base, { withFileTypes: true }); } catch { return []; }
   const removed = [];

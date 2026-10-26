@@ -243,6 +243,10 @@ The next session starts with a resume summary: phase, work in progress (with `gi
 
 `team/brief.md`, `decisions.md`, `contracts/`, `research/`, `glossary.md` and `config.json` are meant to be committed. `team/work/` (board, briefs, hand-offs, escalations, mailbox) is committed too; only `team/work/packs/` (generated context packs) is git-ignored. The lead commits it in its own commits, `chore(team): <what>`, after each task is marked done and at each lead rotation, staging explicit paths and never mixing it into a code commit. Setup changes an older `.gitignore` line `team/work/` to `team/work/packs/` and shows the diff first.
 
+## Changes in 1.3.40
+
+- **The gate cleans up the tests' temporary folders** (g81): the project's tests left their `nim-*` folders behind on every run (Memory Agent: ~10 GB in gateTmp, 38k folders on C:). With `gateTmp` set, each gate run gets its own `gate-<pid>-<time>` folder in it and removes it when the run ends, green or red; parallel runs never delete each other's files. Removing a worktree also removes the task's `tmp-<id>` folders beside it.
+
 ## Changes in 1.3.39
 
 - **The pack names what the project's rules refuse** (g79): Memory Agent T-101 and T-102 briefs told the role to pull a module in with `#[path]`, which the project's unsafe_policy R1 refuses; T-101 lost round 1 to it. `briefForbid` in `team/config.json` (a list of `{ text, rule }`) is checked against the brief when the first pack is built; a match comes back as `briefForbidden` with a note to fix the brief before the dispatch.
