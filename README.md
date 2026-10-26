@@ -243,6 +243,10 @@ The next session starts with a resume summary: phase, work in progress (with `gi
 
 `team/brief.md`, `decisions.md`, `contracts/`, `research/`, `glossary.md` and `config.json` are meant to be committed. `team/work/` (board, briefs, hand-offs, escalations, mailbox) is committed too; only `team/work/packs/` (generated context packs) is git-ignored. The lead commits it in its own commits, `chore(team): <what>`, after each task is marked done and at each lead rotation, staging explicit paths and never mixing it into a code commit. Setup changes an older `.gitignore` line `team/work/` to `team/work/packs/` and shows the diff first.
 
+## Changes in 1.3.33
+
+- **The destructive-command guard reads `node -e '...'` edits correctly** (g72): a developer edited a Rust test with `node -e '...'`; the guard read the JS template literals inside the single quotes as `` `...` `` substitutions and `rest.find(` as the `find` command, and blocked the edit as an unbalanced quote. The developer retried it once unchanged and then redid it with four Edit calls. In Bash, single-quoted text now has no substitutions, and a method call (`.find(`, `.remove`) is not a delete command. Real deletes in `` `...` ``, `$( )` and after a quoted word are still checked.
+
 ## Changes in 1.3.32
 
 - **The lead runs the gate in the foreground** (g71): the lead ran `gate.js` as a background shell; Claude Code stopped it under memory pressure while the session waited, the gate result was lost and the lead had to ask before it ran it again. The task-loop skill now says to run the gate in the foreground with the tool timeout at its maximum (600000 ms); the roles already had this rule (g31).

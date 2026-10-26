@@ -229,6 +229,10 @@ Sonraki oturum bir devam özetiyle başlar: aşama, süren iş (`git status` ile
 
 `team/brief.md`, `decisions.md`, `contracts/`, `research/`, `glossary.md` ve `config.json` commit'lenmek içindir. `team/work/` (pano, görev özetleri, devir notları, eskalasyonlar, posta kutusu) de commit'lenir; yalnız `team/work/packs/` (üretilen bağlam paketleri) git dışındadır. Lider bunu kendi commit'lerinde, `chore(team): <ne>`, her görev bittiğinde ve her lider rotasyonunda, açık yolları ekleyerek commit'ler; kod commit'lerine karıştırmaz. Kurulum eski `.gitignore` satırını `team/work/` yerine `team/work/packs/` yapar ve önce farkı gösterir.
 
+## 1.3.33 değişiklikleri
+
+- **Yıkıcı komut koruması `node -e '...'` düzenlemelerini doğru okuyor** (g72): bir geliştirici bir Rust testini `node -e '...'` ile düzenledi; koruma tek tırnak içindeki JS şablon dizgilerini `` `...` `` komut yerine koyma, `rest.find(` çağrısını da `find` komutu sandı ve düzenlemeyi dengesiz tırnak diye engelledi. Geliştirici komutu bir kez aynen yeniden denedi, sonra dört Edit çağrısıyla yeniden yaptı. Bash'te tek tırnaklı metinde artık komut yerine koyma yok; bir metod çağrısı (`.find(`, `.remove`) silme komutu sayılmıyor. `` `...` ``, `$( )` içindeki ve tırnaklı bir sözcükten sonraki gerçek silmeler hâlâ denetleniyor.
+
 ## 1.3.32 değişiklikleri
 
 - **Lider gate'i ön planda koşuyor** (g71): lider `gate.js`'i arka plan kabuğunda koştu; oturum beklerken Claude Code bellek baskısı yüzünden onu durdurdu, gate sonucu kayboldu ve lider yeniden koşmak için onay istemek zorunda kaldı. task-loop skill'i artık gate'in ön planda, araç zaman aşımı en yüksek değerde (600000 ms) koşmasını söylüyor; rollerde bu kural zaten vardı (g31).
