@@ -219,6 +219,7 @@ test('g33: task.js close records findings, done, cost and commits team/ in one c
   assert.equal(out.findings.length, 1);
   assert.equal(listFindings(p.root, { open: true })[0].task, 'T-001');
   assert.equal(out.rotate, false);
+  assert.match(out.agentsNote, /TaskStop by its agent id/);
   assert.equal(p.git('log', '-1', '--format=%s'), 'chore(team): T-001 done');
   assert.equal(p.git('status', '--porcelain', '--', 'team'), '');
 });
