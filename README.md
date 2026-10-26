@@ -243,6 +243,10 @@ The next session starts with a resume summary: phase, work in progress (with `gi
 
 `team/brief.md`, `decisions.md`, `contracts/`, `research/`, `glossary.md` and `config.json` are meant to be committed. `team/work/` (board, briefs, hand-offs, escalations, mailbox) is committed too; only `team/work/packs/` (generated context packs) is git-ignored. The lead commits it in its own commits, `chore(team): <what>`, after each task is marked done and at each lead rotation, staging explicit paths and never mixing it into a code commit. Setup changes an older `.gitignore` line `team/work/` to `team/work/packs/` and shows the diff first.
 
+## Changes in 1.3.53
+
+- **An answered question no longer blocks compaction** (g95): in Memory Agent, Q-207 was answered at 20:40 but never recorded, and it stayed open after its task T-110a was done. An open owner question is a hard condition, so it blocked every auto compaction up to the 220K ceiling. With a 100K window, auto compaction never ran. An open question whose `task` is done on the board is now a soft condition: the compaction hand-off lists it, and the deferral limit (`softMargin`) lets compaction run.
+
 ## Changes in 1.3.52
 
 - **Test temp leftovers are removed** (g94): every test run leaves its own temp folder, and nothing removed them. In two days Memory Agent had about 14,000 `fakeclaude-*` folders (8 GB) and 48,000 `nim-*` folders (17 GB). Name them in `testTempDirs` (team/config.json) as `"<absolute folder>/<prefix>*"`. The prefix must be 3 or more characters, and the folder must not be a drive root, the home folder or above it. `task.js close` removes the ones older than 6 hours, so a parallel task's fresh run keeps its own, and reports `testTempRemoved`. `worktree.js prune --shared` removes them all when no build runs.

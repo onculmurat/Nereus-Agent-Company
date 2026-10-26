@@ -6,9 +6,9 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { makeGitProject } from './helpers.js';
 import { runHook, pluginRoot } from './hooks/run-hook.js';
-import { addEntry, updateEntry } from '../scripts/lib/board.js';
+import { addEntry, updateEntry, readBoard } from '../scripts/lib/board.js';
 import { addQuestion } from '../scripts/lib/decisions.js';
-import { contextTokens } from '../scripts/lib/compact.js';
+import { contextTokens, compactConditions } from '../scripts/lib/compact.js';
 import { planSetup } from '../scripts/lib/setup.js';
 import { loadConfig, validateConfig } from '../scripts/lib/config.js';
 const SC = { singleCommit: 'test fixture' };
@@ -109,6 +109,21 @@ test('a pending owner question blocks; a deferred one does not (g25)', () => {
   const r = pre(p2, 150000);
   assert.equal(r.status, 2);
   assert.match(r.stderr, /question/);
+});
+
+test('an open question whose task is done is soft, not hard (g95)', () => {
+  const p = cleanProject();
+  const done = readBoard(p.root).entries.find((e) => e.status === 'done').id;
+  addQuestion(p.root, { title: 'q?', source: 's', status: 'st', impact: 'i', blocking: 'yes', task: done });
+  commitAll(p);
+  const c = compactConditions(p.root);
+  assert.deepEqual(c.hard, []);
+  assert.match(c.soft.join(' '), new RegExp(`${done} is done`));
+  const p2 = cleanProject();
+  const open = addEntry(p2.root, { title: 'open task', owner: 'backend-developer', model: 'sonnet' });
+  addQuestion(p2.root, { title: 'q?', source: 's', status: 'st', impact: 'i', blocking: 'yes', task: open.id });
+  commitAll(p2);
+  assert.match(compactConditions(p2.root).hard.join(' '), /not answered yet/);
 });
 
 test('at or above the ceiling compaction is allowed even when conditions fail', () => {
