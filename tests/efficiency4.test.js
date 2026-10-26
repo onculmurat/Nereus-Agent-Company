@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { makeProject } from './helpers.js';
+import { makeProject, taskLoopText } from './helpers.js';
 import { addEntry, updateEntry, setPhase, readBoard } from '../scripts/lib/board.js';
 
 const scripts = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'scripts');
@@ -64,7 +64,7 @@ test('the planner is told to keep research roles out of the build phase', () => 
 const read = (p) => fs.readFileSync(new URL(`../${p}`, import.meta.url), 'utf8');
 
 test('task-loop commits team/work changes as chore(team) after each done task and at rotation, never with code', () => {
-  const loop = read('skills/task-loop/SKILL.md');
+  const loop = taskLoopText();
   const done = loop.split('## Session rotation')[0];
   assert.match(done, /9\. \*\*Commit the team state\.\*\*[^\n]*`chore\(team\): [^`]*`[^\n]*explicit paths[^\n]*never[^\n]*code commit/);
   const rotation = loop.split('## Session rotation')[1].split('## Parallel tasks')[0];

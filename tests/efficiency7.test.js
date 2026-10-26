@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { makeProject } from './helpers.js';
+import { makeProject, taskLoopText } from './helpers.js';
 
 const pluginRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = (...p) => fs.readFileSync(path.join(pluginRoot, ...p), 'utf8');
@@ -64,7 +64,7 @@ test('question-protocol and task-loop describe defer, flush and the 4-question c
   assert.match(qp, /--defer/);
   assert.match(qp, /decisions\.js" flush/);
   assert.match(qp, /one `AskUserQuestion` call[^\n]*up to 4/);
-  assert.match(read('skills', 'task-loop', 'SKILL.md'), /flush --task <id>/);
+  assert.match(taskLoopText(), /flush --task <id>/);
 });
 
 // Item 4: decision batching.
@@ -128,7 +128,7 @@ test('amend changes a field of an existing decision in place', () => {
 });
 
 test('lead skills forbid hand edits of decisions.md and keep builds out of the lead', () => {
-  const loop = read('skills', 'task-loop', 'SKILL.md');
+  const loop = taskLoopText();
   assert.match(loop, /never Edit `team\/decisions\.md` by hand[^\n]*record[^\n]*amend[^\n]*--supersedes/i);
   assert.match(loop, /lead does not run builds or tests itself[^\n]*gate script/i);
 });
@@ -175,5 +175,5 @@ test('an untagged task needs no review; review rejects an unknown verdict, role 
 
 test('planner tags security tasks and the lead skill says contract tasks need security-reviewer before done', () => {
   assert.match(read('agents', 'planner.md'), /`security: yes`[^\n]*threat-model[^\n]*auth[^\n]*crypto[^\n]*secret[^\n]*`security\/`/i);
-  assert.match(read('skills', 'task-loop', 'SKILL.md'), /`security: contract`[^\n]*security-reviewer[^\n]*before[^\n]*done[^\n]*board\.js review/i);
+  assert.match(taskLoopText(), /`security: contract`[^\n]*security-reviewer[^\n]*before[^\n]*done[^\n]*board\.js review/i);
 });

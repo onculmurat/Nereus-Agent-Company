@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { makeProject } from './helpers.js';
+import { makeProject, taskLoopText } from './helpers.js';
 import { addLesson, readLessons, sharedLessonsPath } from '../scripts/lib/lessons.js';
 
 const scripts = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'scripts');
@@ -90,7 +90,7 @@ test('CLI add and show use HOME for the shared file and never the real one', () 
 
 test('the lessons rules are in task-loop, escalation and phase-report, and the owner decides what becomes a rule', () => {
   const read = (p) => fs.readFileSync(path.join(scripts, '..', p), 'utf8');
-  const loop = read('skills/task-loop/SKILL.md');
+  const loop = taskLoopText();
   assert.match(loop, /lessons\.js" add/);
   assert.match(loop, /repeats the same mistake/);
   assert.match(loop, /owner corrects the lead/);

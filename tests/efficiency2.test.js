@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { parseFrontmatter } from '../scripts/lib/frontmatter.js';
 import { validateConfig, loadConfig } from '../scripts/lib/config.js';
 import { buildPack } from '../scripts/lib/pack.js';
-import { makeProject } from './helpers.js';
+import { makeProject, taskLoopText } from './helpers.js';
 
 const pluginRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = (...p) => fs.readFileSync(path.join(pluginRoot, ...p), 'utf8');
@@ -78,7 +78,7 @@ test('every agent file sets maxTurns to the turn budget plus 5 turns to write th
 });
 
 test('task-loop explains the 5-turn margin between the budget and maxTurns', () => {
-  assert.match(read('skills', 'task-loop', 'SKILL.md'), /`maxTurns` is the budget plus 5/);
+  assert.match(taskLoopText(), /`maxTurns` is the budget plus 5/);
 });
 
 test('the pack header states the budget from the config', () => {
@@ -94,7 +94,7 @@ test('the pack header states the budget from the config', () => {
 });
 
 test('task-loop says what the lead does when a role reports the budget hit', () => {
-  const loop = read('skills', 'task-loop', 'SKILL.md');
+  const loop = taskLoopText();
   assert.match(loop, /^## Turn budget$/m);
   assert.match(loop, /fresh pack/i);
   assert.match(loop, /same round, not a new round/i);
@@ -104,7 +104,7 @@ test('task-loop says what the lead does when a role reports the budget hit', () 
 
 // Item 2: fix rounds and re-reviews get only the delta.
 test('task-loop step 6 uses the delta pack for every role in a fix round or re-review', () => {
-  const step = read('skills', 'task-loop', 'SKILL.md').split(/^6\. /m)[1].split(/^7\. /m)[0];
+  const step = taskLoopText().split(/^6\. /m)[1].split(/^7\. /m)[0];
   assert.match(step, /--round <n>/);
   assert.match(step, /--findings/);
   assert.match(step, /--base/);

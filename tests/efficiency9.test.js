@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { makeProject } from './helpers.js';
+import { makeProject, taskLoopText } from './helpers.js';
 
 const pluginRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = (...p) => fs.readFileSync(path.join(pluginRoot, ...p), 'utf8');
@@ -144,7 +144,7 @@ test('A1 a normal task pack has no hardening note', () => {
 });
 
 test('A1 guidance lives in skills and agents: invariant brief, blocker rule, review scope, no lead growth', () => {
-  const loop = read('skills', 'task-loop', 'SKILL.md');
+  const loop = taskLoopText();
   assert.match(loop, /violated invariant/);
   assert.match(loop, /every route/);
   assert.match(loop, /--decision/);
@@ -297,7 +297,7 @@ test('A5 still too large after leaving tests out (or no tests): stop with exit 3
 });
 
 test('A5 task-loop documents the tolerance and the test-file step', () => {
-  const loop = read('skills', 'task-loop', 'SKILL.md');
+  const loop = taskLoopText();
   assert.match(loop, /25%/);
   assert.match(loop, /test files/);
 });

@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { taskLoopText } from './helpers.js';
 
 const pluginRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = (...p) => fs.readFileSync(path.join(pluginRoot, ...p), 'utf8');
@@ -58,7 +59,7 @@ test('the lead prompt states the same rules in its own words and stays short', (
 });
 
 test('task-loop and escalation: fixes go to the owning role, to-lead means decide or escalate', () => {
-  const loop = read('skills', 'task-loop', 'SKILL.md');
+  const loop = taskLoopText();
   assert.match(loop, /The lead never fixes a role's output itself/);
   assert.match(loop, /`to-lead` means you decide, re-plan or escalate/);
   const esc = read('skills', 'escalation', 'SKILL.md');
@@ -81,7 +82,7 @@ test('task-loop and question-protocol: automation first, owner steps as exact mi
 
 test('the board rounds field is the only round count: skills say so and nothing tells a role to count', () => {
   assert.match(read('skills', 'escalation', 'SKILL.md'), /`rounds` field of the board entry is the only round count/);
-  assert.match(read('skills', 'task-loop', 'SKILL.md'), /`rounds` field of the board entry is the only round count/);
+  assert.match(taskLoopText(), /`rounds` field of the board entry is the only round count/);
   const files = [...walk(path.join(pluginRoot, 'agents')), ...walk(path.join(pluginRoot, 'skills')), ...walk(path.join(pluginRoot, 'templates')), ...walk(path.join(pluginRoot, 'prompts'))];
   const offenders = [];
   for (const file of files) {
@@ -104,7 +105,7 @@ test('commands/questions.md follows the batching rule', () => {
 });
 
 test('task-loop tells the lead to read commit hashes from git', () => {
-  const loop = read('skills', 'task-loop', 'SKILL.md');
+  const loop = taskLoopText();
   assert.match(loop, /git log -1 --format=%h/);
   assert.match(loop, /reachable from HEAD/);
 });

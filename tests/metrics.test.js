@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { makeProject } from './helpers.js';
+import { makeProject, taskLoopText } from './helpers.js';
 import { projectSlug, buildCostReport, buildMetricRows, saveMetrics } from '../scripts/lib/cost.js';
 import { buildPhaseReport } from '../scripts/lib/summary.js';
 // These tests point HOME at a temp dir themselves; helpers.js sets NAC_METRICS_HOME for the others.
@@ -183,7 +183,7 @@ test('team/metrics/ is committed: setup does not ignore it', () => {
 });
 
 test('task-loop saves the cost after each done task; phase-report compares with the baseline', () => {
-  const loop = read('skills', 'task-loop', 'SKILL.md');
+  const loop = taskLoopText();
   assert.match(loop, /cost.js" --save --task <id>/);
   assert.match(loop, /chore\(team\)/);
   const report = read('skills', 'phase-report', 'SKILL.md');

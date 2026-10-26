@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawn, spawnSync } from 'node:child_process';
-import { makeGitProject } from './helpers.js';
+import { makeGitProject, taskLoopText } from './helpers.js';
 import { runHook, pluginRoot } from './hooks/run-hook.js';
 import { addEntry, updateEntry, readBoard, recordReview } from '../scripts/lib/board.js';
 import { addQuestion } from '../scripts/lib/decisions.js';
@@ -314,7 +314,7 @@ test('g34: setup --compaction --window replaces autoCompactWindow and refuses le
 });
 
 test('g33/g34: the task-loop skill uses task.js start and close and rotates every task with compaction', () => {
-  const skill = fs.readFileSync(path.join(pluginRoot, 'skills', 'task-loop', 'SKILL.md'), 'utf8');
+  const skill = taskLoopText();
   assert.match(skill, /task\.js" start <id>/);
   assert.match(skill, /task\.js" close <id>/);
   assert.match(skill, /task\.js" note <id>/);

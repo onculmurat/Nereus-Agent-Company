@@ -6,7 +6,7 @@ import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { planSetup, teamCommitRules, planPermissions, applyPermissions } from '../scripts/lib/setup.js';
 import { loadConfig } from '../scripts/lib/config.js';
-import { makeProject, makeGitProject } from './helpers.js';
+import { makeProject, makeGitProject, taskLoopText } from './helpers.js';
 
 const pluginRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const config = loadConfig({ pluginRoot, userConfigPath: null, projectRoot: null });
@@ -64,6 +64,6 @@ test('setup.js --permissions --dry-run writes nothing and names the rule', () =>
 });
 
 test('task-loop tells the lead to run team-commit.js on its own, not chained', () => {
-  const skill = fs.readFileSync(path.join(pluginRoot, 'skills', 'task-loop', 'SKILL.md'), 'utf8');
+  const skill = taskLoopText();
   assert.match(skill, /team-commit\.js[^\n]*on its own/);
 });

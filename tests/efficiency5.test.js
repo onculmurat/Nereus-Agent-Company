@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { makeGitProject } from './helpers.js';
+import { makeGitProject, taskLoopText } from './helpers.js';
 import { buildPack } from '../scripts/lib/pack.js';
 import { validateConfig } from '../scripts/lib/config.js';
 
@@ -113,7 +113,7 @@ test('item 1: a pack below packMaxChars exits 0 without a warning; --paths bring
 });
 
 test('item 1: task-loop builds fix-round packs with --paths and treats a size warning as a stop', () => {
-  const loop = read('skills', 'task-loop', 'SKILL.md');
+  const loop = taskLoopText();
   assert.match(loop, /--paths/);
   assert.match(loop, /never dispatch/i);
   assert.match(loop, /packMaxChars/);
