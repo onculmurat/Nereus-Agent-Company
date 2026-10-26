@@ -11,7 +11,7 @@ import { validateConfig } from '../scripts/lib/config.js';
 const gateCli = path.join(pluginRoot, 'scripts', 'gate.js');
 const defaults = JSON.parse(fs.readFileSync(path.join(pluginRoot, 'defaults', 'config.json'), 'utf8'));
 const env = { ...process.env, NAC_GATE_WAIT_SECONDS: '0' };
-const check = `node -e "const t=process.env.TMP;process.exit(t&&t===process.env.TEMP&&t===process.env.TMPDIR&&t.endsWith('gtmp')?0:1)"`;
+const check = `node -e "const t=process.env.TMP;process.exit(t&&t===process.env.TEMP&&t===process.env.TMPDIR&&require('path').basename(require('path').dirname(t))==='gtmp'?0:1)"`;
 
 // Seen live (Memory Agent T-101, 10-26): the lead runs the gate from the PowerShell tool, which has the Windows user
 // TMP (C:\Users\...\Temp); the unsafe_policy tests wrote their temporary files to the full C: drive.

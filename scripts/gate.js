@@ -29,7 +29,8 @@ const usage = `Usage:
                       (default 1, 0 to 3); red then green is reported in flaky and is not a round (g64)
                       a red test check names its failed tests in failed (check: test) and the first lines of each
                       one's panic in checks[].failures (g65)
-                      gateTmp (team/config.json, a folder) sets TMP, TEMP and TMPDIR for every check (g77)
+                      gateTmp (team/config.json, a folder) sets TMP, TEMP and TMPDIR for every check (g77) to a gate-<pid>-<time>
+                      folder in it that is removed when the run ends (g81)
                       a scoped gate also runs gateAlwaysRun ({ name, command } list in team/config.json), checks that read
                       every package (a cross-target build policy test) and so are in no changed package (g66)
   gate.js --task <id> --full
@@ -67,10 +68,22 @@ runCli(usage, { task: { type: 'string' }, fix: { type: 'boolean' }, full: { type
   const knownRed = config.gateKnownRed ?? [];
   // g77: the checks inherit TMP/TEMP from the caller; a lead on the PowerShell tool has the Windows user value (C:),
   // so gateTmp sends the tests' temporary files to a folder the owner chose
+  // g81: the tests left their temporary folders behind (Memory Agent: ~10 GB in gateTmp, 38k folders on C:); each run
+  // gets its own folder under gateTmp and removes it at the end, so parallel gates never delete each other's files
+  let runTmp;
   if (config.gateTmp) {
-    fs.mkdirSync(config.gateTmp, { recursive: true });
-    for (const k of ['TMP', 'TEMP', 'TMPDIR']) process.env[k] = config.gateTmp;
+    runTmp = path.join(config.gateTmp, `gate-${process.pid}-${Date.now()}`);
+    fs.mkdirSync(runTmp, { recursive: true });
+    for (const k of ['TMP', 'TEMP', 'TMPDIR']) process.env[k] = runTmp;
   }
+  try {
+    return runChecks();
+  } finally {
+    if (runTmp) {
+      try { fs.rmSync(runTmp, { recursive: true, force: true, maxRetries: 3 }); } catch { /* a locked file stays; the next run has its own folder */ }
+    }
+  }
+  function runChecks() {
   // g31: wait while another run of a check program loads the machine; report it when it outlasts gateWaitSeconds
   // (NAC_GATE_WAIT_SECONDS overrides it for one run; the test suite sets 0)
   const env = process.env.NAC_GATE_WAIT_SECONDS;
@@ -98,4 +111,5 @@ runCli(usage, { task: { type: 'string' }, fix: { type: 'boolean' }, full: { type
     ...(stale.length ? { knownRedPassed: stale, knownRedPassedNote: `${stale.join(', ')} passed: remove it from gateKnownRed in team/config.json and close its finding.` } : {}),
   };
   return { ...result, tree, scope: always.length ? { ...scoped.scope, alwaysRun: always.map((c) => c.name) } : scoped.scope, ...(failed.length ? { failed } : {}), ...knownNote, ...hang, ...(idle.waited ? { waited: idle.waited } : {}), ...busy };
+  }
 });
