@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { readBoard, updateEntry, commitsWith, rotationDue, markRotated, ROTATE_EVERY } from './board.js';
-import { addWorktree, removeWorktree, pruneTaskBuilds, maintenanceState } from './worktree.js';
+import { addWorktree, removeWorktree, pruneTaskBuilds, maintenanceState, pruneTestTemp, TEST_TEMP_MIN_AGE_H } from './worktree.js';
 import { writePack } from './pack.js';
 import { commitPaths } from './commit.js';
 import { ensureCostFile } from './cost.js';
@@ -180,11 +180,15 @@ export function closeTask(root, id, { commit, singleCommit, findings = [], leadN
   }
   // g90: a done task's build output (target-<id> beside the worktree, deleteRoots folders named after it) goes now
   let builds = null;
+  let testTemp = null;
   try {
     const cfg = loadConfig({ pluginRoot, projectRoot: root });
     let roots = [];
     try { roots = checkDeleteRoots(cfg.deleteRoots); } catch { /* a bad list removes nothing there */ }
     builds = pruneTaskBuilds(root, { worktreeRoot: cfg.worktreeRoot, deleteRoots: roots, ids: [id] });
+    // g94: test temp folders older than TEST_TEMP_MIN_AGE_H go too
+    testTemp = pruneTestTemp(cfg);
+    if (testTemp.failed) warnings.push(`${testTemp.failedCount} test temp folder(s) older than ${TEST_TEMP_MIN_AGE_H} h not removed (first: ${testTemp.failed[0].path}): a process still holds them; worktree.js prune --shared removes them when no build runs`);
     if (builds.failed) warnings.push(`build dirs of ${id} not removed (${builds.failed.map((f) => f.path).join(', ')}): a process still holds them; run worktree.js prune when it ends`);
   } catch (err) {
     warnings.push(`build dirs of ${id} not checked (${err.message}); run worktree.js prune`);
@@ -206,7 +210,7 @@ export function closeTask(root, id, { commit, singleCommit, findings = [], leadN
   return {
     id, status: entry.status, commits: entry.commits,
     findings: added.map((f) => ({ id: f.id, module: f.module, severity: f.severity, hardeningDue: f.hardeningDue })),
-    cost, ...(maintenance ? { maintenance } : {}), ...(builds?.removed.length ? { buildsRemoved: builds.removed.map((p) => p.split(path.sep).join('/')) } : {}), rotate, ...(rotate ? { rotateBy: rotationWay(root, config), leadHandoff } : {}),
+    cost, ...(maintenance ? { maintenance } : {}), ...(builds?.removed.length ? { buildsRemoved: builds.removed.map((p) => p.split(path.sep).join('/')) } : {}), ...(testTemp?.removed ? { testTempRemoved: testTemp.removed } : {}), rotate, ...(rotate ? { rotateBy: rotationWay(root, config), leadHandoff } : {}),
     // g93: T-108a's round 1 developer stayed open 2 h after the close (96k tokens); NAC does not see the lead's agents
     agentsNote: `stop every agent of ${id} still open (an earlier round's developer, a cut-off reviewer) with TaskStop by its agent id, never by process name`,
     commit: committed, ...(warnings.length ? { warnings } : {}),
