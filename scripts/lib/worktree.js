@@ -58,7 +58,8 @@ function removeBuildDirs(base, id) {
 // (T-047: t047, t-047, 047) is the task's build output.
 export function idPattern(id) {
   const core = checkId(id).replace(/^[A-Za-z]+-?/, '').replace(/[-]/g, '\\-');
-  return new RegExp(`(?:^|[-_.])(?:[a-z]+-?)?${core}(?=$|[-_.])`, 'i');
+  // only a t or t- prefix: any letters let a uuid part (d018-) stand for T-018
+  return new RegExp(`(?:^|[-_.])(?:t-?)?${core}(?=$|[-_.])`, 'i');
 }
 
 export function taskBuildDirs(roots, id) {

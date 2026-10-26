@@ -229,6 +229,10 @@ Sonraki oturum bir devam özetiyle başlar: aşama, süren iş (`git status` ile
 
 `team/brief.md`, `decisions.md`, `contracts/`, `research/`, `glossary.md` ve `config.json` commit'lenmek içindir. `team/work/` (pano, görev özetleri, devir notları, eskalasyonlar, posta kutusu) de commit'lenir; yalnız `team/work/packs/` (üretilen bağlam paketleri) git dışındadır. Lider bunu kendi commit'lerinde, `chore(team): <ne>`, her görev bittiğinde ve her lider rotasyonunda, açık yolları ekleyerek commit'ler; kod commit'lerine karıştırmaz. Kurulum eski `.gitignore` satırını `team/work/` yerine `team/work/packs/` yapar ve önce farkı gösterir.
 
+## 1.3.49 değişiklikleri
+
+- **Klasör adında görev kimliği eşleşmesi sıkı** (g90): Memory Agent'taki ilk `worktree.js prune`, `d018-` gibi bir uuid parçasını T-018 sandı. Yalnız geçici klasörler silindi, ama bir derleme klasörü de aynı yolla yanlış eşleşebilirdi. Kimlik artık yalnız çıplak ya da `t`/`t-` önekiyle eşleşiyor (`review-t047`, `047`, `t-047`).
+
 ## 1.3.48 değişiklikleri
 
 - **Biten görevin derleme çıktısı kendiliğinden silinir; dolu disk tur sayılmaz** (g90): Memory Agent'ta review ve base denetimleri, projenin build klasörüne yalnızca görev kimliğini taşıyan adlarla derlendi (`review-t047`, `review-t047-base`, `t105a`, `review-061b`, yaklaşık 33 GB). Bunları silen bir şey yoktu. Beş görev aynı anda derlerken D: doldu ve gate "yer kalmadı" hatalarını 9 kırmızı test olarak raporladı. Artık `task.js close` kapanan görevin derleme klasörlerini siliyor: worktree'nin yanındaki `target-<id>`/`tmp-<id>` ile `deleteRoots` klasörlerinde adında görev kimliği ayrı bir parça olarak geçen klasörler. Açık bir görevi de adlandıran ve `debug` gibi ortak klasörler kalır. `worktree.js prune [<id>]` aynısını bütün biten görevler için yapar. Gate, denetimlerden önce görevin diskindeki boş alanı ölçer. Boş alan `gateMinFreeGB` değerinin (varsayılan 20, 0 = denetim yok) altındaysa önce temizler. Hâlâ altındaysa çalışmaz ve `disk` + `diskNote` döner (tur sayılmaz). Çıktısı diskin dolduğunu söyleyen bir kırmızı `diskFull` taşır.

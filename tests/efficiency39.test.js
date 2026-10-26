@@ -16,7 +16,7 @@ test('g90: idPattern finds a task id as its own part of a folder name', () => {
   for (const [id, names] of [['T-047', ['review-t047', 'review-t047-base', 't047', 'T-047', 't-047-rev', '047']], ['T-105a', ['t105a']], ['T-061b', ['review-061b']]]) {
     for (const n of names) assert.ok(idPattern(id).test(n), `${id} ${n}`);
   }
-  for (const n of ['t0470', 't047a', 'review-t1047', 'base', 'debug']) assert.ok(!idPattern('T-047').test(n), n);
+  for (const n of ['t0470', 't047a', 'review-t1047', 'base', 'debug', 'nimc-mem-e67c-d047-4c2a', 'x-rev047']) assert.ok(!idPattern('T-047').test(n), n);
 });
 
 test('g90: diskFull reads the full-drive forms of cargo, git and node', () => {
