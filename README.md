@@ -243,6 +243,10 @@ The next session starts with a resume summary: phase, work in progress (with `gi
 
 `team/brief.md`, `decisions.md`, `contracts/`, `research/`, `glossary.md` and `config.json` are meant to be committed. `team/work/` (board, briefs, hand-offs, escalations, mailbox) is committed too; only `team/work/packs/` (generated context packs) is git-ignored. The lead commits it in its own commits, `chore(team): <what>`, after each task is marked done and at each lead rotation, staging explicit paths and never mixing it into a code commit. Setup changes an older `.gitignore` line `team/work/` to `team/work/packs/` and shows the diff first.
 
+## Changes in 1.3.37
+
+- **`gateTmp` keeps the gate's temporary files off the system drive** (g77): in Memory Agent T-101 the lead ran the gate from the PowerShell tool, whose TMP is the Windows user value (C:Users...Temp), and the tests wrote their temporary files to a full C: drive. `gateTmp` in `team/config.json` (a folder, created when missing) sets TMP, TEMP and TMPDIR for every gate check.
+
 ## Changes in 1.3.36
 
 - **`rotateBy` picks the lead rotation way** (g76): in Memory Agent the lead went on at ~62k per call after each compaction (the summary and the reloaded files, against ~37k for a fresh session) and compacted 8 times in a day, some 3-4 minutes apart. `rotateBy` in `team/config.json` (`clear` or `compaction`) now wins over the way read from `.claude/settings.json` and makes the rotation come after every task (`rotateEvery` still overrides). With `clear` the lead asks the owner (and the owner proxy) for `/clear` and "devam"; if "devam" comes without `/clear`, it carries on in the same session.

@@ -229,6 +229,10 @@ Sonraki oturum bir devam özetiyle başlar: aşama, süren iş (`git status` ile
 
 `team/brief.md`, `decisions.md`, `contracts/`, `research/`, `glossary.md` ve `config.json` commit'lenmek içindir. `team/work/` (pano, görev özetleri, devir notları, eskalasyonlar, posta kutusu) de commit'lenir; yalnız `team/work/packs/` (üretilen bağlam paketleri) git dışındadır. Lider bunu kendi commit'lerinde, `chore(team): <ne>`, her görev bittiğinde ve her lider rotasyonunda, açık yolları ekleyerek commit'ler; kod commit'lerine karıştırmaz. Kurulum eski `.gitignore` satırını `team/work/` yerine `team/work/packs/` yapar ve önce farkı gösterir.
 
+## 1.3.37 değişiklikleri
+
+- **`gateTmp` gate'in geçici dosyalarını sistem diskinden uzak tutuyor** (g77): Memory Agent T-101'de lider gate'i PowerShell aracından koştu; bu aracın TMP değeri Windows kullanıcı değeri (C:Users...Temp) olduğu için testler geçici dosyalarını dolu C: diskine yazdı. `team/config.json` içindeki `gateTmp` (bir klasör, yoksa oluşturulur) her gate kontrolü için TMP, TEMP ve TMPDIR değerini ayarlar.
+
 ## 1.3.36 değişiklikleri
 
 - **Lider rotasyonunun yolunu `rotateBy` seçiyor** (g76): Memory Agent'ta lider her sıkıştırmadan sonra çağrı başına ~62k ile devam etti (özet ve yeniden yüklenen dosyalar; yeni oturum ~37k) ve bir günde 8 kez, bazen 3-4 dakika arayla sıkıştırdı. `team/config.json` içindeki `rotateBy` (`clear` ya da `compaction`) artık `.claude/settings.json`'dan okunan yolu eziyor ve rotasyonu her görevden sonraya alıyor (`rotateEvery` yine ezer). `clear` ile lider sahipten (ve sahip vekilinden) `/clear` ve "devam" ister; "devam" `/clear` olmadan gelirse aynı oturumda devam eder.
