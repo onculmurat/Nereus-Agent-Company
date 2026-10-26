@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 // Test gate CLI: runs gateCommands (or testCommand) from team/config.json in the project root. Exits 1 when the tests fail.
+import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { runCli, UsageError } from './lib/cli.js';
@@ -28,6 +29,7 @@ const usage = `Usage:
                       (default 1, 0 to 3); red then green is reported in flaky and is not a round (g64)
                       a red test check names its failed tests in failed (check: test) and the first lines of each
                       one's panic in checks[].failures (g65)
+                      gateTmp (team/config.json, a folder) sets TMP, TEMP and TMPDIR for every check (g77)
                       a scoped gate also runs gateAlwaysRun ({ name, command } list in team/config.json), checks that read
                       every package (a cross-target build policy test) and so are in no changed package (g66)
   gate.js --task <id> --full
@@ -63,6 +65,12 @@ runCli(usage, { task: { type: 'string' }, fix: { type: 'boolean' }, full: { type
   const always = alwaysRunChecks(scoped.scope, config.gateAlwaysRun);
   const checks = [...scoped.checks, ...always].map((c) => ({ ...c, command: noFailFast(c.command) }));
   const knownRed = config.gateKnownRed ?? [];
+  // g77: the checks inherit TMP/TEMP from the caller; a lead on the PowerShell tool has the Windows user value (C:),
+  // so gateTmp sends the tests' temporary files to a folder the owner chose
+  if (config.gateTmp) {
+    fs.mkdirSync(config.gateTmp, { recursive: true });
+    for (const k of ['TMP', 'TEMP', 'TMPDIR']) process.env[k] = config.gateTmp;
+  }
   // g31: wait while another run of a check program loads the machine; report it when it outlasts gateWaitSeconds
   // (NAC_GATE_WAIT_SECONDS overrides it for one run; the test suite sets 0)
   const env = process.env.NAC_GATE_WAIT_SECONDS;
