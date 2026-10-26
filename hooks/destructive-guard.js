@@ -14,12 +14,14 @@ runHook(async (payload, root) => {
   try {
     // g62: a broken config or a bad deleteRoots entry must not switch the guard off; then only the project and the
     // temp folder are allowed
+    // g84: gateTmp is the owner's temp folder for the gate's tests (g77, g81); a role removing the tests' leftovers in
+    // it was blocked (Memory Agent T-106: rm -rf D:/nac-tmp/t032b-fi-docs-*), so it counts like a deleteRoots folder.
+    // A bad gateTmp (a drive root, the home folder) adds nothing.
+    let config = {};
     let deleteRoots = [];
-    try {
-      deleteRoots = checkDeleteRoots(loadConfig({ pluginRoot, projectRoot: root }).deleteRoots);
-    } catch {
-      deleteRoots = [];
-    }
+    try { config = loadConfig({ pluginRoot, projectRoot: root }); } catch { /* only the project and the temp folder */ }
+    try { deleteRoots = checkDeleteRoots(config.deleteRoots); } catch { deleteRoots = []; }
+    try { if (config.gateTmp !== undefined) deleteRoots = [...deleteRoots, ...checkDeleteRoots([config.gateTmp])]; } catch { /* nothing added */ }
     reason = checkDestructive(command, { toolName: payload.tool_name, cwd: payload.cwd ?? process.cwd(), root, deleteRoots });
   } catch (e) {
     if (mentionsDelete(command)) reason = `NAC destructive-command guard: the guard could not check this command (${e.message}). Ask the lead, who asks the owner.`;

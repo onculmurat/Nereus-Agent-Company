@@ -243,6 +243,10 @@ The next session starts with a resume summary: phase, work in progress (with `gi
 
 `team/brief.md`, `decisions.md`, `contracts/`, `research/`, `glossary.md` and `config.json` are meant to be committed. `team/work/` (board, briefs, hand-offs, escalations, mailbox) is committed too; only `team/work/packs/` (generated context packs) is git-ignored. The lead commits it in its own commits, `chore(team): <what>`, after each task is marked done and at each lead rotation, staging explicit paths and never mixing it into a code commit. Setup changes an older `.gitignore` line `team/work/` to `team/work/packs/` and shows the diff first.
 
+## Changes in 1.3.43
+
+- **The destructive guard allows deletes inside gateTmp** (g84): a role removing the tests' leftovers in the gate's temp folder (Memory Agent T-106: `rm -rf D:/nac-tmp/t032b-fi-docs-*`) was blocked as outside the project and the temp folder. `gateTmp` from `team/config.json` now counts like a `deleteRoots` folder: deletes inside it are allowed, the folder itself and anything beside it are not. A `gateTmp` that is a drive root or the home folder adds nothing.
+
 ## Changes in 1.3.42
 
 - **Releasing a handle is not a release** (g83): a question about freeing index.db and its lock ("the production path runs the same release code the tests prove") was refused as the owner's release, so the lead opened a box for the owner. Releasing handles, locks, files, memory or connections, and "release code/path/logic", no longer count as the owner-only release; "release v1.0" and "release the code to users" still do.

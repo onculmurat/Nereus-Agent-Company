@@ -229,6 +229,10 @@ Sonraki oturum bir devam özetiyle başlar: aşama, süren iş (`git status` ile
 
 `team/brief.md`, `decisions.md`, `contracts/`, `research/`, `glossary.md` ve `config.json` commit'lenmek içindir. `team/work/` (pano, görev özetleri, devir notları, eskalasyonlar, posta kutusu) de commit'lenir; yalnız `team/work/packs/` (üretilen bağlam paketleri) git dışındadır. Lider bunu kendi commit'lerinde, `chore(team): <ne>`, her görev bittiğinde ve her lider rotasyonunda, açık yolları ekleyerek commit'ler; kod commit'lerine karıştırmaz. Kurulum eski `.gitignore` satırını `team/work/` yerine `team/work/packs/` yapar ve önce farkı gösterir.
 
+## 1.3.43 değişiklikleri
+
+- **Silme koruması gateTmp içindeki silmeye izin veriyor** (g84): gate'in geçici klasöründeki test artıklarını silen bir rol (Memory Agent T-106: `rm -rf D:/nac-tmp/t032b-fi-docs-*`) proje ve geçici klasör dışında sayılıp engellendi. `team/config.json` içindeki `gateTmp` artık bir `deleteRoots` klasörü gibi sayılıyor: içindeki silmeler serbest, klasörün kendisi ve yanındakiler değil. Sürücü kökü ya da ev klasörü olan bir `gateTmp` hiçbir şey eklemiyor.
+
 ## 1.3.42 değişiklikleri
 
 - **Bir tutamacı bırakmak sürüm yayını değildir** (g83): index.db ve kilidini bırakmayla ilgili bir soru ("üretim yolu testlerin kanıtladığı aynı release kodunu çalıştırır") kullanıcıya ait yayın sayılıp reddedildi ve lider kullanıcıya kutu açtı. Tutamaç, kilit, dosya, bellek ya da bağlantı bırakmak ve "release code/path/logic" artık kullanıcıya ait yayın sayılmıyor; "release v1.0" ve "release the code to users" hâlâ sayılıyor.
