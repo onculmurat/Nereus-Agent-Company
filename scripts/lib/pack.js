@@ -68,6 +68,14 @@ function extractDecision(text, id) {
   return i < 0 ? null : blockAt(lines, hs, i);
 }
 
+// Every decision whose heading names the task id as a whole word (T-087 does not take T-087c's decisions).
+export function decisionsForTask(text, id) {
+  const lines = toLines(text);
+  const hs = headings(lines);
+  const re = new RegExp(String.raw`(^|[^\w-])${id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![\w-])`);
+  return hs.map((h, i) => (/^D-\d+/.test(h.title) && re.test(h.title) ? blockAt(lines, hs, i) : null)).filter(Boolean);
+}
+
 // A threat is a table row "| T5 | ..." (kept with its table header) or a heading "T5 ...".
 function extractThreat(text, id) {
   const lines = toLines(text);
@@ -230,6 +238,12 @@ export function buildPack(root, { id, role, base, gate, round, findings, paths, 
     const s = decisions === null ? null : extractDecision(decisions, d);
     if (s) found.push(s);
     else notFound.push(`decision ${d}`);
+  }
+  // g86: the owner had decided T-087c S6 days earlier (D-263, "(T-087c S6)" in its heading), but the brief did not name
+  // it; the developer built the other option and the task went to a fix round. A decision whose heading names the task
+  // now comes with the pack even when the brief does not cite it.
+  if (decisions !== null) {
+    for (const s of decisionsForTask(decisions, id)) if (!found.includes(s)) found.push(s);
   }
   if (found.length) parts.push(`## Decisions\n\n${found.join('\n\n')}`);
   if (notFound.length) parts.push(`## Not found\n\n${notFound.map((n) => `- ${n}`).join('\n')}`);

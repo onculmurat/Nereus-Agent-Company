@@ -243,6 +243,10 @@ The next session starts with a resume summary: phase, work in progress (with `gi
 
 `team/brief.md`, `decisions.md`, `contracts/`, `research/`, `glossary.md` and `config.json` are meant to be committed. `team/work/` (board, briefs, hand-offs, escalations, mailbox) is committed too; only `team/work/packs/` (generated context packs) is git-ignored. The lead commits it in its own commits, `chore(team): <what>`, after each task is marked done and at each lead rotation, staging explicit paths and never mixing it into a code commit. Setup changes an older `.gitignore` line `team/work/` to `team/work/packs/` and shows the diff first.
 
+## Changes in 1.3.45
+
+- **The context pack brings the task's own decisions** (g86): the pack held only the decisions the brief cited. The owner had decided T-087c S6 days earlier (D-263, with "(T-087c S6)" in its heading), the brief did not cite it, the developer built the other option and the task went to a fix round. A decision whose heading names the task id as a whole word now comes with the pack, once, even when the brief does not cite it; a parent id (T-087) does not take a child's (T-087c) decisions.
+
 ## Changes in 1.3.44
 
 - **A PowerShell here-string no longer blocks a delete as an unbalanced quote** (g85): the destructive guard left the opening `@'` of a here-string on its line as a lone quote, so any PowerShell command with a here-string and a delete verb was blocked (Memory Agent T-078 close: findings JSON in `$j = @'...'@`, then `Remove-Item` of the temp file). The opener now counts as an empty string, and a command after the closing `'@` on the same line is still checked.
