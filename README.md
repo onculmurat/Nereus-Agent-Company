@@ -243,6 +243,10 @@ The next session starts with a resume summary: phase, work in progress (with `gi
 
 `team/brief.md`, `decisions.md`, `contracts/`, `research/`, `glossary.md` and `config.json` are meant to be committed. `team/work/` (board, briefs, hand-offs, escalations, mailbox) is committed too; only `team/work/packs/` (generated context packs) is git-ignored. The lead commits it in its own commits, `chore(team): <what>`, after each task is marked done and at each lead rotation, staging explicit paths and never mixing it into a code commit. Setup changes an older `.gitignore` line `team/work/` to `team/work/packs/` and shows the diff first.
 
+## Changes in 1.3.41
+
+- **NAC's own tests clean up their temporary folders** (g82): the suite made a temp folder per test and never removed it (~34,000 folders, 26 GB under the session temp folder). `npm test` now preloads `tests/tmp-root.cjs`: every folder a test process makes with `mkdtemp` is recorded, and when the whole run ends the test runner removes them, with the `<folder>-wt*` worktrees beside them. `TMP` stays where it was: moving it to a subfolder, or removing folders while other test files still ran, made git fail more often with "Permission denied". Run the suite with `npm test`; a bare `node --test` skips the preload.
+
 ## Changes in 1.3.40
 
 - **The gate cleans up the tests' temporary folders** (g81): the project's tests left their `nim-*` folders behind on every run (Memory Agent: ~10 GB in gateTmp, 38k folders on C:). With `gateTmp` set, each gate run gets its own `gate-<pid>-<time>` folder in it and removes it when the run ends, green or red; parallel runs never delete each other's files. Removing a worktree also removes the task's `tmp-<id>` folders beside it.
