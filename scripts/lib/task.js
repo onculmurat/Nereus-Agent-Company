@@ -9,7 +9,8 @@ import { addWorktree, removeWorktree } from './worktree.js';
 import { writePack } from './pack.js';
 import { commitPaths } from './commit.js';
 import { ensureCostFile } from './cost.js';
-import { addFinding, validateFinding } from './findings.js';
+import { addFinding, validateFinding, hardeningDueModules } from './findings.js';
+import { loadConfig } from './config.js';
 import { buildResumeSummary, questionListsMarkdown } from './summary.js';
 import { hasCompactionSettings } from './setup.js';
 import { teamPaths } from './paths.js';
@@ -166,6 +167,13 @@ export function closeTask(root, id, { commit, singleCommit, findings = [], leadN
     } catch (err) {
       warnings.push(`scope record not written for ${id} (${err.message})`);
     }
+  }
+  try {
+    const batch = loadConfig({ pluginRoot, projectRoot: root }).findingsBatch;
+    const due = hardeningDueModules(root, readBoard(root).entries, batch);
+    if (due.length) warnings.push(`hardening due (counted findings >= ${batch}, no open hardening task): ${due.map((d) => `${d.module} ${d.counted}`).join(', ')}. Ask the planner for each module's hardening task (board.js add --module <m> --hardening yes); a second one in the same phase needs an owner decision.`);
+  } catch (err) {
+    warnings.push(`hardening check skipped (${err.message})`);
   }
   const rotate = rotationDue(root, rotationEvery(root, config));
   let leadHandoff = null;

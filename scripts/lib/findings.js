@@ -95,6 +95,16 @@ export function addFinding(root, { module, file, line, symbol = '', severity, cl
   return { ...f, open, counted, hardeningDue: counted >= batch, findingsBatch: batch };
 }
 
+// g87: hardeningDue showed once, on the add that crossed the batch, and was easy to lose. Every module whose counted
+// findings reach the batch and that has no hardening task still open on the board (entries from readBoard).
+export function hardeningDueModules(root, entries, batch) {
+  const open = new Set(entries.filter((e) => e.hardening === 'yes' && e.status !== 'done').map((e) => e.module));
+  const by = new Map();
+  for (const f of listFindings(root, { open: true })) if (counts(f)) by.set(f.module, (by.get(f.module) ?? 0) + 1);
+  return [...by].filter(([m, n]) => n >= batch && !open.has(m)).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .map(([module, counted]) => ({ module, counted }));
+}
+
 export function closeFinding(root, id, { commit }) {
   if (!ID_RE.test(id ?? '')) throw new Error(`Invalid finding id "${id}"`);
   if (!SHA_RE.test(commit ?? '')) throw new Error(`"${commit}" is not a commit sha (7-40 hex characters). Read it from git: git log -1 --format=%h`);

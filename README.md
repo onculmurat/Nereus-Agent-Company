@@ -243,6 +243,10 @@ The next session starts with a resume summary: phase, work in progress (with `gi
 
 `team/brief.md`, `decisions.md`, `contracts/`, `research/`, `glossary.md` and `config.json` are meant to be committed. `team/work/` (board, briefs, hand-offs, escalations, mailbox) is committed too; only `team/work/packs/` (generated context packs) is git-ignored. The lead commits it in its own commits, `chore(team): <what>`, after each task is marked done and at each lead rotation, staging explicit paths and never mixing it into a code commit. Setup changes an older `.gitignore` line `team/work/` to `team/work/packs/` and shows the diff first.
 
+## Changes in 1.3.46
+
+- **Due hardening is named after every close** (g87): `hardeningDue` showed once, on the finding that crossed `findingsBatch`, and was easy to lose. Memory Agent's lead told the owner every development task was done while memory had 14 counted hardening findings and no hardening task in the phase (core 24, mcp 19 and cli 10 were also over the batch). `task.js close` now warns with every module whose counted findings reach the batch and that has no open hardening task, and the compact hand-off's next-task line puts them before the rest of the board.
+
 ## Changes in 1.3.45
 
 - **The context pack brings the task's own decisions** (g86): the pack held only the decisions the brief cited. The owner had decided T-087c S6 days earlier (D-263, with "(T-087c S6)" in its heading), the brief did not cite it, the developer built the other option and the task went to a fix round. A decision whose heading names the task id as a whole word now comes with the pack, once, even when the brief does not cite it; a parent id (T-087) does not take a child's (T-087c) decisions.

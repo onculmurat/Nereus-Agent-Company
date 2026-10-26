@@ -229,6 +229,10 @@ Sonraki oturum bir devam özetiyle başlar: aşama, süren iş (`git status` ile
 
 `team/brief.md`, `decisions.md`, `contracts/`, `research/`, `glossary.md` ve `config.json` commit'lenmek içindir. `team/work/` (pano, görev özetleri, devir notları, eskalasyonlar, posta kutusu) de commit'lenir; yalnız `team/work/packs/` (üretilen bağlam paketleri) git dışındadır. Lider bunu kendi commit'lerinde, `chore(team): <ne>`, her görev bittiğinde ve her lider rotasyonunda, açık yolları ekleyerek commit'ler; kod commit'lerine karıştırmaz. Kurulum eski `.gitignore` satırını `team/work/` yerine `team/work/packs/` yapar ve önce farkı gösterir.
 
+## 1.3.46 değişiklikleri
+
+- **Vadesi gelen sertleştirme her kapanışta anılıyor** (g87): `hardeningDue` yalnız `findingsBatch` eşiğini aşan bulgu eklenirken bir kez görünüyordu ve kolayca kayboluyordu. Memory Agent lideri kullanıcıya tüm geliştirmenin bittiğini söyledi; oysa memory modülünde 14 sayılan sertleştirme bulgusu vardı ve fazda memory sertleştirme görevi yoktu (core 24, mcp 19, cli 10 da eşiğin üstündeydi). `task.js close` artık sayılan bulgusu eşiğe ulaşan ve açık sertleştirme görevi olmayan her modülü uyarı olarak yazıyor; sıkıştırma devir notundaki sıradaki görev satırı da bunları tahtadaki diğer işlerden önce gösteriyor.
+
 ## 1.3.45 değişiklikleri
 
 - **Bağlam paketi görevin kendi kararlarını getiriyor** (g86): paket yalnız brief'in andığı kararları alıyordu. Kullanıcı T-087c S6'yı günler önce karara bağlamıştı (D-263, başlığında "(T-087c S6)"), brief bunu anmadı, geliştirici diğer seçeneği yaptı ve görev düzeltme turuna döndü. Başlığında görev numarası tam kelime olarak geçen karar artık brief anmasa da pakete bir kez giriyor; üst görev numarası (T-087) alt görevin (T-087c) kararlarını almıyor.

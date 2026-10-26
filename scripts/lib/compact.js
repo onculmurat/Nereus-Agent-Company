@@ -9,6 +9,9 @@ import { execFileSync } from 'node:child_process';
 import { readBoard, verifyCommit } from './board.js';
 import { pendingQuestions } from './decisions.js';
 import { buildResumeSummary } from './summary.js';
+import { hardeningDueModules } from './findings.js';
+import { loadConfig } from './config.js';
+import { pluginRoot } from './hookio.js';
 import { teamPaths } from './paths.js';
 import { localDate } from './dates.js';
 
@@ -151,11 +154,17 @@ function nextTaskLine(root) {
   const board = readBoard(root);
   const inFlight = board.entries.find((e) => e.status === 'in-progress') ?? board.entries.find((e) => e.status === 'review');
   if (inFlight) return `${inFlight.id}: ${inFlight.title} (${inFlight.status}; resume it first)`;
+  // g87: modules whose findings are due for hardening come before the rest of the board, an empty board included.
+  let due = [];
+  try {
+    due = hardeningDueModules(root, board.entries, loadConfig({ pluginRoot, projectRoot: root }).findingsBatch);
+  } catch { /* the line stays as it was */ }
+  const hard = due.length ? `hardening due first: ${due.map((d) => `${d.module} ${d.counted}`).join(', ')}; ask the planner for those tasks (a second one in a phase needs an owner decision)` : '';
   const todo = board.entries.filter((e) => e.status === 'todo');
   const ready = todo.find((e) => fs.existsSync(path.join(teamPaths(root).tasks, `${e.id}.md`)));
   const pick = ready ?? todo[0];
-  if (pick) return `${pick.id}: ${pick.title} (${ready ? 'brief ready' : 'todo, no brief yet'})`;
-  return 'none on the board; ask the owner or plan the next step';
+  if (pick) return `${hard ? `${hard}. Then ` : ''}${pick.id}: ${pick.title} (${ready ? 'brief ready' : 'todo, no brief yet'})`;
+  return hard ? `none on the board, but ${hard}` : 'none on the board; ask the owner or plan the next step';
 }
 
 // g25: each task in flight, so the lead resumes them after compaction.
