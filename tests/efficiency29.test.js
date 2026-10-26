@@ -1,4 +1,4 @@
-// 1.3.37: g77, gateTmp sets TMP, TEMP and TMPDIR for the gate checks.
+// 1.3.37: g77, gateTmp sets TMP, TEMP and TMPDIR for the gate checks. 1.3.38: g78, publish = false is not a publish.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -30,4 +30,16 @@ test('g77: gateTmp sends the checks to the configured temporary folder and creat
 test('g77: gateTmp must be a folder path', () => {
   assert.doesNotThrow(() => validateConfig({ ...defaults, gateTmp: 'D:/nac-tmp' }));
   assert.throws(() => validateConfig({ ...defaults, gateTmp: '' }), /gateTmp must be a folder path/);
+});
+
+// Seen live (Memory Agent Q-194, g78): "mod.rs moves into a publish=false path crate" was refused as a publish and
+// T-102 waited for the owner.
+test('g78: the Cargo flag publish = false is not the owner publish action', async () => {
+  const { ownerOnlyMatch } = await import('../scripts/lib/proxy.js');
+  for (const text of ['mod.rs moves into a publish=false path crate', 'publish = false in Cargo.toml', 'publish = []']) {
+    assert.equal(ownerOnlyMatch(text), null, text);
+  }
+  for (const text of ['publish the crate to crates.io', 'Shall I publish now?', 'cargo publish -p core']) {
+    assert.ok(ownerOnlyMatch(text), text);
+  }
 });

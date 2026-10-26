@@ -243,6 +243,10 @@ The next session starts with a resume summary: phase, work in progress (with `gi
 
 `team/brief.md`, `decisions.md`, `contracts/`, `research/`, `glossary.md` and `config.json` are meant to be committed. `team/work/` (board, briefs, hand-offs, escalations, mailbox) is committed too; only `team/work/packs/` (generated context packs) is git-ignored. The lead commits it in its own commits, `chore(team): <what>`, after each task is marked done and at each lead rotation, staging explicit paths and never mixing it into a code commit. Setup changes an older `.gitignore` line `team/work/` to `team/work/packs/` and shows the diff first.
 
+## Changes in 1.3.38
+
+- **The Cargo flag `publish = false` is not a publish** (g78): Memory Agent Q-194 proposed "a publish=false path crate"; the owner-only check matched "publish" and refused the proxy answer, so T-102 waited for the owner. `publish = false` (and `publish = []`) keeps a crate from ever being published and no longer counts as the owner's action.
+
 ## Changes in 1.3.37
 
 - **`gateTmp` keeps the gate's temporary files off the system drive** (g77): in Memory Agent T-101 the lead ran the gate from the PowerShell tool, whose TMP is the Windows user value (C:Users...Temp), and the tests wrote their temporary files to a full C: drive. `gateTmp` in `team/config.json` (a folder, created when missing) sets TMP, TEMP and TMPDIR for every gate check.
