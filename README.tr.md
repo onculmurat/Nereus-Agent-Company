@@ -229,6 +229,10 @@ Sonraki oturum bir devam özetiyle başlar: aşama, süren iş (`git status` ile
 
 `team/brief.md`, `decisions.md`, `contracts/`, `research/`, `glossary.md` ve `config.json` commit'lenmek içindir. `team/work/` (pano, görev özetleri, devir notları, eskalasyonlar, posta kutusu) de commit'lenir; yalnız `team/work/packs/` (üretilen bağlam paketleri) git dışındadır. Lider bunu kendi commit'lerinde, `chore(team): <ne>`, her görev bittiğinde ve her lider rotasyonunda, açık yolları ekleyerek commit'ler; kod commit'lerine karıştırmaz. Kurulum eski `.gitignore` satırını `team/work/` yerine `team/work/packs/` yapar ve önce farkı gösterir.
 
+## 1.3.32 değişiklikleri
+
+- **Lider gate'i ön planda koşuyor** (g71): lider `gate.js`'i arka plan kabuğunda koştu; oturum beklerken Claude Code bellek baskısı yüzünden onu durdurdu, gate sonucu kayboldu ve lider yeniden koşmak için onay istemek zorunda kaldı. task-loop skill'i artık gate'in ön planda, araç zaman aşımı en yüksek değerde (600000 ms) koşmasını söylüyor; rollerde bu kural zaten vardı (g31).
+
 ## 1.3.31 değişiklikleri
 
 - **task-loop skill'i sıkıştırma sonrası yeniden yüklemeye sığıyor** (g67): Claude Code her sıkıştırmadan sonra skill'i 20000 karakterde keserek geri koyuyor; skill 27085 karakterdi, bu yüzden Automation first, Role rule, Turn budget, Review round cap, Lessons ve Never oturumun kalanında kayboluyordu. `SKILL.md` artık her kuralı kısa haliyle tutuyor (yaklaşık 13700 karakter; Never, tur sınırı ve tur bütçesi başta), `skills/task-loop/reference.md` tam metni, gerekçeleri ve seyrek yolları saklıyor. Hiçbir kural silinmedi.

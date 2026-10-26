@@ -68,3 +68,10 @@ test('g67: task-loop SKILL.md fits the 20000-character reload and keeps every se
   assert.match(skill, /reference\.md/);
   assert.ok(fs.existsSync(path.join(pluginRoot, 'skills', 'task-loop', 'reference.md')));
 });
+
+// Seen live (Memory Agent T-099, g71): the lead ran gate.js as a background shell; Claude Code stopped it under memory
+// pressure while the lead waited, and the round's gate result was lost.
+test('g71: task-loop tells the lead to run the gate in the foreground', () => {
+  const skill = fs.readFileSync(path.join(pluginRoot, 'skills', 'task-loop', 'SKILL.md'), 'utf8');
+  assert.match(skill, /gate[^\n]*in the foreground[^\n]*600000[^\n]*never as a background shell/);
+});

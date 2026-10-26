@@ -243,6 +243,10 @@ The next session starts with a resume summary: phase, work in progress (with `gi
 
 `team/brief.md`, `decisions.md`, `contracts/`, `research/`, `glossary.md` and `config.json` are meant to be committed. `team/work/` (board, briefs, hand-offs, escalations, mailbox) is committed too; only `team/work/packs/` (generated context packs) is git-ignored. The lead commits it in its own commits, `chore(team): <what>`, after each task is marked done and at each lead rotation, staging explicit paths and never mixing it into a code commit. Setup changes an older `.gitignore` line `team/work/` to `team/work/packs/` and shows the diff first.
 
+## Changes in 1.3.32
+
+- **The lead runs the gate in the foreground** (g71): the lead ran `gate.js` as a background shell; Claude Code stopped it under memory pressure while the session waited, the gate result was lost and the lead had to ask before it ran it again. The task-loop skill now says to run the gate in the foreground with the tool timeout at its maximum (600000 ms); the roles already had this rule (g31).
+
 ## Changes in 1.3.31
 
 - **The task-loop skill fits the reload after a compaction** (g67): after each compaction Claude Code puts the skill back cut at 20000 characters; the skill had 27085, so Automation first, Role rule, Turn budget, Review round cap, Lessons and Never were gone for the rest of the session. `SKILL.md` now holds every rule in short (about 13700 characters, with Never, the round cap and the turn budget first), and `skills/task-loop/reference.md` keeps the full text, the reasons and the rare paths. No rule was dropped.
