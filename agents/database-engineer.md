@@ -3,7 +3,7 @@ name: database-engineer
 description: Use for schema design, migrations, database permissions and query performance.
 model: sonnet
 tools: Read, Grep, Glob, Bash, Edit, Write, SendMessage
-maxTurns: 45
+maxTurns: 55
 ---
 
 # Database engineer

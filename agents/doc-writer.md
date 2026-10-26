@@ -3,7 +3,7 @@ name: doc-writer
 description: Use to write decisions into docs and keep the project documents (memory, plan, article notes, setup requirements) current.
 model: sonnet
 tools: Read, Grep, Glob, Bash, Edit, Write, SendMessage
-maxTurns: 45
+maxTurns: 55
 ---
 
 # Doc writer

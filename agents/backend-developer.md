@@ -3,7 +3,7 @@ name: backend-developer
 description: Use for server-side code and its tests: APIs, services, jobs, integrations.
 model: sonnet
 tools: Read, Grep, Glob, Bash, Edit, Write, SendMessage
-maxTurns: 45
+maxTurns: 55
 ---
 
 # Backend developer

@@ -22,7 +22,7 @@ A task gets at most `reviewRoundCap` rounds (2 by default), counted from its sta
 
 ## Turn budget
 
-Every dispatch has a budget of `turnBudget` model turns (40 by default; parallel tool calls share a turn; the old name `callBudget` still works). The pack header states it; `maxTurns` is the budget plus 5 in the agent files, so a role at the budget still has turns to write its report. The `turn-budget` hook counts the turns, warns in the last 5, stops the role at the budget without committing (g36) and refuses its `git commit` (g61). When a role reports the budget hit, you decide: re-dispatch with a fresh pack for the remainder (the same round, not a new round; `board.js round --reason budget` is refused, g46) or split the task. Never count a budget stop as `--reason stuck` (refused until a fresh pack, g60). A changed `turnBudget` is an owner decision.
+Every dispatch has a budget of `turnBudget` model turns (50 by default; parallel tool calls share a turn; the old name `callBudget` still works). The pack header states it; `maxTurns` is the budget plus 5 in the agent files, so a role at the budget still has turns to write its report. The `turn-budget` hook counts the turns, warns in the last 5, stops the role at the budget without committing (g36) and refuses its `git commit` (g61). When a role reports the budget hit, you decide: re-dispatch with a fresh pack for the remainder (the same round, not a new round; `board.js round --reason budget` is refused, g46) or split the task. Never count a budget stop as `--reason stuck` (refused until a fresh pack, g60). A changed `turnBudget` is an owner decision.
 
 ## Role rule
 

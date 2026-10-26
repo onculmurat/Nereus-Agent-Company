@@ -43,12 +43,12 @@ test('g61: budgetCommitBlock blocks only at the budget', () => {
 });
 
 test('g61: the hook refuses git commit from a NAC role at its budget, and only then', () => {
-  const at = session(40, 'git add -A && git commit -m "wip"');
+  const at = session(50, 'git add -A && git commit -m "wip"');
   const r = runHook('budget-commit-guard', at.payload);
   assert.equal(r.status, 2, r.stderr);
   assert.match(r.stderr, /do not commit now \(g61\)/);
   assert.equal(runHook('budget-commit-guard', { ...at.payload, tool_input: { command: 'cargo test' } }).status, 0, 'other commands pass');
-  assert.equal(runHook('budget-commit-guard', session(39, 'git commit -m x').payload).status, 0, 'below the budget a commit passes');
+  assert.equal(runHook('budget-commit-guard', session(49, 'git commit -m x').payload).status, 0, 'below the budget a commit passes');
   assert.equal(runHook('budget-commit-guard', { ...at.payload, agent_id: undefined, agent_type: undefined }).status, 0, 'the lead is not checked');
   assert.equal(runHook('budget-commit-guard', { ...at.payload, agent_type: 'general-purpose' }).status, 0, 'a non-NAC agent is not checked');
   fs.writeFileSync(path.join(at.root, 'team', 'config.json'), JSON.stringify({ turnBudget: 60 }));
