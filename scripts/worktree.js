@@ -3,8 +3,8 @@
 import { runCli, UsageError } from './lib/cli.js';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { loadConfig, validateConfig } from './lib/config.js';
-import { addWorktree, integrateWorktree, removeWorktree } from './lib/worktree.js';
+import { loadConfig, validateConfig, checkDeleteRoots } from './lib/config.js';
+import { addWorktree, integrateWorktree, removeWorktree, pruneTaskBuilds } from './lib/worktree.js';
 
 const usage = `Usage:
   worktree.js add <task-id>              new worktree <repo>-wt/<id> on branch task/<id> from the current commit
@@ -13,16 +13,20 @@ const usage = `Usage:
   worktree.js integrate <task-id>        cherry-pick the task's commits onto the current branch (aborts on conflict)
   worktree.js remove <task-id>           remove the worktree (the one the board records, else the path above), delete branch task/<id>
                                          and the task build dirs target-<id>[-suffix] beside it
+  worktree.js prune [<task-id>]          remove the build output of done tasks (all, or the one named): target-<id>/tmp-<id> beside
+                                         the worktrees and the folders in deleteRoots whose name holds the task id (review-t047,
+                                         t105a); task.js close does it for the closed task, gate.js when the drive runs low (g90)
   (all accept --project <dir>; default: nearest directory with team/config.json)
 `;
 
 const commands = { add: addWorktree, integrate: integrateWorktree, remove: removeWorktree };
 
 runCli(usage, {}, ({ positionals: [cmd, id], root }) => {
-  if (!commands[cmd]) throw new UsageError(`Unknown command "${cmd ?? ''}"`);
-  if (!id) throw new UsageError('Missing task id');
+  if (!commands[cmd] && cmd !== 'prune') throw new UsageError(`Unknown command "${cmd ?? ''}"`);
   const pluginRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
   const config = loadConfig({ pluginRoot, projectRoot: root });
   validateConfig(config);
+  if (cmd === 'prune') return pruneTaskBuilds(root, { worktreeRoot: config.worktreeRoot, deleteRoots: checkDeleteRoots(config.deleteRoots), ...(id ? { ids: [id] } : {}) });
+  if (!id) throw new UsageError('Missing task id');
   return commands[cmd](root, id, { worktreeRoot: config.worktreeRoot });
 });

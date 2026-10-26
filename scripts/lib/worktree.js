@@ -52,6 +52,59 @@ function removeBuildDirs(base, id) {
   return removed;
 }
 
+// g90: review and base builds of a task went to a deleteRoots folder under names that only carry its id
+// (Memory Agent: review-t047, review-t047-base, t105a, review-061b, ~33 GB), nothing removed them and D: filled up
+// with five tasks building at once. A child folder of a deleteRoots folder whose name holds the id as its own part
+// (T-047: t047, t-047, 047) is the task's build output.
+export function idPattern(id) {
+  const core = checkId(id).replace(/^[A-Za-z]+-?/, '').replace(/[-]/g, '\\-');
+  return new RegExp(`(?:^|[-_.])(?:[a-z]+-?)?${core}(?=$|[-_.])`, 'i');
+}
+
+export function taskBuildDirs(roots, id) {
+  const name = idPattern(id);
+  const found = [];
+  for (const r of roots) {
+    let entries = [];
+    try { entries = fs.readdirSync(r, { withFileTypes: true }); } catch { continue; }
+    for (const e of entries) if (e.isDirectory() && name.test(e.name)) found.push(path.join(r, e.name));
+  }
+  return found;
+}
+
+// Removes the build output of done tasks: target-<id>/tmp-<id> beside the worktrees and the deleteRoots folders named
+// after the task. Tasks that are not done keep theirs. Returns the removed paths and the ones that stayed (locked).
+export function pruneTaskBuilds(root, { worktreeRoot, deleteRoots = [], ids } = {}) {
+  const entries = readBoard(root).entries;
+  const done = new Set(entries.filter((e) => e.status === 'done').map((e) => e.id));
+  const open = entries.filter((e) => e.status !== 'done').map((e) => idPattern(e.id));
+  const wanted = (ids ?? [...done]).filter((id) => done.has(id) && ID_RE.test(id));
+  const beside = path.dirname(worktreePath(root, 'T-1', { worktreeRoot }));
+  const removed = [];
+  const failed = [];
+  for (const id of wanted) {
+    const besideName = new RegExp(`^(?:target|tmp)-${id.replace(/-/g, '\\-')}(?:-.*)?$`, 'i');
+    let near = [];
+    try { near = fs.readdirSync(beside, { withFileTypes: true }).filter((e) => e.isDirectory() && besideName.test(e.name)).map((e) => path.join(beside, e.name)); } catch { /* no worktrees yet */ }
+    // a folder whose name also names a task still open (review-t047-t110a) stays
+    const named = taskBuildDirs(deleteRoots, id).filter((p) => !open.some((re) => re.test(path.basename(p))));
+    for (const p of [...near, ...named]) {
+      if (removed.includes(p)) continue;
+      try { fs.rmSync(p, { recursive: true, force: true, maxRetries: 3 }); removed.push(p); } catch (err) { failed.push({ path: p, error: err.message }); }
+    }
+  }
+  return { removed, ...(failed.length ? { failed } : {}) };
+}
+
+export function freeBytes(dir) {
+  try {
+    const s = fs.statfsSync(dir);
+    return s.bavail * s.bsize;
+  } catch {
+    return null;
+  }
+}
+
 // Cherry-picks the commits of task/<id> (since it left the working branch) onto the current branch, oldest first.
 export function integrateWorktree(root, id) {
   const branch = branchOf(checkId(id));

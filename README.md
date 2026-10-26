@@ -243,6 +243,10 @@ The next session starts with a resume summary: phase, work in progress (with `gi
 
 `team/brief.md`, `decisions.md`, `contracts/`, `research/`, `glossary.md` and `config.json` are meant to be committed. `team/work/` (board, briefs, hand-offs, escalations, mailbox) is committed too; only `team/work/packs/` (generated context packs) is git-ignored. The lead commits it in its own commits, `chore(team): <what>`, after each task is marked done and at each lead rotation, staging explicit paths and never mixing it into a code commit. Setup changes an older `.gitignore` line `team/work/` to `team/work/packs/` and shows the diff first.
 
+## Changes in 1.3.48
+
+- **Done tasks' build output goes on its own; a full drive is not a round** (g90): in Memory Agent, reviews and base checks built into the project's build folder under names that only carried the task id (`review-t047`, `review-t047-base`, `t105a`, `review-061b`, about 33 GB). Nothing removed them, and with five tasks building at once D: filled up; the gate reported the "no space left" errors as 9 failing tests. Now `task.js close` removes the closed task's build dirs: `target-<id>`/`tmp-<id>` beside the worktree, and the folders in `deleteRoots` whose name holds the task id as its own part. Folders that also name an open task, and shared ones such as `debug`, stay. `worktree.js prune [<id>]` does the same for every done task. Before its checks the gate measures the free space on the task's drive: below `gateMinFreeGB` (default 20, 0 = no check) it first prunes. If the space is still below the limit, it does not run and returns `disk` + `diskNote` (not a round). A red whose output says the drive is full carries `diskFull`.
+
 ## Changes in 1.3.47
 
 - **No kill by process name** (g88): a developer in Memory Agent ran `pkill -f cargo` while four more tasks built and gated in their own worktrees; only Claude Code's auto mode classifier stopped it. The destructive-command guard now blocks `pkill`, `killall`, `taskkill /IM` or `/FI`, `Stop-Process -Name` and `Get-Process x | Stop-Process`. A kill by PID (`kill <pid>`, `Stop-Process -Id`, `taskkill /PID`) stays allowed.

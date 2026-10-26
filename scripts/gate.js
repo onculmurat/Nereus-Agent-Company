@@ -4,8 +4,9 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { runCli, UsageError } from './lib/cli.js';
-import { loadConfig, validateConfig } from './lib/config.js';
-import { runGate, gateChecks, isCodeless, checkDocGate, waitForIdle, fixable, fixGate, scopeChecks, noFailFast, retryRed, alwaysRunChecks, DEFAULT_GATE_WAIT_SECONDS, DEFAULT_GATE_CHECK_SECONDS } from './lib/gate.js';
+import { loadConfig, validateConfig, checkDeleteRoots } from './lib/config.js';
+import { pruneTaskBuilds, freeBytes } from './lib/worktree.js';
+import { runGate, gateChecks, isCodeless, checkDocGate, waitForIdle, fixable, fixGate, scopeChecks, noFailFast, retryRed, alwaysRunChecks, DEFAULT_GATE_WAIT_SECONDS, DEFAULT_GATE_CHECK_SECONDS, DEFAULT_GATE_MIN_FREE_GB, diskFull } from './lib/gate.js';
 import { taskTree } from './lib/board.js';
 
 const usage = `Usage:
@@ -31,6 +32,9 @@ const usage = `Usage:
                       one's panic in checks[].failures (g65)
                       gateTmp (team/config.json, a folder) sets TMP, TEMP and TMPDIR for every check (g77) to a gate-<pid>-<time>
                       folder in it that is removed when the run ends (g81)
+                      below gateMinFreeGB (default 20, 0 = no check) free on the drive, the done tasks' build dirs are removed
+                      first (worktree.js prune); still below, the checks do not run: disk + diskNote, not a round. A red whose
+                      output says the drive is full has diskFull (g90)
                       a scoped gate also runs gateAlwaysRun ({ name, command } list in team/config.json), checks that read
                       every package (a cross-target build policy test) and so are in no changed package (g66)
   gate.js --task <id> --full
@@ -66,6 +70,23 @@ runCli(usage, { task: { type: 'string' }, fix: { type: 'boolean' }, full: { type
   const always = alwaysRunChecks(scoped.scope, config.gateAlwaysRun);
   const checks = [...scoped.checks, ...always].map((c) => ({ ...c, command: noFailFast(c.command) }));
   const knownRed = config.gateKnownRed ?? [];
+  // g90: D: filled up with five tasks building at once and the gate reported the ENOSPC reds as test failures. Below
+  // gateMinFreeGB the done tasks' build dirs go first; still below, the gate does not run and it is not a round.
+  // (NAC_GATE_MIN_FREE_GB overrides it for one run; the test suite sets 0)
+  const minEnv = process.env.NAC_GATE_MIN_FREE_GB;
+  const minFree = (/^\d+(?:\.\d+)?$/.test(minEnv ?? '') ? Number(minEnv) : config.gateMinFreeGB ?? DEFAULT_GATE_MIN_FREE_GB) * 1024 ** 3;
+  let pruned = [];
+  if (minFree > 0 && (freeBytes(tree) ?? Infinity) < minFree) {
+    let roots = [];
+    try { roots = checkDeleteRoots(config.deleteRoots); } catch { /* a bad list removes nothing there */ }
+    pruned = pruneTaskBuilds(root, { worktreeRoot: config.worktreeRoot, deleteRoots: roots }).removed;
+    const free = freeBytes(tree) ?? Infinity;
+    if (free < minFree) {
+      process.exitCode = 1;
+      const gb = (n) => Math.round(n / 1024 ** 3 * 10) / 10;
+      return { ok: false, disk: { freeGB: gb(free), minGB: gb(minFree), pruned }, diskNote: `only ${gb(free)} GB free on the drive of ${tree} (gateMinFreeGB ${gb(minFree)}), after removing the done tasks' build dirs. The checks did not run: this is not a round. Do not start builds or developers; ask the owner to free space (the largest build dirs are the shared target dirs), then run the gate again.` };
+    }
+  }
   // g77: the checks inherit TMP/TEMP from the caller; a lead on the PowerShell tool has the Windows user value (C:),
   // so gateTmp sends the tests' temporary files to a folder the owner chose
   // g81: the tests left their temporary folders behind (Memory Agent: ~10 GB in gateTmp, 38k folders on C:); each run
@@ -110,6 +131,8 @@ runCli(usage, { task: { type: 'string' }, fix: { type: 'boolean' }, full: { type
     ...(known.length ? { knownRed: known, knownRedNote: `only gateKnownRed tests failed (${known.join(', ')}): environmental, each a recorded finding; the check counts as green.` } : {}),
     ...(stale.length ? { knownRedPassed: stale, knownRedPassedNote: `${stale.join(', ')} passed: remove it from gateKnownRed in team/config.json and close its finding.` } : {}),
   };
-  return { ...result, tree, scope: always.length ? { ...scoped.scope, alwaysRun: always.map((c) => c.name) } : scoped.scope, ...(failed.length ? { failed } : {}), ...knownNote, ...hang, ...(idle.waited ? { waited: idle.waited } : {}), ...busy };
+  // g90: a red from a full drive is not the code's
+  const disk = !result.ok && diskFull(result.output) ? { diskFull: true, diskNote: 'the output says the drive is full (no space left on device): the red does not come from the code and is not a round. Free space (worktree.js prune removes the build dirs of done tasks), then run the gate again.' } : {};
+  return { ...result, ...disk, ...(pruned.length ? { pruned } : {}), tree, scope: always.length ? { ...scoped.scope, alwaysRun: always.map((c) => c.name) } : scoped.scope, ...(failed.length ? { failed } : {}), ...knownNote, ...hang, ...(idle.waited ? { waited: idle.waited } : {}), ...busy };
   }
 });

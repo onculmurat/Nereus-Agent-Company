@@ -11,6 +11,8 @@ const { syncBuiltinESMExports } = require('node:module');
 
 const mkdtempSync = fs.mkdtempSync;
 const runner = !process.env.NAC_TEST_RUN;
+// g90: the gate's free-space check would refuse the suite's gates on a full test drive; its own tests set it
+process.env.NAC_GATE_MIN_FREE_GB ??= '0';
 if (runner) process.env.NAC_TEST_RUN = mkdtempSync(path.join(os.tmpdir(), 'nac-test-run-'));
 const list = path.join(process.env.NAC_TEST_RUN, `${process.pid}.txt`);
 
