@@ -243,6 +243,10 @@ The next session starts with a resume summary: phase, work in progress (with `gi
 
 `team/brief.md`, `decisions.md`, `contracts/`, `research/`, `glossary.md` and `config.json` are meant to be committed. `team/work/` (board, briefs, hand-offs, escalations, mailbox) is committed too; only `team/work/packs/` (generated context packs) is git-ignored. The lead commits it in its own commits, `chore(team): <what>`, after each task is marked done and at each lead rotation, staging explicit paths and never mixing it into a code commit. Setup changes an older `.gitignore` line `team/work/` to `team/work/packs/` and shows the diff first.
 
+## Changes in 1.3.50
+
+- **Maintenance routine for the shared build dirs** (g91): the done-task prune (g90) never touches the shared target dirs every gate builds into (Memory Agent: `build/debug` ~90 GB and the main tree's `target` ~53 GB), and they filled D: again. List them in `sharedBuildDirs` (team/config.json; each must lie inside the project or a `deleteRoots` folder). When the drive has less than `maintenanceFreeGB` free (default 20, 0 = off), `task.js start` refuses, and `task.js close` and the gate report `maintenance`. The lead starts nothing new and lets the running work finish. Then `worktree.js prune --shared` removes those dirs and the done tasks' build output; while cargo or rustc runs it reports `busy` and removes nothing. The gate's own floor `gateMinFreeGB` drops to 10 by default, so the running tasks' gates still run while the queue drains.
+
 ## Changes in 1.3.49
 
 - **Task id match in build folder names is strict** (g90): the first `worktree.js prune` in Memory Agent read a uuid part such as `d018-` as T-018. It removed only temp folders, but a build folder could be hit the same way. The id now matches only bare or with a `t`/`t-` prefix (`review-t047`, `047`, `t-047`).

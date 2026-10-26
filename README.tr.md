@@ -229,6 +229,10 @@ Sonraki oturum bir devam özetiyle başlar: aşama, süren iş (`git status` ile
 
 `team/brief.md`, `decisions.md`, `contracts/`, `research/`, `glossary.md` ve `config.json` commit'lenmek içindir. `team/work/` (pano, görev özetleri, devir notları, eskalasyonlar, posta kutusu) de commit'lenir; yalnız `team/work/packs/` (üretilen bağlam paketleri) git dışındadır. Lider bunu kendi commit'lerinde, `chore(team): <ne>`, her görev bittiğinde ve her lider rotasyonunda, açık yolları ekleyerek commit'ler; kod commit'lerine karıştırmaz. Kurulum eski `.gitignore` satırını `team/work/` yerine `team/work/packs/` yapar ve önce farkı gösterir.
 
+## 1.3.50 değişiklikleri
+
+- **Ortak derleme klasörleri için bakım rutini** (g91): biten görev temizliği (g90), her gate'in derlediği ortak target klasörlerine dokunmaz (Memory Agent: `build/debug` ~90 GB, ana ağacın `target`'ı ~53 GB) ve bunlar D:'yi yine doldurdu. Bunları `sharedBuildDirs` listesine yazın (team/config.json; her biri projenin ya da bir `deleteRoots` klasörünün içinde olmalı). Diskte `maintenanceFreeGB` değerinden (varsayılan 20, 0 = kapalı) az yer kalınca `task.js start` reddeder, `task.js close` ve gate `maintenance` bildirir. Lider yeni iş başlatmaz, çalışanların bitmesini bekler. Sonra `worktree.js prune --shared` bu klasörleri ve biten görevlerin derleme çıktısını siler; cargo ya da rustc çalışırken `busy` döner ve hiçbir şey silmez. Gate'in kendi alt sınırı `gateMinFreeGB` varsayılanı 10'a iner, böylece kuyruk boşalırken çalışan görevlerin gate'leri yine koşar.
+
 ## 1.3.49 değişiklikleri
 
 - **Klasör adında görev kimliği eşleşmesi sıkı** (g90): Memory Agent'taki ilk `worktree.js prune`, `d018-` gibi bir uuid parçasını T-018 sandı. Yalnız geçici klasörler silindi, ama bir derleme klasörü de aynı yolla yanlış eşleşebilirdi. Kimlik artık yalnız çıplak ya da `t`/`t-` önekiyle eşleşiyor (`review-t047`, `047`, `t-047`).
