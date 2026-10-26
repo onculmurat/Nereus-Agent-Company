@@ -207,6 +207,8 @@ export function closeTask(root, id, { commit, singleCommit, findings = [], leadN
     id, status: entry.status, commits: entry.commits,
     findings: added.map((f) => ({ id: f.id, module: f.module, severity: f.severity, hardeningDue: f.hardeningDue })),
     cost, ...(maintenance ? { maintenance } : {}), ...(builds?.removed.length ? { buildsRemoved: builds.removed.map((p) => p.split(path.sep).join('/')) } : {}), rotate, ...(rotate ? { rotateBy: rotationWay(root, config), leadHandoff } : {}),
+    // g93: T-108a's round 1 developer stayed open 2 h after the close (96k tokens); NAC does not see the lead's agents
+    agentsNote: `stop every agent of ${id} still open (an earlier round's developer, a cut-off reviewer) with TaskStop by its agent id, never by process name`,
     commit: committed, ...(warnings.length ? { warnings } : {}),
   };
 }
