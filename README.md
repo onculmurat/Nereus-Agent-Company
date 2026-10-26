@@ -243,6 +243,10 @@ The next session starts with a resume summary: phase, work in progress (with `gi
 
 `team/brief.md`, `decisions.md`, `contracts/`, `research/`, `glossary.md` and `config.json` are meant to be committed. `team/work/` (board, briefs, hand-offs, escalations, mailbox) is committed too; only `team/work/packs/` (generated context packs) is git-ignored. The lead commits it in its own commits, `chore(team): <what>`, after each task is marked done and at each lead rotation, staging explicit paths and never mixing it into a code commit. Setup changes an older `.gitignore` line `team/work/` to `team/work/packs/` and shows the diff first.
 
+## Changes in 1.3.35
+
+- **An L task goes out one step per dispatch** (g75): in Memory Agent T-099, T-100 and T-074 the whole task went out in one dispatch; the developer reached the turn budget in the middle of a step, the half-done work stayed uncommitted and the next dispatch spent turns finding where it stood. The task-loop skill now says to plan one step (one commit) per dispatch for an L task from the start, each ending on a green commit, the next pack carrying its diff. An M task stays one dispatch unless its brief has more than 3 steps.
+
 ## Changes in 1.3.34
 
 - **Turn budget 50** (g74): in three medium tasks in a row (Memory Agent T-099, T-100, T-074) the developer used all 40 turns and stopped with one of three commits done; each re-dispatch built a fresh pack and the context again. The owner raised `turnBudget` to 50 as a first step; `maxTurns` in the agent files is now 55, so the 5 turns for the report stay. A project can still set its own `turnBudget` in `team/config.json`.

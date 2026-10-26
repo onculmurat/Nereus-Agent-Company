@@ -75,3 +75,11 @@ test('g71: task-loop tells the lead to run the gate in the foreground', () => {
   const skill = fs.readFileSync(path.join(pluginRoot, 'skills', 'task-loop', 'SKILL.md'), 'utf8');
   assert.match(skill, /gate[^\n]*in the foreground[^\n]*600000[^\n]*never as a background shell/);
 });
+
+// Seen live (Memory Agent T-099, T-100, T-074, g75): a whole task in one dispatch ran into the turn budget in the middle
+// of a step; the half-done work stayed uncommitted and the next dispatch spent turns finding where it stood.
+test('g75: task-loop plans one step per dispatch for an L task', () => {
+  const skill = fs.readFileSync(path.join(pluginRoot, 'skills', 'task-loop', 'SKILL.md'), 'utf8');
+  assert.match(skill, /Size L \(g75\): plan one step \(one commit\) per dispatch from the start/);
+  assert.ok(skill.length < 18000);
+});
