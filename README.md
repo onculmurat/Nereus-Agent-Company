@@ -243,6 +243,10 @@ The next session starts with a resume summary: phase, work in progress (with `gi
 
 `team/brief.md`, `decisions.md`, `contracts/`, `research/`, `glossary.md` and `config.json` are meant to be committed. `team/work/` (board, briefs, hand-offs, escalations, mailbox) is committed too; only `team/work/packs/` (generated context packs) is git-ignored. The lead commits it in its own commits, `chore(team): <what>`, after each task is marked done and at each lead rotation, staging explicit paths and never mixing it into a code commit. Setup changes an older `.gitignore` line `team/work/` to `team/work/packs/` and shows the diff first.
 
+## Changes in 1.3.59
+
+- The destructive-command guard counts Claude Code's own temp folder (`CLAUDE_CODE_TMPDIR`, where the scratchpad lives) like the temp folder: a recursive delete inside it passes, the folder itself stays protected. A developer's `rm -rf` of a demo folder there was blocked (g101).
+
 ## Changes in 1.3.58
 
 - Every role's working rules say: stop only a process you started, by its PID; never stop processes by name (`taskkill /IM`, `pkill`, `Stop-Process -Name`) and never run load generators. Two roles tried it in one night (a CPU burner, `taskkill /F /IM python.exe`); only the auto-mode classifier stopped them (g100).
