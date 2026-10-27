@@ -75,6 +75,8 @@ export function validateConfig(cfg) {
   if (op !== undefined) {
     if (!op || typeof op !== 'object' || typeof op.session !== 'string' || !PROXY_SESSION_RE.test(op.session)) throw new Error(`ownerProxy.session must be the proxy session name (letters, digits, . _ - and spaces); got ${JSON.stringify(op?.session)}`);
     if (op.until !== undefined && (typeof op.until !== 'string' || !PROXY_UNTIL_RE.test(op.until))) throw new Error(`ownerProxy.until must be a date YYYY-MM-DD; got ${JSON.stringify(op.until)}`);
+    if (op.full !== undefined && op.full !== true) throw new Error(`ownerProxy.full must be true when set; got ${JSON.stringify(op.full)}`);
+    if (op.full && op.until === undefined) throw new Error('ownerProxy.full needs ownerProxy.until: a full proxy is always time-bound');
   }
   const g = cfg.gateCommands;
   if (g !== undefined) {

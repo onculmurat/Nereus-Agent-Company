@@ -120,12 +120,12 @@ export function applyPermissions(plan) {
 
 // g29: only the owner sets the proxy (the classifier refuses a standing delegation the lead writes itself).
 // session 'off' removes it.
-export function planProxy(projectRoot, { session, until } = {}) {
+export function planProxy(projectRoot, { session, until, full } = {}) {
   const file = path.join(path.resolve(projectRoot), 'team', 'config.json');
   const before = readJsonOrNull(file);
   const after = structuredClone(before ?? {});
   if (session === 'off') delete after.ownerProxy;
-  else after.ownerProxy = { session, ...(until === undefined ? {} : { until }) };
+  else after.ownerProxy = { session, ...(until === undefined ? {} : { until }), ...(full ? { full: true } : {}) };
   const md = path.join(path.resolve(projectRoot), 'CLAUDE.md');
   const mdBefore = fs.existsSync(md) ? fs.readFileSync(md, 'utf8') : null;
   return { path: file, before, after, extra: [{ path: md, before: mdBefore, after: withProxyBlock(mdBefore, after.ownerProxy) }] };
@@ -137,7 +137,7 @@ function proxyBlock(p) {
   return [
     PROXY_START,
     '## Owner proxy (written by the owner with setup.js --proxy)',
-    `I delegate my decision questions to the Claude session ${p.session}${p.until ? ` until ${p.until}` : ''}. Its answers are my decisions under this delegation: record them with \`decisions.js decide <Q> --by proxy\`. Push, merge into the main branch, deploy, publish, deleting my data, spending money and irreversible go-steps stay with me.`,
+    `I delegate my decision questions to the Claude session ${p.session}${p.until ? ` until ${p.until}` : ''}. Its answers are my decisions under this delegation: record them with \`decisions.js decide <Q> --by proxy\`. ${p.full ? 'This is a full proxy: it also decides merge into the main branch, spending money, irreversible go-steps and deleting my data. Push, deploy and publish stay with me.' : 'Push, merge into the main branch, deploy, publish, deleting my data, spending money and irreversible go-steps stay with me.'}`,
     PROXY_END,
   ].join('\n');
 }
@@ -155,7 +155,7 @@ export function withProxyBlock(text, p) {
 
 export function applyProxy(plan) {
   const p = plan.after.ownerProxy;
-  return writeAndCommit(plan, p ? `chore(nac): owner proxy ${p.session}${p.until ? ` until ${p.until}` : ''} (g29)` : 'chore(nac): owner proxy off (g29)', 'the owner proxy');
+  return writeAndCommit(plan, p ? `chore(nac): ${p.full ? 'full ' : ''}owner proxy ${p.session}${p.until ? ` until ${p.until}` : ''} (g29${p.full ? ', g110' : ''})` : 'chore(nac): owner proxy off (g29)', 'the owner proxy');
 }
 
 export function hasCompactionSettings(projectRoot) {
