@@ -229,6 +229,10 @@ Sonraki oturum bir devam özetiyle başlar: aşama, süren iş (`git status` ile
 
 `team/brief.md`, `decisions.md`, `contracts/`, `research/`, `glossary.md` ve `config.json` commit'lenmek içindir. `team/work/` (pano, görev özetleri, devir notları, eskalasyonlar, posta kutusu) de commit'lenir; yalnız `team/work/packs/` (üretilen bağlam paketleri) git dışındadır. Lider bunu kendi commit'lerinde, `chore(team): <ne>`, her görev bittiğinde ve her lider rotasyonunda, açık yolları ekleyerek commit'ler; kod commit'lerine karıştırmaz. Kurulum eski `.gitignore` satırını `team/work/` yerine `team/work/packs/` yapar ve önce farkı gösterir.
 
+## 1.3.65 değişiklikleri
+
+- Vekil, release kelimesini modül adı olarak geçiren soruya karar verebilir: sertleştirme görevi, secret scan, kapı, iş akışı ya da "in the release". Q-234 ("Second release hardening task") yayın sayılıp reddedilmişti; lider soruyu kutuyla sahibe açmak zorunda kaldı (g107).
+
 ## 1.3.64 değişiklikleri
 
 - Kapı bölme (1.3.62) değişen paketlere daraltılmış görev kapısını da kapsar. Daraltılmış cargo komutunun kayıtlı süresi yoktu; görevin ilk daraltılmış kapısı bütün koştu ve 600 sn araç süresini aştı. `gate-times.json` artık her kontrolün son süresini `@<ad>` altında da tutar; hiç ölçülmemiş komut bu süreyi alır (g106).
