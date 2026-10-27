@@ -11,14 +11,30 @@ export function commitPaths(root, paths, message) {
   } catch {
     return { committed: false, warning: 'not committed: the project is not a git repository' };
   }
-  try {
-    if (git('status', '--porcelain', '--', ...paths) === '') return { committed: false, warning: `nothing to commit in ${paths.join(', ')}` };
-    git('add', '--', ...paths);
-    git('commit', '-q', '-m', message, '--', ...paths);
-    return { committed: true, sha: git('rev-parse', '--short', 'HEAD') };
-  } catch (e) {
-    return { committed: false, warning: `not committed (${String(e.stderr || e.message).trim().split('\n')[0]})` };
+  // g99: another git process in the same repo (a developer's commit) holds index.lock for a moment, and on Windows a
+  // file can be held briefly by a scanner; wait and retry before giving up
+  for (let attempt = 1; ; attempt++) {
+    try {
+      if (git('status', '--porcelain', '--', ...paths) === '') return { committed: false, warning: `nothing to commit in ${paths.join(', ')}` };
+      git('add', '--', ...paths);
+      git('commit', '-q', '-m', message, '--', ...paths);
+      return { committed: true, sha: git('rev-parse', '--short', 'HEAD') };
+    } catch (e) {
+      const error = gitError(e);
+      if (attempt < 4) {
+        Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 500 * attempt);
+        continue;
+      }
+      return { committed: false, warning: `not committed (${error})` };
+    }
   }
+}
+
+// The line of a failed git call that says why: git's own warnings (LF/CRLF) come first on stderr and hid the
+// error (g99, Memory Agent T-113 close).
+function gitError(e) {
+  const lines = String(e.stderr || e.message).trim().split('\n').map((l) => l.trim()).filter(Boolean);
+  return lines.find((l) => !/^warning:/i.test(l)) ?? lines[0] ?? 'git failed';
 }
 
 // The subset of `paths` (absolute or relative to root) that git reports as modified or staged right now, and whether

@@ -243,6 +243,10 @@ The next session starts with a resume summary: phase, work in progress (with `gi
 
 `team/brief.md`, `decisions.md`, `contracts/`, `research/`, `glossary.md` and `config.json` are meant to be committed. `team/work/` (board, briefs, hand-offs, escalations, mailbox) is committed too; only `team/work/packs/` (generated context packs) is git-ignored. The lead commits it in its own commits, `chore(team): <what>`, after each task is marked done and at each lead rotation, staging explicit paths and never mixing it into a code commit. Setup changes an older `.gitignore` line `team/work/` to `team/work/packs/` and shows the diff first.
 
+## Changes in 1.3.57
+
+- A team-state commit (`task.js close`, `team-commit.js` and the other `chore(team)` commits) retries a failed git call three times, waiting a little longer each time, so a developer's commit holding `index.lock` no longer leaves the close uncommitted. When it still fails, the warning names the git error, not the LF/CRLF warning git prints first (g99).
+
 ## Changes in 1.3.56
 
 - `task.js close --commit` takes a comma-separated list (`--commit e9ee0ac,fd106d0`). A task that ran in the main tree with step commits records all of them, so its close no longer needs `--single-commit` (g98).
