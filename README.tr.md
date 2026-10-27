@@ -229,6 +229,10 @@ Sonraki oturum bir devam özetiyle başlar: aşama, süren iş (`git status` ile
 
 `team/brief.md`, `decisions.md`, `contracts/`, `research/`, `glossary.md` ve `config.json` commit'lenmek içindir. `team/work/` (pano, görev özetleri, devir notları, eskalasyonlar, posta kutusu) de commit'lenir; yalnız `team/work/packs/` (üretilen bağlam paketleri) git dışındadır. Lider bunu kendi commit'lerinde, `chore(team): <ne>`, her görev bittiğinde ve her lider rotasyonunda, açık yolları ekleyerek commit'ler; kod commit'lerine karıştırmaz. Kurulum eski `.gitignore` satırını `team/work/` yerine `team/work/packs/` yapar ve önce farkı gösterir.
 
+## 1.3.56 değişiklikleri
+
+- `task.js close --commit` virgülle ayrılmış liste alır (`--commit e9ee0ac,fd106d0`). Ana ağaçta adım commitleriyle yürüyen bir görev hepsini kaydeder; kapanışı artık `--single-commit` istemez (g98).
+
 ## 1.3.55 değişiklikleri
 
 - **Entegrasyon görevin commit'lerini panoya yazar** (g97): `task.js close` tek bir `--commit` aldığı için adım commit'leri olan bir worktree görevinin panoda yalnız son commit'i görünüyordu. Bu yüzden her kapanış gerekçeli bir `--single-commit` istiyordu. Memory Agent'ta T-108b, T-109b, T-109c, T-110c ve T-114 böyle kapandı; decisions.md'de bu türden 26 kayıt var. `worktree.js integrate` artık cherry-pick edilen her commit'i görevin pano kaydına ekliyor.

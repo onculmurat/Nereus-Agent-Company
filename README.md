@@ -243,6 +243,10 @@ The next session starts with a resume summary: phase, work in progress (with `gi
 
 `team/brief.md`, `decisions.md`, `contracts/`, `research/`, `glossary.md` and `config.json` are meant to be committed. `team/work/` (board, briefs, hand-offs, escalations, mailbox) is committed too; only `team/work/packs/` (generated context packs) is git-ignored. The lead commits it in its own commits, `chore(team): <what>`, after each task is marked done and at each lead rotation, staging explicit paths and never mixing it into a code commit. Setup changes an older `.gitignore` line `team/work/` to `team/work/packs/` and shows the diff first.
 
+## Changes in 1.3.56
+
+- `task.js close --commit` takes a comma-separated list (`--commit e9ee0ac,fd106d0`). A task that ran in the main tree with step commits records all of them, so its close no longer needs `--single-commit` (g98).
+
 ## Changes in 1.3.55
 
 - **Integrate records the task's commits on the board** (g97): `task.js close` takes one `--commit`, so a worktree task with step commits had only its last commit on the board. Each close then needed `--single-commit` with a reason. In Memory Agent this happened for T-108b, T-109b, T-109c, T-110c and T-114, and decisions.md holds 26 such entries. `worktree.js integrate` now adds every cherry-picked commit to the board entry.

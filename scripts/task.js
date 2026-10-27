@@ -16,7 +16,7 @@ const usage = `Usage:
   task.js note <id> --text <text> [--heading <h>] [--chore]
                                          appends a section to the task's hand-off (gate result, review verdict, decisions)
                                          --chore: also one chore(team) commit of team/, saves the separate git call (g67)
-  task.js close <id> --commit <sha> [--findings <json-file>] [--single-commit <reason>] [--lead-note <text>]
+  task.js close <id> --commit <sha[,sha...]> [--findings <json-file>] [--single-commit <reason>] [--lead-note <text>]
                                          records the findings (a JSON array of {module, file, line, symbol?, severity,
                                          class, text, origin?}), done with the commit and the hand-off (same refusals as
                                          board.js update --status done), the cost file, and when the rotation is due
