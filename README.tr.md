@@ -229,6 +229,10 @@ Sonraki oturum bir devam özetiyle başlar: aşama, süren iş (`git status` ile
 
 `team/brief.md`, `decisions.md`, `contracts/`, `research/`, `glossary.md` ve `config.json` commit'lenmek içindir. `team/work/` (pano, görev özetleri, devir notları, eskalasyonlar, posta kutusu) de commit'lenir; yalnız `team/work/packs/` (üretilen bağlam paketleri) git dışındadır. Lider bunu kendi commit'lerinde, `chore(team): <ne>`, her görev bittiğinde ve her lider rotasyonunda, açık yolları ekleyerek commit'ler; kod commit'lerine karıştırmaz. Kurulum eski `.gitignore` satırını `team/work/` yerine `team/work/packs/` yapar ve önce farkı gösterir.
 
+## 1.3.60 değişiklikleri
+
+- Kapı sonucu atlanan testlerin adlarını da `skippedTests` içinde verir (cargo `... ignored`, node `# SKIP`/`# TODO`, pytest `SKIPPED`), yalnızca sayısını değil. Devir notu her atlamanın nedenini istiyor; kaydedilen kuyruk hiçbir test adı vermediği için lider bunu bir geliştiriciye buldurmak zorunda kalmıştı (g102).
+
 ## 1.3.59 değişiklikleri
 
 - Yıkıcı komut koruması Claude Code'un kendi geçici klasörünü (`CLAUDE_CODE_TMPDIR`, scratchpad'in bulunduğu yer) geçici klasör gibi sayar: içinde özyinelemeli silme geçer, klasörün kendisi korunur. Bir geliştiricinin oradaki demo klasörünü `rm -rf` ile silmesi engellenmişti (g101).

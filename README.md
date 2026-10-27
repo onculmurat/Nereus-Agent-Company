@@ -243,6 +243,10 @@ The next session starts with a resume summary: phase, work in progress (with `gi
 
 `team/brief.md`, `decisions.md`, `contracts/`, `research/`, `glossary.md` and `config.json` are meant to be committed. `team/work/` (board, briefs, hand-offs, escalations, mailbox) is committed too; only `team/work/packs/` (generated context packs) is git-ignored. The lead commits it in its own commits, `chore(team): <what>`, after each task is marked done and at each lead rotation, staging explicit paths and never mixing it into a code commit. Setup changes an older `.gitignore` line `team/work/` to `team/work/packs/` and shows the diff first.
 
+## Changes in 1.3.60
+
+- The gate result names the skipped tests in `skippedTests` (cargo `... ignored`, node `# SKIP`/`# TODO`, pytest `SKIPPED`), not only their count. The hand-off needs a reason for each skip, and the saved tail named no test, so the lead had to ask a developer to find it (g102).
+
 ## Changes in 1.3.59
 
 - The destructive-command guard counts Claude Code's own temp folder (`CLAUDE_CODE_TMPDIR`, where the scratchpad lives) like the temp folder: a recursive delete inside it passes, the folder itself stays protected. A developer's `rm -rf` of a demo folder there was blocked (g101).

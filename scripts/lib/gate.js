@@ -106,6 +106,26 @@ export function parseSkipped(output) {
   return total;
 }
 
+// g102: the hand-off needs a reason for each skip, but the gate gave only the count and the saved tail rarely names
+// the test (Memory Agent T-082: "skipped=1 has no name"). The names the runner printed: cargo "test x ... ignored",
+// node --test "# SKIP" / "# TODO", pytest "SKIPPED [n] where: reason" (-rs) and "path::x SKIPPED" (-v).
+const SKIPPED_SHOWN = 20;
+export function skippedTests(output) {
+  const text = String(output).replace(/\u001b\[[0-9;]*m/g, '');
+  const names = new Set();
+  for (const m of text.matchAll(/^test (\S+) \.\.\. ignored\b/gm)) names.add(m[1]);
+  for (const m of text.matchAll(/^\s*(?:ok \d+ - |﹣ )(.+?)(?: \([\d.]+m?s\))? # (?:SKIP|TODO)\b/gm)) names.add(m[1].trim());
+  for (const m of text.matchAll(/^SKIPPED \[\d+\] (.+)$/gm)) names.add(m[1].trim());
+  for (const m of text.matchAll(/^(\S+::\S+) SKIPPED\b/gm)) names.add(m[1]);
+  return [...names].slice(0, SKIPPED_SHOWN);
+}
+
+const withSkipped = (result, all) => {
+  if (!result.skipped) return result;
+  const names = skippedTests(all);
+  return names.length ? { ...result, skippedTests: names } : result;
+};
+
 // g54: each check has a deadline (gateCheckSeconds, 1200 by default; 0 = none). A check past it is stopped with its
 // process tree and reported red with timedOut and its last lines, so the lead sees a hang and where it stopped
 // instead of waiting on a gate that never returns.
@@ -121,7 +141,7 @@ export function runTestGate(root, command, { seconds = DEFAULT_GATE_CHECK_SECOND
   // g69: an isolated rerun is green only when every expected test ran and passed; a filter that matched nothing exits 0
   const missing = expect.filter((name) => !new RegExp(`^test ${escapeRe(name)} \\.\\.\\. ok\\s*$`, 'm').test(all));
   if (run.status === 0 && missing.length) return { ok: false, exitCode: 0, skipped: parseSkipped(all), notRun: missing, output: `${tail}\n[NAC gate: ${missing.join(', ')} did not run in the isolated rerun.]` };
-  return withFailures(knownRedCheck({ ok: run.status === 0, exitCode: run.status, skipped: parseSkipped(all), output: tail }, all, knownRed), all);
+  return withSkipped(withFailures(knownRedCheck({ ok: run.status === 0, exitCode: run.status, skipped: parseSkipped(all), output: tail }, all, knownRed), all), all);
 }
 
 const escapeRe = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -234,7 +254,8 @@ function combine(checks_) {
   const red = checks_.filter((c) => !c.ok);
   const shown = red[0] ?? checks_[checks_.length - 1];
   const output = checks_.length === 1 ? shown.output : (red.length ? red : [shown]).map((c) => `[${c.name}]\n${c.output}`).join('\n');
-  return { ok: red.length === 0, exitCode: shown.exitCode, skipped: checks_.reduce((n, c) => n + c.skipped, 0), output, checks: checks_ };
+  const skippedNames = checks_.flatMap((c) => (c.skippedTests ?? []).map((t) => (checks_.length === 1 ? t : `${c.name}: ${t}`)));
+  return { ok: red.length === 0, exitCode: shown.exitCode, skipped: checks_.reduce((n, c) => n + c.skipped, 0), ...(skippedNames.length ? { skippedTests: skippedNames } : {}), output, checks: checks_ };
 }
 
 // g44: a gate red on format alone cost a full round (T-081, T-084: the developer dispatched again for whitespace).
