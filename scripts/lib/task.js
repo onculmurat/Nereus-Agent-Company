@@ -16,6 +16,7 @@ import { hasCompactionSettings } from './setup.js';
 import { teamPaths } from './paths.js';
 import { localDate } from './dates.js';
 import { scopeRecord } from './scope.js';
+import { compactionHeld } from './compact.js';
 
 // g34: with compaction configured the lead rotates after every task, so each task starts on a small context.
 export const COMPACTION_ROTATE_EVERY = 1;
@@ -76,6 +77,11 @@ export function startTask(root, id, { worktree = false, worktreeRoot, role, path
     throw new Error(`Lead rotation pending (rotateBy clear, g80): the last close wrote the lead hand-off${pending ? ` ${pending}` : ''}. Ask the owner (and the owner proxy) in one line: "Rotasyon: /clear yazıp ardından 'devam' deyin." and end your turn. The new session starts from the hand-off. If "devam" comes without /clear, run this start again with --same-session.`);
   }
   if (pending !== null) clearRotationPending(root);
+  // g108: a held auto compaction comes before new work; the lead finishes and records what is in flight first
+  const held = compactionHeld(root);
+  if (held) {
+    throw new Error(`NAC: an auto compaction is held back at ${held.tokens} tokens (g108): ${held.reason} Start no new task. Clear those conditions (answer or record questions, commit team/, write hand-offs), let the running tasks report, then end your turn so the compaction runs; start ${id} after it.`);
+  }
   const before = entryOf(root, id);
   const wt = worktree ? addWorktree(root, id, { worktreeRoot }) : null;
   const tree = wt ? wt.path : root;

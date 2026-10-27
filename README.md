@@ -243,6 +243,10 @@ The next session starts with a resume summary: phase, work in progress (with `gi
 
 `team/brief.md`, `decisions.md`, `contracts/`, `research/`, `glossary.md` and `config.json` are meant to be committed. `team/work/` (board, briefs, hand-offs, escalations, mailbox) is committed too; only `team/work/packs/` (generated context packs) is git-ignored. The lead commits it in its own commits, `chore(team): <what>`, after each task is marked done and at each lead rotation, staging explicit paths and never mixing it into a code commit. Setup changes an older `.gitignore` line `team/work/` to `team/work/packs/` and shows the diff first.
 
+## Changes in 1.3.66
+
+- A non-blocking open question no longer holds the lead's auto compaction back up to the ceiling; it defers it by softMargin like the other soft conditions. Only a blocking question is hard. While NAC holds an auto compaction back, `task.js start` refuses new work until a compaction has run. Memory Agent's lead went from 100k to 161k tokens with proxy questions open and kept starting tasks (g108).
+
 ## Changes in 1.3.65
 
 - The proxy may decide a question that names release as a module: its hardening task, secret scan, gate or workflow, or something "in the release". Q-234 ("Second release hardening task") was refused as a release, and the lead had to open a box for the owner (g107).
