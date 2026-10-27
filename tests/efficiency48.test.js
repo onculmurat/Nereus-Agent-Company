@@ -1,4 +1,4 @@
-// 1.3.62: g104, a gate whose checks took longer than gateSplitSeconds asks for one --check per call.
+// 1.3.62: g104, a gate whose checks took longer than gateSplitSeconds asks for one --check per call; 1.3.64: g106, a scoped command with no record.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -26,7 +26,7 @@ test('g104: past gateSplitSeconds the next whole gate runs nothing and gives one
   assert.ok(first.out.tookSeconds >= 3);
   assert.match(first.out.splitNote, /gateSplitSeconds 2/);
   const times = JSON.parse(fs.readFileSync(path.join(root, 'team', 'work', 'packs', 'gate-times.json'), 'utf8'));
-  assert.equal(Object.keys(times).length, 2);
+  assert.equal(Object.keys(times).filter((k) => !k.startsWith('@')).length, 2);
 
   const second = gate(root);
   assert.equal(second.status, 1);
@@ -53,4 +53,18 @@ test('g104: --check with an unknown name is refused and names the checks; gateSp
   assert.match(r.err, /No gate check named clippy; the checks are: test/);
   fs.writeFileSync(path.join(root, 'team', 'config.json'), JSON.stringify({ gateSplitSeconds: -1, gateCommands: [{ name: 'test', command: `${node} -e "0"` }] }));
   assert.match(gate(root).err, /gateSplitSeconds must be a whole number/);
+});
+
+// Seen live (Memory Agent T-120b, 10-27): the task gate scoped cargo test to one package, a command with no record, so
+// the first scoped gate ran whole and passed the 600 s tool timeout although the full commands had records.
+test('g106: a check command never measured takes the last time of the check with that name', async () => {
+  const { recordGateTimes, expectedGateSeconds } = await import('../scripts/lib/gate.js');
+  const root = makeProject();
+  const full = [{ name: 'test', command: 'cargo test -p a -p b' }, { name: 'clippy', command: 'cargo clippy -p a -p b' }];
+  recordGateTimes(root, full, { checks: [{ name: 'test', tookSeconds: 400 }, { name: 'clippy', tookSeconds: 9 }] });
+  const scoped = [{ name: 'test', command: 'cargo test -p b' }, { name: 'clippy', command: 'cargo clippy -p b' }, { name: 'fmt', command: 'cargo fmt --check' }];
+  assert.deepEqual(expectedGateSeconds(root, scoped), { total: 409, checks: [{ name: 'test', seconds: 400 }, { name: 'clippy', seconds: 9 }] });
+  recordGateTimes(root, scoped, { checks: [{ name: 'test', tookSeconds: 120 }] });
+  assert.equal(expectedGateSeconds(root, scoped).checks[0].seconds, 120);
+  assert.equal(expectedGateSeconds(root, full).checks[0].seconds, 400);
 });

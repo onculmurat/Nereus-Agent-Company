@@ -229,6 +229,10 @@ Sonraki oturum bir devam özetiyle başlar: aşama, süren iş (`git status` ile
 
 `team/brief.md`, `decisions.md`, `contracts/`, `research/`, `glossary.md` ve `config.json` commit'lenmek içindir. `team/work/` (pano, görev özetleri, devir notları, eskalasyonlar, posta kutusu) de commit'lenir; yalnız `team/work/packs/` (üretilen bağlam paketleri) git dışındadır. Lider bunu kendi commit'lerinde, `chore(team): <ne>`, her görev bittiğinde ve her lider rotasyonunda, açık yolları ekleyerek commit'ler; kod commit'lerine karıştırmaz. Kurulum eski `.gitignore` satırını `team/work/` yerine `team/work/packs/` yapar ve önce farkı gösterir.
 
+## 1.3.64 değişiklikleri
+
+- Kapı bölme (1.3.62) değişen paketlere daraltılmış görev kapısını da kapsar. Daraltılmış cargo komutunun kayıtlı süresi yoktu; görevin ilk daraltılmış kapısı bütün koştu ve 600 sn araç süresini aştı. `gate-times.json` artık her kontrolün son süresini `@<ad>` altında da tutar; hiç ölçülmemiş komut bu süreyi alır (g106).
+
 ## 1.3.63 değişiklikleri
 
 - Vekil, merge'ü yalnız ayrı kullanıcı onayı gereken ya da kullanıcıda kalan bir iş olarak anan soruya karar verebilir ("merge to main needs a separate owner OK", "main'e merge ayrı owner onayı"). Faz 6 planı sorusu main'e merge'ü kullanıcıda kalan bir madde olarak saydı, vekil kararı merge sanılıp reddedildi ve lider kullanıcı için kutuda bekledi. Merge'ün kendisini soran soru yine kullanıcıya gider (g105).
