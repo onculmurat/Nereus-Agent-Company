@@ -117,6 +117,31 @@ export function noteTask(root, id, { text, heading, now = new Date() }) {
   return { handoff: rel };
 }
 
+// g103: a main-tree task's code commits since its `chore(team): <id> start` commit, oldest first: not chore(team), not
+// a merge, not another task's style(<id>) fix and not on another board entry. The lead recorded T-117's three commits
+// one by one with board.js update --commit (the phase-5 lesson). While another main-tree task is in progress the
+// commits could not be told apart, but task.js start refuses a second main-tree task. Worktree tasks record theirs at
+// integrate (g97, and those are on their entry); a missing start commit or a git error takes none.
+export function mainTreeCommits(root, e, entries = readBoard(root).entries) {
+  if (e.worktree || e.code === 'no') return { commits: [] };
+  const git = (...args) => execFileSync('git', args, { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+  let found;
+  try {
+    const start = git('log', '--format=%h %s', '--fixed-strings', `--grep=chore(team): ${e.id} start`).split('\n').find((l) => l.endsWith(` chore(team): ${e.id} start`));
+    if (!start) return { commits: [] };
+    found = git('log', '--no-merges', '--reverse', '--format=%h %s', `${start.split(' ')[0]}..HEAD`).split('\n').filter(Boolean);
+  } catch {
+    return { commits: [] };
+  }
+  const taken = entries.filter((x) => x.id !== e.id).flatMap((x) => x.commits ?? []);
+  const commits = found
+    .filter((l) => !/^\S+ chore\(team\):/.test(l))
+    .filter((l) => { const m = /^\S+ style\(([^)]+)\)/.exec(l); return !m || m[1] === e.id; })
+    .map((l) => l.split(' ')[0])
+    .filter((sha) => !taken.some((c) => c.startsWith(sha) || sha.startsWith(c)));
+  return { commits };
+}
+
 // Findings, done (with the commit and the hand-off), the cost file, the lead hand-off when the rotation is due,
 // and one chore(team) commit.
 export function closeTask(root, id, { commit, singleCommit, findings = [], leadNote, config = {}, pluginRoot, now = new Date() }) {
@@ -139,11 +164,15 @@ export function closeTask(root, id, { commit, singleCommit, findings = [], leadN
     }
   }
   // g98: --commit takes a comma-separated list; a main-tree task with step commits (T-113) recorded only one
+  const has = (list, sha) => list.some((c) => c.startsWith(sha) || sha.startsWith(c));
+  const steps = mainTreeCommits(root, e);
   let commits = e.commits;
+  for (const sha of steps.commits) if (!has(commits, sha)) commits = [...commits, sha];
   for (const sha of commit === undefined ? [] : String(commit).split(',').map((s) => s.trim()).filter(Boolean)) {
     verifyCommit(root, sha);
-    if (!commits.some((c) => c.startsWith(sha) || sha.startsWith(c))) commits = [...commits, sha];
+    if (!has(commits, sha)) commits = [...commits, sha];
   }
+  if (e.code !== 'no' && !commits.length) throw new Error(`Missing --commit: ${id} has no recorded commit and no code commit since its "chore(team): ${id} start" commit was found. Name it with --commit <sha>`);
   // done first: a refused done (deferred question, security review) must not leave findings that a second try repeats
   const entry = updateEntry(root, id, { status: 'done', commits, handoff: rel }, { singleCommit });
   const added = [];
@@ -213,7 +242,7 @@ export function closeTask(root, id, { commit, singleCommit, findings = [], leadN
   }
   const committed = commitPaths(root, ['team'], `chore(team): ${id} done${leadHandoff ? ', lead hand-off' : ''}`);
   return {
-    id, status: entry.status, commits: entry.commits,
+    id, status: entry.status, commits: entry.commits, ...(steps.commits.length ? { stepCommits: steps.commits } : {}),
     findings: added.map((f) => ({ id: f.id, module: f.module, severity: f.severity, hardeningDue: f.hardeningDue })),
     cost, ...(maintenance ? { maintenance } : {}), ...(builds?.removed.length ? { buildsRemoved: builds.removed.map((p) => p.split(path.sep).join('/')) } : {}), ...(testTemp?.removed ? { testTempRemoved: testTemp.removed } : {}), rotate, ...(rotate ? { rotateBy: rotationWay(root, config), leadHandoff } : {}),
     // g93: T-108a's round 1 developer stayed open 2 h after the close (96k tokens); NAC does not see the lead's agents

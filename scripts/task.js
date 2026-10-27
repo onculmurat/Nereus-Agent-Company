@@ -16,9 +16,9 @@ const usage = `Usage:
   task.js note <id> --text <text> [--heading <h>] [--chore]
                                          appends a section to the task's hand-off (gate result, review verdict, decisions)
                                          --chore: also one chore(team) commit of team/, saves the separate git call (g67)
-  task.js close <id> --commit <sha[,sha...]> [--findings <json-file>] [--single-commit <reason>] [--lead-note <text>]
+  task.js close <id> [--commit <sha[,sha...]>] [--findings <json-file>] [--single-commit <reason>] [--lead-note <text>]
                                          records the findings (a JSON array of {module, file, line, symbol?, severity,
-                                         class, text, origin?}), done with the commit and the hand-off (same refusals as
+                                         class, text, origin?}), done with the commits and the hand-off (a main-tree task's code commits since its start commit are taken from git, g103; --commit adds others; same refusals as
                                          board.js update --status done), the cost file, and when the rotation is due
                                          (every task with compaction; rotateEvery in team/config.json) the lead hand-off
                                          with --lead-note in it; then one chore(team) commit
@@ -53,7 +53,6 @@ const commands = {
     return { ...r, commit: c.sha ?? null };
   },
   close: ({ values: v, id, root }) => {
-    need(v, 'commit');
     if (v['single-commit'] !== undefined && !v['single-commit'].trim()) throw new UsageError('--single-commit needs a reason');
     let findings = [];
     if (v.findings !== undefined) {
