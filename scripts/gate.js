@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { runCli, UsageError } from './lib/cli.js';
 import { loadConfig, validateConfig, checkDeleteRoots } from './lib/config.js';
 import { pruneTaskBuilds, freeBytes, maintenanceState } from './lib/worktree.js';
-import { runGate, gateChecks, isCodeless, checkDocGate, waitForIdle, fixable, fixGate, scopeChecks, noFailFast, retryRed, alwaysRunChecks, DEFAULT_GATE_WAIT_SECONDS, DEFAULT_GATE_CHECK_SECONDS, DEFAULT_GATE_MIN_FREE_GB, diskFull } from './lib/gate.js';
+import { runGate, gateChecks, isCodeless, checkDocGate, waitForIdle, fixable, fixGate, scopeChecks, noFailFast, retryRed, alwaysRunChecks, expectedGateSeconds, recordGateTimes, DEFAULT_GATE_SPLIT_SECONDS, DEFAULT_GATE_WAIT_SECONDS, DEFAULT_GATE_CHECK_SECONDS, DEFAULT_GATE_MIN_FREE_GB, diskFull } from './lib/gate.js';
 import { taskTree } from './lib/board.js';
 
 const usage = `Usage:
@@ -44,10 +44,17 @@ const usage = `Usage:
                       when only checks with a fix command are red (fixable: true; a check's "fix", or the write form of
                       cargo fmt / ruff format / black / prettier --check): runs the fixes, commits them as style(<id>) and
                       runs the gate again; not a round (g44). Refused with uncommitted changes outside team/.
+  gate.js [--task <id>] --check <name> [--check <name> ...]
+                      runs only the named checks (the same scope and settings); the gate is green when every check
+                      is green, each in its own call (g104)
+                      each run records how long each check command took (team/work/packs/gate-times.json); when the
+                      recorded total of the checks to run passes gateSplitSeconds (team/config.json, default 500, 0 =
+                      never), a gate without --check runs nothing and returns splitRequired, the checks and their
+                      seconds and one --check command per check: not a round. --no-split runs them all anyway
 `;
 const pluginRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
-runCli(usage, { task: { type: 'string' }, fix: { type: 'boolean' }, full: { type: 'boolean' } }, ({ values, root }) => {
+runCli(usage, { task: { type: 'string' }, fix: { type: 'boolean' }, full: { type: 'boolean' }, check: { type: 'string', multiple: true }, 'no-split': { type: 'boolean' } }, ({ values, root }) => {
   if (values.fix && values.task === undefined) throw new UsageError('--fix needs --task <id>: the style commit is named after the task');
   if (values.task !== undefined && isCodeless(root, values.task)) {
     const doc = checkDocGate(root, values.task);
@@ -68,8 +75,22 @@ runCli(usage, { task: { type: 'string' }, fix: { type: 'boolean' }, full: { type
   // g64: cargo test runs every test binary, so a known environmental red does not hide the tests after it
   // g66: gateAlwaysRun checks run beside a scoped gate; a full gate already runs the whole workspace
   const always = alwaysRunChecks(scoped.scope, config.gateAlwaysRun);
-  const checks = [...scoped.checks, ...always].map((c) => ({ ...c, command: noFailFast(c.command) }));
+  const every = [...scoped.checks, ...always].map((c) => ({ ...c, command: noFailFast(c.command) }));
+  // g104: --check runs only the named checks, so a gate past the tool timeout runs one check per call
+  const only = values.check ?? [];
+  const unknown = only.filter((n) => !every.some((c) => c.name === n));
+  if (unknown.length) throw new UsageError(`No gate check named ${unknown.join(', ')}; the checks are: ${every.map((c) => c.name).join(', ')}`);
+  const checks = only.length ? every.filter((c) => only.includes(c.name)) : every;
   const knownRed = config.gateKnownRed ?? [];
+  const splitAt = config.gateSplitSeconds ?? DEFAULT_GATE_SPLIT_SECONDS;
+  const splitCommands = () => checks.map((c) => `node "${path.join(pluginRoot, 'scripts', 'gate.js')}"${values.task === undefined ? '' : ` --task ${values.task}`}${values.full ? ' --full' : ''} --check ${c.name}`);
+  if (!only.length && !values['no-split'] && splitAt > 0 && checks.length > 1) {
+    const expected = expectedGateSeconds(root, checks);
+    if (expected && expected.total > splitAt) {
+      process.exitCode = 1;
+      return { ok: false, splitRequired: true, expectedSeconds: expected.total, checkSeconds: expected.checks, commands: splitCommands(), splitNote: `the last runs of these checks took ${expected.total}s in all, past gateSplitSeconds ${splitAt}: one call would outlive the 600 s tool timeout and move to the background (g71). Nothing ran; this is not a round. Run each command in its own foreground call, one after the other; the gate is green when every check is green.` };
+    }
+  }
   // g90: D: filled up with five tasks building at once and the gate reported the ENOSPC reds as test failures. Below
   // gateMinFreeGB the done tasks' build dirs go first; still below, the gate does not run and it is not a round.
   // (NAC_GATE_MIN_FREE_GB overrides it for one run; the test suite sets 0)
@@ -113,7 +134,13 @@ runCli(usage, { task: { type: 'string' }, fix: { type: 'boolean' }, full: { type
   const limit = process.env.NAC_GATE_CHECK_SECONDS;
   const seconds = /^\d+$/.test(limit ?? '') ? Number(limit) : config.gateCheckSeconds ?? DEFAULT_GATE_CHECK_SECONDS;
   // g64: a red check runs again before it counts; red then green is reported as flaky, not a round
-  const first = retryRed(tree, checks, runGate(tree, checks, { seconds, knownRed }), { retries: config.gateRetry ?? 1, seconds, knownRed });
+  const firstRun = runGate(tree, checks, { seconds, knownRed });
+  recordGateTimes(root, checks, firstRun);
+  const took = (firstRun.checks ?? []).reduce((n, c) => n + (c.tookSeconds ?? 0), 0);
+  const split = !only.length && splitAt > 0 && checks.length > 1 && took > splitAt
+    ? { tookSeconds: took, splitNote: `the checks took ${took}s in all, past gateSplitSeconds ${splitAt} (g104). From the next run on, gate.js without --check asks for one check per call: ${splitCommands().join(' ; ')}` }
+    : {};
+  const first = retryRed(tree, checks, firstRun, { retries: config.gateRetry ?? 1, seconds, knownRed });
   const result = values.fix ? fixGate(tree, checks, first, { id: values.task, seconds, knownRed }) : { ...first, ...(fixable(first, checks) ? { fixable: true } : {}) };
   if (!result.ok) process.exitCode = 1;
   const busy = idle.busy.length
@@ -135,6 +162,6 @@ runCli(usage, { task: { type: 'string' }, fix: { type: 'boolean' }, full: { type
   const disk = !result.ok && diskFull(result.output) ? { diskFull: true, diskNote: 'the output says the drive is full (no space left on device): the red does not come from the code and is not a round. Free space (worktree.js prune removes the build dirs of done tasks), then run the gate again.' } : {};
   // g91: the gate still runs while the queue drains; the result says the routine is due
   const maint = maintenanceState(root, config);
-  return { ...result, ...disk, ...(maint.due ? { maintenance: maint } : {}), ...(pruned.length ? { pruned } : {}), tree, scope: always.length ? { ...scoped.scope, alwaysRun: always.map((c) => c.name) } : scoped.scope, ...(failed.length ? { failed } : {}), ...knownNote, ...hang, ...(idle.waited ? { waited: idle.waited } : {}), ...busy };
+  return { ...result, ...disk, ...(maint.due ? { maintenance: maint } : {}), ...(pruned.length ? { pruned } : {}), ...(only.length ? { only } : {}), ...split, tree, scope: always.length ? { ...scoped.scope, alwaysRun: always.map((c) => c.name) } : scoped.scope, ...(failed.length ? { failed } : {}), ...knownNote, ...hang, ...(idle.waited ? { waited: idle.waited } : {}), ...busy };
   }
 });

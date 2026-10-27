@@ -247,7 +247,38 @@ export function gateChecks(config) {
 // Runs all checks in order (a red one does not stop the later ones) and reports each. The top-level fields keep
 // the single-command shape: exitCode and output come from the first red check, or from the last one when all pass.
 export function runGate(root, checks, opts) {
-  return combine(checks.map((c) => ({ name: c.name, ...runTestGate(root, c.command, opts) })));
+  return combine(checks.map((c) => {
+    const start = Date.now();
+    const r = runTestGate(root, c.command, opts);
+    return { name: c.name, ...r, tookSeconds: Math.round((Date.now() - start) / 1000) };
+  }));
+}
+
+// g104: a whole gate past ~600 s outlives the lead's tool call, moves to the background and its result can be lost
+// (Memory Agent T-117 r2, T-092 step A: test-feature doubled the cargo test time). Each run records how long each check
+// command took (team/work/packs/gate-times.json, keyed by the command, so a scoped and a full run differ); when the
+// recorded total of the checks about to run passes gateSplitSeconds, gate.js asks for one --check per call instead.
+export const DEFAULT_GATE_SPLIT_SECONDS = 500;
+const gateTimesFile = (root) => path.join(teamPaths(root).packs, 'gate-times.json');
+export function readGateTimes(root) {
+  try { return JSON.parse(fs.readFileSync(gateTimesFile(root), 'utf8')); } catch { return {}; }
+}
+export function recordGateTimes(root, checks, result) {
+  const times = readGateTimes(root);
+  for (const c of result.checks ?? []) {
+    const command = checks.find((k) => k.name === c.name)?.command;
+    if (command && Number.isFinite(c.tookSeconds) && !c.timedOut) times[command] = c.tookSeconds;
+  }
+  try {
+    fs.mkdirSync(path.dirname(gateTimesFile(root)), { recursive: true });
+    fs.writeFileSync(gateTimesFile(root), JSON.stringify(times, null, 2) + '\n');
+  } catch { /* the next run measures again */ }
+}
+// The recorded seconds of each check, and their total; null when no check of the list has a record.
+export function expectedGateSeconds(root, checks) {
+  const times = readGateTimes(root);
+  const known = checks.filter((c) => Number.isFinite(times[c.command])).map((c) => ({ name: c.name, seconds: times[c.command] }));
+  return known.length ? { total: known.reduce((n, c) => n + c.seconds, 0), checks: known } : null;
 }
 
 function combine(checks_) {
