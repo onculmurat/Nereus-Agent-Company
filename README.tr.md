@@ -229,6 +229,10 @@ Sonraki oturum bir devam özetiyle başlar: aşama, süren iş (`git status` ile
 
 `team/brief.md`, `decisions.md`, `contracts/`, `research/`, `glossary.md` ve `config.json` commit'lenmek içindir. `team/work/` (pano, görev özetleri, devir notları, eskalasyonlar, posta kutusu) de commit'lenir; yalnız `team/work/packs/` (üretilen bağlam paketleri) git dışındadır. Lider bunu kendi commit'lerinde, `chore(team): <ne>`, her görev bittiğinde ve her lider rotasyonunda, açık yolları ekleyerek commit'ler; kod commit'lerine karıştırmaz. Kurulum eski `.gitignore` satırını `team/work/` yerine `team/work/packs/` yapar ve önce farkı gösterir.
 
+## 1.3.59 değişiklikleri
+
+- Yıkıcı komut koruması Claude Code'un kendi geçici klasörünü (`CLAUDE_CODE_TMPDIR`, scratchpad'in bulunduğu yer) geçici klasör gibi sayar: içinde özyinelemeli silme geçer, klasörün kendisi korunur. Bir geliştiricinin oradaki demo klasörünü `rm -rf` ile silmesi engellenmişti (g101).
+
 ## 1.3.58 değişiklikleri
 
 - Her rolün çalışma kuralları artık şunu söyler: yalnız kendi başlattığın süreci PID'siyle durdur; süreçleri adıyla durdurma (`taskkill /IM`, `pkill`, `Stop-Process -Name`) ve yük üreteci çalıştırma. Bir gecede iki rol bunu denedi (CPU yakan döngü, `taskkill /F /IM python.exe`); onları yalnız auto mode sınıflandırıcısı durdurdu (g100).

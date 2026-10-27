@@ -27,6 +27,9 @@ runHook(async (payload, root) => {
     // g89: a task's worktree and its target-<id> folder lie beside the project (<project>-wt/, or under worktreeRoot);
     // a developer's rm -rf target in its own worktree was blocked (Memory Agent T-108a). The -wt folder counts too.
     try { deleteRoots = [...deleteRoots, ...checkDeleteRoots([path.dirname(worktreePath(root, 'T-1', { worktreeRoot: config.worktreeRoot }))])]; } catch { /* nothing added */ }
+    // g101: CLAUDE_CODE_TMPDIR is Claude Code's own temp folder (the scratchpad lives in it); a developer's rm -rf of a
+    // demo folder there was blocked (Memory Agent T-117). The folder itself stays protected.
+    try { if (process.env.CLAUDE_CODE_TMPDIR) deleteRoots = [...deleteRoots, ...checkDeleteRoots([process.env.CLAUDE_CODE_TMPDIR])]; } catch { /* nothing added */ }
     reason = checkDestructive(command, { toolName: payload.tool_name, cwd: payload.cwd ?? process.cwd(), root, deleteRoots });
   } catch (e) {
     if (mentionsDelete(command)) reason = `NAC destructive-command guard: the guard could not check this command (${e.message}). Ask the lead, who asks the owner.`;
