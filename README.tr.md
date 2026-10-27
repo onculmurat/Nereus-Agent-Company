@@ -229,6 +229,10 @@ Sonraki oturum bir devam özetiyle başlar: aşama, süren iş (`git status` ile
 
 `team/brief.md`, `decisions.md`, `contracts/`, `research/`, `glossary.md` ve `config.json` commit'lenmek içindir. `team/work/` (pano, görev özetleri, devir notları, eskalasyonlar, posta kutusu) de commit'lenir; yalnız `team/work/packs/` (üretilen bağlam paketleri) git dışındadır. Lider bunu kendi commit'lerinde, `chore(team): <ne>`, her görev bittiğinde ve her lider rotasyonunda, açık yolları ekleyerek commit'ler; kod commit'lerine karıştırmaz. Kurulum eski `.gitignore` satırını `team/work/` yerine `team/work/packs/` yapar ve önce farkı gösterir.
 
+## 1.3.62 değişiklikleri
+
+- Kontrolleri `gateSplitSeconds` süresinden (`team/config.json`, varsayılan 500, 0 = hiç bölme) uzun süren kapı bölünür: her çalıştırma her kontrol komutunun ne kadar sürdüğünü kaydeder (`team/work/packs/gate-times.json`); sonraki `--check` verilmemiş `gate.js` hiçbir şey çalıştırmaz, `splitRequired` ve her kontrol için bir `gate.js --check <ad>` komutu döner; `--no-split` yine hepsini çalıştırır. Kapının tamamı 600 saniyelik araç süresini aşıp arka plana geçmişti (Memory Agent T-117, T-092); orada sonucu kaybolabilir (g104).
+
 ## 1.3.61 değişiklikleri
 
 - `task.js close`, ana ağaçtaki bir görevin `chore(team): <id> start` commit'inden sonraki kod commit'lerini kendisi kaydeder (sonuçta `stepCommits`); `--commit` isteğe bağlıdır ve başlangıçtan önceki bir commit'i ekler. Ekip kayıt commit'leri, merge'ler ve başka görevlerin commit'leri alınmaz; hiç commit'i olmayan kod görevi yine reddedilir. Lider T-117'nin üç commit'ini tek tek kaydetmişti (g103).
