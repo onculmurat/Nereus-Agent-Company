@@ -4,7 +4,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
-import { readBoard, updateEntry, commitsWith, rotationDue, markRotated, ROTATE_EVERY } from './board.js';
+import { readBoard, updateEntry, verifyCommit, rotationDue, markRotated, ROTATE_EVERY } from './board.js';
 import { addWorktree, removeWorktree, pruneTaskBuilds, maintenanceState, pruneTestTemp, TEST_TEMP_MIN_AGE_H } from './worktree.js';
 import { writePack } from './pack.js';
 import { commitPaths } from './commit.js';
@@ -138,7 +138,12 @@ export function closeTask(root, id, { commit, singleCommit, findings = [], leadN
       throw new Error(`finding ${i + 1} in --findings: ${err.message}; nothing was recorded`);
     }
   }
-  const commits = commit === undefined ? e.commits : commitsWith(root, id, commit);
+  // g98: --commit takes a comma-separated list; a main-tree task with step commits (T-113) recorded only one
+  let commits = e.commits;
+  for (const sha of commit === undefined ? [] : String(commit).split(',').map((s) => s.trim()).filter(Boolean)) {
+    verifyCommit(root, sha);
+    if (!commits.some((c) => c.startsWith(sha) || sha.startsWith(c))) commits = [...commits, sha];
+  }
   // done first: a refused done (deferred question, security review) must not leave findings that a second try repeats
   const entry = updateEntry(root, id, { status: 'done', commits, handoff: rel }, { singleCommit });
   const added = [];
