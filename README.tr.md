@@ -229,6 +229,10 @@ Sonraki oturum bir devam özetiyle başlar: aşama, süren iş (`git status` ile
 
 `team/brief.md`, `decisions.md`, `contracts/`, `research/`, `glossary.md` ve `config.json` commit'lenmek içindir. `team/work/` (pano, görev özetleri, devir notları, eskalasyonlar, posta kutusu) de commit'lenir; yalnız `team/work/packs/` (üretilen bağlam paketleri) git dışındadır. Lider bunu kendi commit'lerinde, `chore(team): <ne>`, her görev bittiğinde ve her lider rotasyonunda, açık yolları ekleyerek commit'ler; kod commit'lerine karıştırmaz. Kurulum eski `.gitignore` satırını `team/work/` yerine `team/work/packs/` yapar ve önce farkı gösterir.
 
+## 1.3.55 değişiklikleri
+
+- **Entegrasyon görevin commit'lerini panoya yazar** (g97): `task.js close` tek bir `--commit` aldığı için adım commit'leri olan bir worktree görevinin panoda yalnız son commit'i görünüyordu. Bu yüzden her kapanış gerekçeli bir `--single-commit` istiyordu. Memory Agent'ta T-108b, T-109b, T-109c, T-110c ve T-114 böyle kapandı; decisions.md'de bu türden 26 kayıt var. `worktree.js integrate` artık cherry-pick edilen her commit'i görevin pano kaydına ekliyor.
+
 ## 1.3.54 değişiklikleri
 
 - **Görev notu yalnız kendi devir notunu commit'ler** (g96): `task.js note --chore` bütün `team/` klasörünü commit'liyordu. Memory Agent'ta T-111'in doc-writer'ı ana ağaçta `team/spec.md` ve `team/threat-model.md` üzerinde çalışırken, liderin "T-109c note: Gate skips" commit'i bu iki dosyayı da aldı. T-111 sonra bu commit kendi commit'iymiş gibi kapandı. Not commit'i artık yalnız görevin devir notu dosyasını içeriyor.
