@@ -243,6 +243,10 @@ The next session starts with a resume summary: phase, work in progress (with `gi
 
 `team/brief.md`, `decisions.md`, `contracts/`, `research/`, `glossary.md` and `config.json` are meant to be committed. `team/work/` (board, briefs, hand-offs, escalations, mailbox) is committed too; only `team/work/packs/` (generated context packs) is git-ignored. The lead commits it in its own commits, `chore(team): <what>`, after each task is marked done and at each lead rotation, staging explicit paths and never mixing it into a code commit. Setup changes an older `.gitignore` line `team/work/` to `team/work/packs/` and shows the diff first.
 
+## Changes in 1.3.58
+
+- Every role's working rules say: stop only a process you started, by its PID; never stop processes by name (`taskkill /IM`, `pkill`, `Stop-Process -Name`) and never run load generators. Two roles tried it in one night (a CPU burner, `taskkill /F /IM python.exe`); only the auto-mode classifier stopped them (g100).
+
 ## Changes in 1.3.57
 
 - A team-state commit (`task.js close`, `team-commit.js` and the other `chore(team)` commits) retries a failed git call three times, waiting a little longer each time, so a developer's commit holding `index.lock` no longer leaves the close uncommitted. When it still fails, the warning names the git error, not the LF/CRLF warning git prints first (g99).

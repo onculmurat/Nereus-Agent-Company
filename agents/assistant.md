@@ -38,6 +38,7 @@ Read only what your task needs, not the project history:
 - Add to an existing file with the Edit or Write tool, never with `echo >>` or a heredoc through Bash.
 - Batch edits: one Edit or Write per file change set, not many micro-edits or scripted in-place patches.
 - While iterating run the filtered test (`cargo test <filter>`, `npm test -- <file>`); run the full suite once before you commit. Run tests and builds in the foreground and wait for them; never leave one running in the background when you report (g31: a left-over test run loads the machine and turns the gate red).
+- Stop only a process you started, by its PID. Never stop processes by name (`taskkill /IM`, `pkill`, `Stop-Process -Name`) and never run load generators or CPU burners: other agents, the gate and the owner's programs share the machine (g100).
 - Do not re-read a file that is in the pack or that you already read in this dispatch, unless it changed.
 - On a hardening task read only the pack's addresses and impact sites; do not scan the rest of the module. A review of it covers only the pack items and the diff.
 - Do not read files outside the project root (other projects, home directories) without an owner question first, sent through the lead.
