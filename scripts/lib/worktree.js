@@ -3,7 +3,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
-import { readBoard } from './board.js';
+import { readBoard, updateEntry } from './board.js';
 import { listProcesses } from './gate.js';
 import { parseTestTemp } from './config.js';
 
@@ -203,6 +203,13 @@ export function integrateWorktree(root, id) {
     throw new Error(`Cherry-pick conflict integrating ${branch}; the working branch is unchanged. ${e.message}`);
   }
   const added = git(root, 'rev-list', '--reverse', `HEAD~${commits.length}..HEAD`).split('\n').filter(Boolean);
+  // g97: the board records every integrated commit. close takes one --commit, so a worktree task with step commits
+  // looked like a single-commit task and each close needed --single-commit (Memory Agent: T-108b..T-114).
+  const entry = readBoard(root).entries.find((e) => e.id === id);
+  if (entry) {
+    const short = added.map((c) => git(root, 'rev-parse', '--short', c));
+    updateEntry(root, id, { commits: [...entry.commits, ...short.filter((c) => !entry.commits.some((k) => k.startsWith(c) || c.startsWith(k)))] });
+  }
   return { id, branch, commits: added };
 }
 

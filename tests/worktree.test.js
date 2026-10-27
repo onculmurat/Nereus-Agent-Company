@@ -7,6 +7,7 @@ import { spawnSync, execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { addWorktree, integrateWorktree, removeWorktree, worktreePath } from '../scripts/lib/worktree.js';
 import './helpers.js';
+import { addEntry, readBoard } from '../scripts/lib/board.js';
 
 const pluginRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const cli = path.join(pluginRoot, 'scripts', 'worktree.js');
@@ -60,6 +61,19 @@ test('integrate cherry-picks the task commits onto the working branch in order',
   assert.deepEqual(git(root, 'log', '--format=%s', '-3').split('\n'), ['task commit two', 'task commit one', 'meanwhile on main']);
   assert.ok(fs.existsSync(path.join(root, 'one.txt')) && fs.existsSync(path.join(root, 'two.txt')));
   assert.deepEqual(r.commits, git(root, 'log', '--format=%H', '-2', '--reverse').split('\n'));
+});
+
+// Seen live (Memory Agent, g97): T-108b, T-109b, T-109c, T-110c and T-114 integrated 2-4 step commits each, the board
+// recorded only the --commit given at close, and every close needed --single-commit.
+test('integrate records the integrated commits on the board entry (g97)', () => {
+  const { root, git } = repo();
+  addEntry(root, { id: 'T-9', title: 'steps', owner: 'backend-developer', model: 'sonnet' });
+  const wt = addWorktree(root, 'T-9');
+  commitIn(git, wt.path, 'one.txt', '1\n', 'step one');
+  commitIn(git, wt.path, 'two.txt', '2\n', 'step two');
+  integrateWorktree(root, 'T-9');
+  const recorded = readBoard(root).entries.find((e) => e.id === 'T-9').commits;
+  assert.deepEqual(recorded, git(root, 'log', '--format=%h', '-2', '--reverse').split('\n'));
 });
 
 test('a conflicting integrate is aborted and leaves the working branch clean', () => {
