@@ -33,7 +33,11 @@ const OWNER_DIRECT = /owner direct:/i;
 // the flag keeps a crate from ever being published, so it is not the owner's action.
 // g83: Q-198 ("the production path runs the same release code the tests prove", about freeing index.db and its lock)
 // was refused as a release; releasing a handle, a lock, a file or memory is not the owner's action.
+// g105: Q-223 (phase 6 plan) listed "main'e merge ayri owner onayi (D-034)" as an item it does not decide and was refused
+// as a merge; a merge named as needing a separate owner OK, or as staying with the owner, is not the owner's action here.
 const NOUN_USE = new RegExp([
+  String.raw`\bmerge\b[^.;\n]{0,40}?\b(?:ayr[ıi]|separate)\s+(?:owner|kullan[ıi]c[ıi]|sahip)\w*\s*(?:onay|ok\b|approval|decision|karar)\w*`,
+  String.raw`\bmerge\b[^.;\n]{0,40}?\b(?:needs|requires|waits for|stays with|goes to)\s+(?:an?\s+|the\s+)?(?:separate\s+)?owner(?:'s)?\b(?:\s+(?:ok|approval|decision))?`,
   String.raw`\breleases?\s+(?:the\s+|its\s+|their\s+|all\s+)?(?:file\s+)?(?:handles?|locks?|files?|resources?|memory|connections?|mutex(?:es)?|guards?|index\.db|index\.lock)\b`,
   String.raw`\brelease\s+(?:code|path|logic|hooks?)\b`,
   String.raw`\b(?:pre-?)?(?:release|publish|deploy)(?:-| )(?:tasks?|work|group|phase|notes?|blockers?|checklist|plan|candidates?|scope|docs?|pipeline|matrix|criteria|readiness|risks?)\b`,

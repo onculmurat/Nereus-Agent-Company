@@ -229,6 +229,10 @@ Sonraki oturum bir devam özetiyle başlar: aşama, süren iş (`git status` ile
 
 `team/brief.md`, `decisions.md`, `contracts/`, `research/`, `glossary.md` ve `config.json` commit'lenmek içindir. `team/work/` (pano, görev özetleri, devir notları, eskalasyonlar, posta kutusu) de commit'lenir; yalnız `team/work/packs/` (üretilen bağlam paketleri) git dışındadır. Lider bunu kendi commit'lerinde, `chore(team): <ne>`, her görev bittiğinde ve her lider rotasyonunda, açık yolları ekleyerek commit'ler; kod commit'lerine karıştırmaz. Kurulum eski `.gitignore` satırını `team/work/` yerine `team/work/packs/` yapar ve önce farkı gösterir.
 
+## 1.3.63 değişiklikleri
+
+- Vekil, merge'ü yalnız ayrı kullanıcı onayı gereken ya da kullanıcıda kalan bir iş olarak anan soruya karar verebilir ("merge to main needs a separate owner OK", "main'e merge ayrı owner onayı"). Faz 6 planı sorusu main'e merge'ü kullanıcıda kalan bir madde olarak saydı, vekil kararı merge sanılıp reddedildi ve lider kullanıcı için kutuda bekledi. Merge'ün kendisini soran soru yine kullanıcıya gider (g105).
+
 ## 1.3.62 değişiklikleri
 
 - Kontrolleri `gateSplitSeconds` süresinden (`team/config.json`, varsayılan 500, 0 = hiç bölme) uzun süren kapı bölünür: her çalıştırma her kontrol komutunun ne kadar sürdüğünü kaydeder (`team/work/packs/gate-times.json`); sonraki `--check` verilmemiş `gate.js` hiçbir şey çalıştırmaz, `splitRequired` ve her kontrol için bir `gate.js --check <ad>` komutu döner; `--no-split` yine hepsini çalıştırır. Kapının tamamı 600 saniyelik araç süresini aşıp arka plana geçmişti (Memory Agent T-117, T-092); orada sonucu kaybolabilir (g104).
