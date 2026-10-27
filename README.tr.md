@@ -229,6 +229,10 @@ Sonraki oturum bir devam özetiyle başlar: aşama, süren iş (`git status` ile
 
 `team/brief.md`, `decisions.md`, `contracts/`, `research/`, `glossary.md` ve `config.json` commit'lenmek içindir. `team/work/` (pano, görev özetleri, devir notları, eskalasyonlar, posta kutusu) de commit'lenir; yalnız `team/work/packs/` (üretilen bağlam paketleri) git dışındadır. Lider bunu kendi commit'lerinde, `chore(team): <ne>`, her görev bittiğinde ve her lider rotasyonunda, açık yolları ekleyerek commit'ler; kod commit'lerine karıştırmaz. Kurulum eski `.gitignore` satırını `team/work/` yerine `team/work/packs/` yapar ve önce farkı gösterir.
 
+## 1.3.57 değişiklikleri
+
+- Ekip durumu commit'i (`task.js close`, `team-commit.js` ve diğer `chore(team)` commit'leri) başarısız bir git çağrısını her seferinde biraz daha bekleyerek üç kez yeniden dener; böylece `index.lock`'u tutan bir geliştirici commit'i kapanışı commit'siz bırakmaz. Yine başarısız olursa uyarı, git'in önce bastığı LF/CRLF uyarısını değil asıl git hatasını gösterir (g99).
+
 ## 1.3.56 değişiklikleri
 
 - `task.js close --commit` virgülle ayrılmış liste alır (`--commit e9ee0ac,fd106d0`). Ana ağaçta adım commitleriyle yürüyen bir görev hepsini kaydeder; kapanışı artık `--single-commit` istemez (g98).
