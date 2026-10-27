@@ -243,6 +243,10 @@ The next session starts with a resume summary: phase, work in progress (with `gi
 
 `team/brief.md`, `decisions.md`, `contracts/`, `research/`, `glossary.md` and `config.json` are meant to be committed. `team/work/` (board, briefs, hand-offs, escalations, mailbox) is committed too; only `team/work/packs/` (generated context packs) is git-ignored. The lead commits it in its own commits, `chore(team): <what>`, after each task is marked done and at each lead rotation, staging explicit paths and never mixing it into a code commit. Setup changes an older `.gitignore` line `team/work/` to `team/work/packs/` and shows the diff first.
 
+## Changes in 1.3.63
+
+- The owner proxy can decide a question that names a merge only as needing a separate owner OK ("merge to main needs a separate owner OK", "main'e merge ayrı owner onayı") or as staying with the owner. The phase 6 plan question listed the merge to main as an item left with the owner, its proxy decide was refused as a merge, and the lead waited in a box for the owner. A question that asks for the merge itself still goes to the owner (g105).
+
 ## Changes in 1.3.62
 
 - A gate whose checks took longer than `gateSplitSeconds` (`team/config.json`, 500 by default, 0 = never) is split: each run records how long each check command took (`team/work/packs/gate-times.json`), and the next `gate.js` without `--check` runs nothing and returns `splitRequired` with one `gate.js --check <name>` command per check; `--no-split` runs them all anyway. The whole gate had passed the 600 s tool timeout and moved to the background (Memory Agent T-117, T-092), where its result can be lost (g104).
