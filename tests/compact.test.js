@@ -200,9 +200,9 @@ test('config validates compaction values', () => {
 test('session-start after compaction points to the latest compact handoff; a plain startup does not', () => {
   const p = cleanProject();
   pre(p, 150000);
-  const name = handoffs(p.root)[0];
+  assert.equal(handoffs(p.root).length, 1);
   const ctxOf = (source) => JSON.parse(runHook('session-start', { hook_event_name: 'SessionStart', source, session_id: 'c', cwd: p.root }, { env: NO_PLUGINS }).stdout).hookSpecificOutput.additionalContext;
-  assert.ok(ctxOf('compact').includes(`team/work/handoffs/${name}`));
+  assert.ok(ctxOf('compact').includes('team/work/handoffs/compact.md'));
   assert.ok(!ctxOf('startup').includes('Compact hand-off'));
 });
 

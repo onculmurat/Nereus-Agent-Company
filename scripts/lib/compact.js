@@ -19,7 +19,7 @@ export const DEFAULT_CEILING = 220000;
 export const DEFAULT_WINDOW = 200000;
 const TAIL_BYTES = 512 * 1024;
 const CACHE_MS = 10000;
-const HANDOFF_GLOB = 'team/work/handoffs/compact-*';
+const HANDOFF_GLOB = 'team/work/handoffs/compact*';
 
 // Tokens in the context at the last assistant message: input + cache read + cache creation. null when unknown.
 export function contextTokens(file) {
@@ -246,12 +246,18 @@ export function writeCompactHandoff(root, now = new Date(), { trigger = 'safe po
     '',
   ].join('\n');
   fs.writeFileSync(path.join(dir, name), text);
+  // g109: the lead always reads one fixed path, so a compaction re-attaches one hand-off instead of every one read before
+  fs.writeFileSync(path.join(dir, LATEST_HANDOFF), text);
   return name;
 }
 
+const LATEST_HANDOFF = 'compact.md';
+
 export function latestCompactHandoff(root) {
   try {
-    const names = fs.readdirSync(teamPaths(root).handoffs).filter((n) => /^compact-.+\.md$/.test(n)).sort();
+    const dir = teamPaths(root).handoffs;
+    if (fs.existsSync(path.join(dir, LATEST_HANDOFF))) return `team/work/handoffs/${LATEST_HANDOFF}`;
+    const names = fs.readdirSync(dir).filter((n) => /^compact-.+\.md$/.test(n)).sort();
     return names.length ? `team/work/handoffs/${names[names.length - 1]}` : null;
   } catch {
     return null;
