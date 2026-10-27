@@ -46,7 +46,8 @@ const commands = {
     need(v, 'text');
     const r = noteTask(root, id, { text: v.text, heading: v.heading });
     if (!v.chore) return r;
-    const c = commitPaths(root, ['team'], `chore(team): ${id} note${v.heading ? `: ${v.heading}` : ''}`);
+    // g96: only the hand-off the note wrote; a doc task's team/spec.md edit in progress is not this task's (T-111)
+    const c = commitPaths(root, [r.handoff], `chore(team): ${id} note${v.heading ? `: ${v.heading}` : ''}`);
     if (!c.committed) process.stderr.write(`warning: ${c.warning}
 `);
     return { ...r, commit: c.sha ?? null };

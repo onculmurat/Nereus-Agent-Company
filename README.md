@@ -243,6 +243,10 @@ The next session starts with a resume summary: phase, work in progress (with `gi
 
 `team/brief.md`, `decisions.md`, `contracts/`, `research/`, `glossary.md` and `config.json` are meant to be committed. `team/work/` (board, briefs, hand-offs, escalations, mailbox) is committed too; only `team/work/packs/` (generated context packs) is git-ignored. The lead commits it in its own commits, `chore(team): <what>`, after each task is marked done and at each lead rotation, staging explicit paths and never mixing it into a code commit. Setup changes an older `.gitignore` line `team/work/` to `team/work/packs/` and shows the diff first.
 
+## Changes in 1.3.54
+
+- **A task note commits only its own hand-off** (g96): `task.js note --chore` committed all of `team/`. In Memory Agent, T-111's doc writer was editing `team/spec.md` and `team/threat-model.md` in the main tree, and the lead's "T-109c note: Gate skips" commit took both files. T-111 was then closed with that commit as its own. The note commit now holds only the task's hand-off file.
+
 ## Changes in 1.3.53
 
 - **An answered question no longer blocks compaction** (g95): in Memory Agent, Q-207 was answered at 20:40 but never recorded, and it stayed open after its task T-110a was done. An open owner question is a hard condition, so it blocked every auto compaction up to the 220K ceiling. With a 100K window, auto compaction never ran. An open question whose `task` is done on the board is now a soft condition: the compaction hand-off lists it, and the deferral limit (`softMargin`) lets compaction run.
