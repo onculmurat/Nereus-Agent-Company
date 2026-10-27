@@ -258,6 +258,8 @@ export function runGate(root, checks, opts) {
 // (Memory Agent T-117 r2, T-092 step A: test-feature doubled the cargo test time). Each run records how long each check
 // command took (team/work/packs/gate-times.json, keyed by the command, so a scoped and a full run differ); when the
 // recorded total of the checks about to run passes gateSplitSeconds, gate.js asks for one --check per call instead.
+// g106: a task gate scopes cargo to the changed packages, so its commands had no record and T-120b's first scoped gate
+// ran whole past 600 s. Each check's last time is also kept under "@<name>" and stands in for a command never measured.
 export const DEFAULT_GATE_SPLIT_SECONDS = 500;
 const gateTimesFile = (root) => path.join(teamPaths(root).packs, 'gate-times.json');
 export function readGateTimes(root) {
@@ -267,7 +269,7 @@ export function recordGateTimes(root, checks, result) {
   const times = readGateTimes(root);
   for (const c of result.checks ?? []) {
     const command = checks.find((k) => k.name === c.name)?.command;
-    if (command && Number.isFinite(c.tookSeconds) && !c.timedOut) times[command] = c.tookSeconds;
+    if (command && Number.isFinite(c.tookSeconds) && !c.timedOut) times[command] = times[`@${c.name}`] = c.tookSeconds;
   }
   try {
     fs.mkdirSync(path.dirname(gateTimesFile(root)), { recursive: true });
@@ -277,7 +279,8 @@ export function recordGateTimes(root, checks, result) {
 // The recorded seconds of each check, and their total; null when no check of the list has a record.
 export function expectedGateSeconds(root, checks) {
   const times = readGateTimes(root);
-  const known = checks.filter((c) => Number.isFinite(times[c.command])).map((c) => ({ name: c.name, seconds: times[c.command] }));
+  const seconds = (c) => (Number.isFinite(times[c.command]) ? times[c.command] : times[`@${c.name}`]);
+  const known = checks.filter((c) => Number.isFinite(seconds(c))).map((c) => ({ name: c.name, seconds: seconds(c) }));
   return known.length ? { total: known.reduce((n, c) => n + c.seconds, 0), checks: known } : null;
 }
 
