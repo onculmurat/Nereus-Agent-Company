@@ -216,3 +216,32 @@ test('session-start hints --compaction only once the guard block is there and th
   fs.writeFileSync(path.join(p.root, '.claude', 'settings.json'), '{"autoCompactWindow":200000}');
   assert.doesNotMatch(ctxOf(), /--compaction/);
 });
+
+// Seen live (Memory Agent, 10-27 21:05-22:46): non-blocking proxy questions were open the whole time, held every auto
+// compaction back as hard, and the lead went from 100k to 161k tokens while it kept starting tasks.
+test('g108: a non-blocking open question is soft; a blocking one stays hard', () => {
+  const p = cleanProject();
+  addQuestion(p.root, { title: 'q?', source: 's', status: 'st', impact: 'i', blocking: 'no' });
+  commitAll(p);
+  const c = compactConditions(p.root);
+  assert.deepEqual(c.hard, []);
+  assert.match(c.soft.join(' '), /non-blocking/);
+  const p2 = cleanProject();
+  addQuestion(p2.root, { title: 'q?', source: 's', status: 'st', impact: 'i', blocking: 'yes' });
+  commitAll(p2);
+  assert.match(compactConditions(p2.root).hard.join(' '), /not answered yet/);
+});
+
+test('g108: a held auto compaction refuses task start until a compaction runs', async () => {
+  const { startTask } = await import('../scripts/lib/task.js');
+  const { compactionHeld } = await import('../scripts/lib/compact.js');
+  const p = cleanProject();
+  const next = addEntry(p.root, { title: 'next task', owner: 'backend-developer', model: 'sonnet' });
+  addQuestion(p.root, { title: 'q?', source: 's', status: 'st', impact: 'i', blocking: 'yes' });
+  commitAll(p);
+  assert.equal(pre(p, 150000).status, 2);
+  assert.equal(compactionHeld(p.root).tokens, 150000);
+  assert.throws(() => startTask(p.root, next.id, { singleCommit: 'x' }), /compaction is held back at 150000 tokens \(g108\)/);
+  assert.equal(pre(p, 150000, { trigger: 'manual' }).status, 0);
+  assert.equal(compactionHeld(p.root), null);
+});

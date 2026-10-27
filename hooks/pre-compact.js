@@ -3,7 +3,7 @@
 // Manual compaction always runs (and leaves an honest hand-off). Fast and fail-open: any problem allows the compaction.
 import { runHook, pluginRoot } from '../scripts/lib/hookio.js';
 import { loadConfig } from '../scripts/lib/config.js';
-import { contextTokens, compactDecision, writeCompactHandoff, DEFAULT_CEILING } from '../scripts/lib/compact.js';
+import { contextTokens, compactDecision, writeCompactHandoff, markCompactionHeld, DEFAULT_CEILING } from '../scripts/lib/compact.js';
 
 runHook(async (payload, root) => {
   if (payload.agent_id || payload.agent_type) return;
@@ -16,6 +16,9 @@ runHook(async (payload, root) => {
   if (tokens >= ceiling) return void writeCompactHandoff(root, new Date(), { trigger: 'ceiling', tokens, ceiling });
   // g32: soft conditions defer it by compaction.softMargin tokens at most; an open owner question up to the ceiling
   const d = compactDecision(payload.session_id, root, tokens, compaction?.softMargin === undefined ? {} : { softMargin: compaction.softMargin });
-  if (d.block) return { block: `NAC: compaction deferred (${tokens} of ${ceiling} tokens). ${d.block}` };
+  if (d.block) {
+    markCompactionHeld(root, { tokens, reason: d.block });
+    return { block: `NAC: compaction deferred (${tokens} of ${ceiling} tokens). ${d.block} Start no new task until it has run (g108).` };
+  }
   writeCompactHandoff(root, new Date(), { trigger: d.allow });
 });

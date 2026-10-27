@@ -87,8 +87,12 @@ export function compactConditions(root) {
   // shipped and held every auto compaction back for hours; it is soft, so the deferral limit lets compaction run.
   const doneIds = new Set(board.entries.filter((e) => e.status === 'done').map((e) => e.id));
   const stale = open.filter((q) => q.task && doneIds.has(q.task));
-  const waiting = open.filter((q) => !stale.includes(q));
+  // g108: a non-blocking question is on disk and survives the compaction; as hard it held Memory Agent's lead from
+  // 100k to 161k tokens (Q-227..Q-237, 10-27) while the lead kept starting work. Only a blocking question is hard now.
+  const nonBlocking = open.filter((q) => !stale.includes(q) && q.blocking === 'no');
+  const waiting = open.filter((q) => !stale.includes(q) && !nonBlocking.includes(q));
   if (stale.length) soft.push(`${stale.map((q) => `${q.id} (${q.task} is done)`).join(', ')} still open; record the answer with decisions.js decide.`);
+  if (nonBlocking.length) soft.push(`${nonBlocking.map((q) => q.id).join(', ')} not answered yet (non-blocking question, recorded in decisions.md).`);
   const hard = waiting.length ? [`${waiting.length} owner question(s) not answered yet (${waiting.map((q) => q.id).join(', ')}); ask or answer them first.`] : [];
   return { soft, hard };
 }
@@ -132,6 +136,25 @@ function cachedConditions(sessionId, root, now) {
 // compaction runs with trigger 'deferral limit'. Returns { block: reason } or { allow: trigger }.
 export const DEFAULT_SOFT_MARGIN = 20000;
 const deferFile = (sessionId) => path.join(os.tmpdir(), `nac-precompact-defer-${String(sessionId).replace(/[^A-Za-z0-9_-]/g, '_')}.json`);
+
+// g108: while an auto compaction is held back, the lead must not start new work (task.js start refuses); the hold is
+// kept per project and cleared when a compaction runs. Older than HELD_MAX_MS it is ignored (a crashed session).
+const HELD_MAX_MS = 6 * 3600 * 1000;
+const heldFile = (root) => path.join(os.tmpdir(), `nac-compact-held-${path.resolve(root).replace(/[^A-Za-z0-9_-]/g, '_')}.json`);
+export function markCompactionHeld(root, { tokens, reason, now = Date.now() }) {
+  try { fs.writeFileSync(heldFile(root), JSON.stringify({ tokens, reason, time: now })); } catch { /* best effort */ }
+}
+export function clearCompactionHeld(root) {
+  try { fs.rmSync(heldFile(root), { force: true }); } catch { /* best effort */ }
+}
+export function compactionHeld(root, now = Date.now()) {
+  try {
+    const h = JSON.parse(fs.readFileSync(heldFile(root), 'utf8'));
+    return now - h.time < HELD_MAX_MS ? h : null;
+  } catch {
+    return null;
+  }
+}
 
 export function compactDecision(sessionId, root, tokens, { softMargin = DEFAULT_SOFT_MARGIN, now = Date.now() } = {}) {
   const { soft, hard } = cachedConditions(sessionId, root, now);
@@ -188,6 +211,7 @@ function inFlightLines(root) {
 // (soft conditions deferred it as long as allowed, g32) or 'manual'.
 // The header states the real trigger and, unless it is a verified safe point, the conditions that were not met.
 export function writeCompactHandoff(root, now = new Date(), { trigger = 'safe point', tokens, ceiling } = {}) {
+  clearCompactionHeld(root);
   const dir = teamPaths(root).handoffs;
   fs.mkdirSync(dir, { recursive: true });
   const pad = (n) => String(n).padStart(2, '0');
