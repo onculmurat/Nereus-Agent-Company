@@ -229,6 +229,10 @@ Sonraki oturum bir devam özetiyle başlar: aşama, süren iş (`git status` ile
 
 `team/brief.md`, `decisions.md`, `contracts/`, `research/`, `glossary.md` ve `config.json` commit'lenmek içindir. `team/work/` (pano, görev özetleri, devir notları, eskalasyonlar, posta kutusu) de commit'lenir; yalnız `team/work/packs/` (üretilen bağlam paketleri) git dışındadır. Lider bunu kendi commit'lerinde, `chore(team): <ne>`, her görev bittiğinde ve her lider rotasyonunda, açık yolları ekleyerek commit'ler; kod commit'lerine karıştırmaz. Kurulum eski `.gitignore` satırını `team/work/` yerine `team/work/packs/` yapar ve önce farkı gösterir.
 
+## 1.3.67 değişiklikleri
+
+- Her sıkıştırma devir notu ayrıca `team/work/handoffs/compact.md` dosyasına yazılır; sıkıştırma sonrası SessionStart lideri oraya yönlendirir. Lider tek bir sabit yolu okur, böylece sıkıştırma önceden okunan her tarihli notu değil yalnız birini geri ekler. Tarihli kopyalar geçmiş olarak kalır. Memory Agent te sıkıştırma sonrası ilk çağrı önceki üç devir notunu taşıyordu (g109).
+
 ## 1.3.66 değişiklikleri
 
 - Engellemeyen açık soru liderin otomatik sıkıştırmasını artık tavana kadar tutmaz; diğer yumuşak koşullar gibi softMargin kadar erteler. Yalnız engelleyen soru serttir. NAC otomatik sıkıştırmayı tutarken `task.js start` sıkıştırma çalışana kadar yeni işi reddeder. Memory Agent lideri vekil soruları açıkken 100k dan 161k token a çıktı ve görev başlatmayı sürdürdü (g108).
