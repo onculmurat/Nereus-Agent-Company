@@ -243,6 +243,10 @@ The next session starts with a resume summary: phase, work in progress (with `gi
 
 `team/brief.md`, `decisions.md`, `contracts/`, `research/`, `glossary.md` and `config.json` are meant to be committed. `team/work/` (board, briefs, hand-offs, escalations, mailbox) is committed too; only `team/work/packs/` (generated context packs) is git-ignored. The lead commits it in its own commits, `chore(team): <what>`, after each task is marked done and at each lead rotation, staging explicit paths and never mixing it into a code commit. Setup changes an older `.gitignore` line `team/work/` to `team/work/packs/` and shows the diff first.
 
+## Changes in 1.3.61
+
+- `task.js close` records a main-tree task's code commits since its `chore(team): <id> start` commit by itself (`stepCommits` in the result); `--commit` is optional and adds a commit from before the start. Commits of team bookkeeping, merges and other tasks are left out, and a code task with no commit is still refused. The lead had recorded T-117's three commits one by one (g103).
+
 ## Changes in 1.3.60
 
 - The gate result names the skipped tests in `skippedTests` (cargo `... ignored`, node `# SKIP`/`# TODO`, pytest `SKIPPED`), not only their count. The hand-off needs a reason for each skip, and the saved tail named no test, so the lead had to ask a developer to find it (g102).
