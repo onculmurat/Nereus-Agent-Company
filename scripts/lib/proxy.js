@@ -12,7 +12,7 @@ export function proxyContext(config, today = localDate()) {
   if (p.until && p.until < today) {
     return `## Owner proxy\n\nThe owner proxy ${p.session} expired on ${p.until}. Ask the owner directly.`;
   }
-  return `## Owner proxy\n\nThe owner set ${p.session} as owner proxy in team/config.json (${p.until ? `until ${p.until}` : 'open-ended'}). Send every owner-decision question to it with SendMessage (thread owner-proxy) instead of AskUserQuestion, the flush groups included; register it with \`decisions.js ask\` first as always. Its reply is a proxy decision under the owner's written delegation (team/config.json and the owner-proxy block in CLAUDE.md): record it with \`decisions.js decide <Q> --by proxy\`, never as the owner's own words. If the permission system refuses one proxy decide, leave that question open for the owner, go on with work that does not depend on it, and still record the next proxy answer with --by proxy. Still ask the owner directly for push, merge into the main branch, deploy, publish and deleting the owner's data. When ListAgents does not show ${p.session}, ask the owner as usual. The owner can override any proxy decision.`;
+  return `## Owner proxy\n\nThe owner set ${p.session} as owner proxy in team/config.json (${p.until ? `until ${p.until}` : 'open-ended'}). Send every owner-decision question to it with SendMessage (thread owner-proxy) instead of AskUserQuestion, the flush groups included; register it with \`decisions.js ask\` first as always. Its reply is a proxy decision under the owner's written delegation (team/config.json and the owner-proxy block in CLAUDE.md): record it with \`decisions.js decide <Q> --by proxy\`, never as the owner's own words. If the permission system refuses one proxy decide, leave that question open for the owner, go on with work that does not depend on it, and still record the next proxy answer with --by proxy. ${fullProxy(p, today) ? `Full proxy until ${p.until} (g110): the owner also hands it merge into the main branch, spending and irreversible go-steps and deleting data; record those with --by proxy too and open no box for them. Still ask the owner directly only for push, deploy and publish.` : "Still ask the owner directly for push, merge into the main branch, deploy, publish and deleting the owner's data."} When ListAgents does not show ${p.session}, ask the owner as usual. The owner can override any proxy decision.`;
 }
 
 // g47: after a compaction the lead opened an AskUserQuestion box although ownerProxy was set; the proxy's SendMessage
@@ -24,6 +24,12 @@ export function proxyContext(config, today = localDate()) {
 const DELETE_DATA = /\b(delete|remove|wipe|purge|drop|rm)\b[^.;\n]{0,40}\b(data|files?|folders?|director(?:y|ies)|branch(?:es)?|repo(?:sitory)?|database|backups?|history)\b(?!-)|\b(veri|dosya|klas[öo]r|dal|depo|yedek|veritaban|ge[çc]mi[şs])\w*\b[^.;\n]{0,40}\bsil/;
 export const OWNER_ONLY = new RegExp(String.raw`\b(push|merge|deploy|publish|release)\b|yay[ıi]n|canl[ıi]ya|${DELETE_DATA.source}`, 'i');
 const OWNER_DIRECT = /owner direct:/i;
+// g110: with ownerProxy.full (always time-bound) the owner hands the proxy every question for a night; only push, deploy
+// and publish stay with the owner. Memory Agent 10-28: the owner gave the night answers to the proxy, the lead still
+// opened boxes for merge and the live bench, and the owner said a night box stops the work.
+export const OWNER_KEEPS_FULL = /\b(push|deploy|publish|release)\b|yay[ıi]n|canl[ıi]ya/i;
+const fullProxy = (p, today) => p?.full === true && typeof p.until === 'string' && p.until >= today;
+const ownerKeeps = (p, today, text) => (fullProxy(p, today) ? OWNER_KEEPS_FULL.exec(String(text ?? '').replace(NOUN_USE, ' ')) : ownerOnlyMatch(text));
 // g68: the action words also matched as nouns (Q-188: "before the release tasks T-062 to T-067"); the proxy answer to
 // a planning question was refused and the owner had to answer it. A release, publish or deploy that names work, a
 // phase or a time ("release tasks", "before release", "yayın görevleri", "yayından önce") is not the owner's action.
@@ -60,8 +66,8 @@ export function checkAskUser(config, input, today = localDate()) {
   const p = config.ownerProxy;
   if (!p || (p.until && p.until < today)) return undefined;
   const text = (input?.questions ?? []).map((q) => `${q?.header ?? ''} ${q?.question ?? ''}`).join('\n');
-  if (ownerOnlyMatch(text) || OWNER_DIRECT.test(text)) return undefined;
-  return { block: `NAC proxy guard (g47): the owner set ${p.session} as owner proxy, and an AskUserQuestion box waits for a key press the proxy cannot give. Register the question with decisions.js ask, send it to ${p.session} by SendMessage (thread owner-proxy) and end your turn; the answer arrives as a message. Push, merge, deploy, publish and deleting the owner's data still go to the owner in a box. When ListAgents does not show ${p.session}, start the question text with "Owner direct: <reason>".` };
+  if (ownerKeeps(p, today, text) || OWNER_DIRECT.test(text)) return undefined;
+  return { block: `NAC proxy guard (g47): the owner set ${p.session} as owner proxy, and an AskUserQuestion box waits for a key press the proxy cannot give. Register the question with decisions.js ask, send it to ${p.session} by SendMessage (thread owner-proxy) and end your turn; the answer arrives as a message. ${fullProxy(p, today) ? `Full proxy until ${p.until} (g110): only push, deploy and publish still go to the owner in a box.` : "Push, merge, deploy, publish and deleting the owner's data still go to the owner in a box."} When ListAgents does not show ${p.session}, start the question text with "Owner direct: <reason>".` };
 }
 
 // g49: the lead recorded a proxy answer as the owner's own approval; the auto-mode classifier refused it, and from then
@@ -71,8 +77,9 @@ export function proxyDecideProblem(config, question, today = localDate()) {
   const p = config.ownerProxy;
   if (!p) return 'no ownerProxy is set in team/config.json; the owner answers this question';
   if (p.until && p.until < today) return `the owner proxy ${p.session} expired on ${p.until}; the owner answers this question`;
-  if (question.irreversible === 'yes') return 'an irreversible or spending go-step stays with the owner';
-  const owner = ownerOnlyMatch(`${question.title ?? ''} ${question.source ?? ''} ${question.impact ?? ''}`);
-  if (owner) return `push, merge, deploy, publish and deleting the owner's data stay with the owner (matched "${owner[0]}")`;
+  const full = fullProxy(p, today);
+  if (question.irreversible === 'yes' && !full) return 'an irreversible or spending go-step stays with the owner';
+  const owner = ownerKeeps(p, today, `${question.title ?? ''} ${question.source ?? ''} ${question.impact ?? ''}`);
+  if (owner) return full ? `push, deploy and publish stay with the owner under the full proxy (matched "${owner[0]}")` : `push, merge, deploy, publish and deleting the owner's data stay with the owner (matched "${owner[0]}")`;
   return undefined;
 }

@@ -243,6 +243,10 @@ The next session starts with a resume summary: phase, work in progress (with `gi
 
 `team/brief.md`, `decisions.md`, `contracts/`, `research/`, `glossary.md` and `config.json` are meant to be committed. `team/work/` (board, briefs, hand-offs, escalations, mailbox) is committed too; only `team/work/packs/` (generated context packs) is git-ignored. The lead commits it in its own commits, `chore(team): <what>`, after each task is marked done and at each lead rotation, staging explicit paths and never mixing it into a code commit. Setup changes an older `.gitignore` line `team/work/` to `team/work/packs/` and shows the diff first.
 
+## Changes in 1.3.68
+
+- `setup.js --proxy <session> --until <date> --full` sets a full owner proxy (`ownerProxy.full`, always time-bound). It also decides merge into the main branch, spending and irreversible go-steps and deleting data, and the lead opens no owner box for them. Push, deploy and publish stay with the owner. In Memory Agent the owner gave the night answers to the proxy and went to sleep; the lead still opened boxes for merge and the live bench (g110).
+
 ## Changes in 1.3.67
 
 - Every compact hand-off is also written to `team/work/handoffs/compact.md`, and SessionStart after a compaction points the lead there. The lead reads one fixed path, so a compaction re-attaches one hand-off instead of each timestamped one read before. The timestamped copies stay as history. In Memory Agent the first call after a compaction carried three earlier hand-offs (g109).

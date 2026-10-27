@@ -24,7 +24,8 @@ const usage = `Usage:
   node setup.js [--project <dir>] --permissions [--dry-run]   adds only the allow rules for team-commit.js and task.js to .claude/settings.json (g27, g33),
                                          keeps formatting and commits that one file as chore(nac). The owner runs it as
                                          "! node <path>/scripts/setup.js --permissions": the classifier blocks the lead from editing its permissions.
-  node setup.js [--project <dir>] --proxy <session> [--until YYYY-MM-DD] [--dry-run]   sets the owner proxy in team/config.json (g29)
+  node setup.js [--project <dir>] --proxy <session> [--until YYYY-MM-DD [--full]] [--dry-run]   sets the owner proxy in team/config.json (g29);
+                                         --full (g110, needs --until) also hands it merge, spending, irreversible steps and deleting data
                                          and commits that one file; --proxy off removes it. Every lead session then sends owner
                                          questions to that session by SendMessage instead of AskUserQuestion. The owner runs it with "!".
   node setup.js --global-model-pointer [--claude-md <file>]
@@ -59,6 +60,7 @@ runCli(
     permissions: { type: 'boolean' },
     proxy: { type: 'string' },
     until: { type: 'string' },
+    full: { type: 'boolean' },
   },
   ({ values }) => {
     const claudeMd = values['claude-md'] ?? path.join(os.homedir(), '.claude', 'CLAUDE.md');
@@ -86,7 +88,8 @@ runCli(
     if (values.proxy !== undefined) {
       const root = path.resolve(values.project ?? process.cwd());
       if (values.proxy === 'off' && values.until !== undefined) throw new UsageError('--until goes with a proxy session, not with off.');
-      const plan = planProxy(root, { session: values.proxy, until: values.until });
+      if (values.full && (values.proxy === 'off' || values.until === undefined)) throw new UsageError('--full needs a proxy session and --until: a full proxy is always time-bound (g110).');
+      const plan = planProxy(root, { session: values.proxy, until: values.until, full: values.full });
       validateConfig({ ...loadConfig({ pluginRoot, projectRoot: root }), ownerProxy: plan.after.ownerProxy });
       const changed = JSON.stringify(plan.before) !== JSON.stringify(plan.after) || plan.extra.some((x) => x.before !== x.after);
       const what = plan.after.ownerProxy ? `ownerProxy ${JSON.stringify(plan.after.ownerProxy)}` : 'no ownerProxy';

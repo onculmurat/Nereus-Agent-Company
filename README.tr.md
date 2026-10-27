@@ -229,6 +229,10 @@ Sonraki oturum bir devam özetiyle başlar: aşama, süren iş (`git status` ile
 
 `team/brief.md`, `decisions.md`, `contracts/`, `research/`, `glossary.md` ve `config.json` commit'lenmek içindir. `team/work/` (pano, görev özetleri, devir notları, eskalasyonlar, posta kutusu) de commit'lenir; yalnız `team/work/packs/` (üretilen bağlam paketleri) git dışındadır. Lider bunu kendi commit'lerinde, `chore(team): <ne>`, her görev bittiğinde ve her lider rotasyonunda, açık yolları ekleyerek commit'ler; kod commit'lerine karıştırmaz. Kurulum eski `.gitignore` satırını `team/work/` yerine `team/work/packs/` yapar ve önce farkı gösterir.
 
+## 1.3.68 değişiklikleri
+
+- `setup.js --proxy <oturum> --until <tarih> --full` tam vekil kurar (`ownerProxy.full`, her zaman süreli). Vekil ana dala merge, harcama ve geri alınamaz adımlar ile veri silmeyi de karara bağlar; lider bunlar için kullanıcı kutusu açmaz. Push, deploy ve yayın kullanıcıda kalır. Memory Agent te kullanıcı gece cevaplarını vekile verip uyudu; lider yine de merge ve canlı bench için kutu açtı (g110).
+
 ## 1.3.67 değişiklikleri
 
 - Her sıkıştırma devir notu ayrıca `team/work/handoffs/compact.md` dosyasına yazılır; sıkıştırma sonrası SessionStart lideri oraya yönlendirir. Lider tek bir sabit yolu okur, böylece sıkıştırma önceden okunan her tarihli notu değil yalnız birini geri ekler. Tarihli kopyalar geçmiş olarak kalır. Memory Agent te sıkıştırma sonrası ilk çağrı önceki üç devir notunu taşıyordu (g109).
