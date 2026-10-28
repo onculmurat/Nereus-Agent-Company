@@ -53,7 +53,9 @@ const NOUN_USE = new RegExp([
   String.raw`\b(?:before|after|until|ahead of|for|toward|towards|in|of|from)\s+(?:the\s+|an?\s+)?(?:first\s+|free\s+|paid\s+|pro\s+|v?\d[\w.]*\s+)?(?:release|publish|deploy)\b`,
   // g112: Q-243 ("an assertion in the release smoke would fail the free release") was refused as a release; a release a
   // test would fail or break names the product, not the owner's action.
-  String.raw`\b(?:fails?|breaks?|blocks?)\s+(?:the\s+|an?\s+)?(?:first\s+|free\s+|paid\s+|pro\s+)?release\b`,
+  // g113: Q-245 ("a larger masker change that would delay the free release") was refused the same way; a release a change
+  // delays, holds up or puts at risk is the product too.
+  String.raw`\b(?:fail|break|block|delay|postpone|slow|hold\s+(?:up|back)|risk|affect|endanger)(?:s|ed|ing)?\s+(?:up\s+)?(?:the\s+|an?\s+)?(?:first\s+|free\s+|paid\s+|pro\s+)?release\b`,
   String.raw`\bpre-?release\b`,
   String.raw`\bpublish\s*=\s*(?:false|\[\s*\])`,
   String.raw`\b(?:before|after|until|on|without)\s+(?:an?\s+|the\s+|any\s+)?(?:owner(?:'s)?\s+|v?\S*\s*tag\s+)?push\b`,

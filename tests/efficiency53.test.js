@@ -20,6 +20,20 @@ test('g112: Q-243 (a release smoke assertion that would fail the free release) i
   }
 });
 
+// Seen live (Memory Agent, 10-28 09:4x): Q-245 ("a larger masker change that would delay the free release") was refused
+// the same way an hour after the g112 fix; the fix named fail/break/block only (g113).
+test('g113: Q-245 (a change that would delay the free release) is a proxy question', () => {
+  const q245 = {
+    title: 'Ship with fuzz seed iter1096 as an F-008 known limit?',
+    source: 'T-135 (masker H-16), finding F-1021',
+    impact: 'Known limit: masking that text twice can mask a little more on the second pass (over-masking, no leak). Fixing it means fixing F-008 quote parity, a larger masker change that would delay the free release.',
+  };
+  assert.equal(proxyDecideProblem(plain, q245, today), undefined);
+  for (const t of ['this delays the release', 'it would hold up the free release', 'postpones the paid release', 'risks the first release', 'affects the release']) {
+    assert.equal(ownerOnlyMatch(t), null, t);
+  }
+});
+
 test('g112: releasing and publishing are still the owner\'s action', () => {
   for (const t of ['Release the free version tonight?', 'Shall we release v0.1.0?', 'Publish the free release', 'push the tag']) {
     assert.ok(ownerOnlyMatch(t), t);
