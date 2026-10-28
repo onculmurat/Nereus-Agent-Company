@@ -243,6 +243,10 @@ The next session starts with a resume summary: phase, work in progress (with `gi
 
 `team/brief.md`, `decisions.md`, `contracts/`, `research/`, `glossary.md` and `config.json` are meant to be committed. `team/work/` (board, briefs, hand-offs, escalations, mailbox) is committed too; only `team/work/packs/` (generated context packs) is git-ignored. The lead commits it in its own commits, `chore(team): <what>`, after each task is marked done and at each lead rotation, staging explicit paths and never mixing it into a code commit. Setup changes an older `.gitignore` line `team/work/` to `team/work/packs/` and shows the diff first.
 
+## Changes in 1.3.70
+
+- The owner-proxy guard also no longer reads a release that a change would delay, hold up, postpone, put at risk or affect ("would delay the free release") as the owner's release step. One hour after 1.3.69 it still refused the proxy answer to Q-245 (g113).
+
 ## Changes in 1.3.69
 
 - The owner-proxy guard no longer takes a release named as a smoke check, an assertion or a check ("release smoke"), a release a test would fail or break ("would fail the free release"), "before a paid release" or "the release ships" for the owner's release step. In Memory Agent the guard refused the proxy answer to Q-243 (where a key-list assertion lives) and part of a task waited for the owner (g112).
