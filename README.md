@@ -243,6 +243,10 @@ The next session starts with a resume summary: phase, work in progress (with `gi
 
 `team/brief.md`, `decisions.md`, `contracts/`, `research/`, `glossary.md` and `config.json` are meant to be committed. `team/work/` (board, briefs, hand-offs, escalations, mailbox) is committed too; only `team/work/packs/` (generated context packs) is git-ignored. The lead commits it in its own commits, `chore(team): <what>`, after each task is marked done and at each lead rotation, staging explicit paths and never mixing it into a code commit. Setup changes an older `.gitignore` line `team/work/` to `team/work/packs/` and shows the diff first.
 
+## Changes in 1.3.71
+
+- `gate.js` writes the result of every run that ran checks to `resultFile` (`team/work/packs/gate-result-<id|project>[-<check>].json`, with `at`). A single check longer than the 600 s tool timeout has to run as a background shell; in Memory Agent its captured output came back cut off and the lead wrote the gate record by hand. The lead now reads the file and never writes a gate record by hand (g114).
+
 ## Changes in 1.3.70
 
 - The owner-proxy guard also no longer reads a release that a change would delay, hold up, postpone, put at risk or affect ("would delay the free release") as the owner's release step. One hour after 1.3.69 it still refused the proxy answer to Q-245 (g113).
