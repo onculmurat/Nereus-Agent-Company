@@ -229,6 +229,10 @@ Sonraki oturum bir devam özetiyle başlar: aşama, süren iş (`git status` ile
 
 `team/brief.md`, `decisions.md`, `contracts/`, `research/`, `glossary.md` ve `config.json` commit'lenmek içindir. `team/work/` (pano, görev özetleri, devir notları, eskalasyonlar, posta kutusu) de commit'lenir; yalnız `team/work/packs/` (üretilen bağlam paketleri) git dışındadır. Lider bunu kendi commit'lerinde, `chore(team): <ne>`, her görev bittiğinde ve her lider rotasyonunda, açık yolları ekleyerek commit'ler; kod commit'lerine karıştırmaz. Kurulum eski `.gitignore` satırını `team/work/` yerine `team/work/packs/` yapar ve önce farkı gösterir.
 
+## 1.3.69 değişiklikleri
+
+- Vekil bekçisi artık duman testi, assertion ya da kontrol olarak geçen yayını ("release smoke"), bir testin bozacağı yayını ("would fail the free release"), "before a paid release" ve "the release ships" ifadelerini kullanıcının yayın adımı saymaz. Memory Agent te bekçi Q-243 ün (anahtar listesi kontrolü nerede dursun) vekil cevabını reddetti, görevin bir parçası kullanıcıyı bekledi (g112).
+
 ## 1.3.68 değişiklikleri
 
 - `setup.js --proxy <oturum> --until <tarih> --full` tam vekil kurar (`ownerProxy.full`, her zaman süreli). Vekil ana dala merge, harcama ve geri alınamaz adımlar ile veri silmeyi de karara bağlar; lider bunlar için kullanıcı kutusu açmaz. Push, deploy ve yayın kullanıcıda kalır. Memory Agent te kullanıcı gece cevaplarını vekile verip uyudu; lider yine de merge ve canlı bench için kutu açtı (g110).
