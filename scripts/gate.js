@@ -51,6 +51,10 @@ const usage = `Usage:
                       recorded total of the checks to run passes gateSplitSeconds (team/config.json, default 500, 0 =
                       never), a gate without --check runs nothing and returns splitRequired, the checks and their
                       seconds and one --check command per check: not a round. --no-split runs them all anyway
+                      every run that ran checks also writes its result to resultFile
+                      (team/work/packs/gate-result-<id|project>[-<check>].json, with at): a single check that outlives the
+                      600 s tool timeout runs as a background shell, and the lead reads this file, never the cut-off
+                      stdout, and never writes a gate record by hand (g114)
 `;
 const pluginRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -119,11 +123,22 @@ runCli(usage, { task: { type: 'string' }, fix: { type: 'boolean' }, full: { type
     for (const k of ['TMP', 'TEMP', 'TMPDIR']) process.env[k] = runTmp;
   }
   try {
-    return runChecks();
+    return saveResult(runChecks());
   } finally {
     if (runTmp) {
       try { fs.rmSync(runTmp, { recursive: true, force: true, maxRetries: 3 }); } catch { /* a locked file stays; the next run has its own folder */ }
     }
+  }
+  // g114: a single check past the 600 s tool timeout (Memory Agent T-142 test-feature, 739 s) has to run as a background
+  // shell, and its captured stdout came back cut off; the lead then wrote the gate record by hand. The gate now writes
+  // its own result file, so the record is never rebuilt from memory.
+  function saveResult(result) {
+    const file = path.join(root, 'team', 'work', 'packs', `gate-result-${values.task ?? 'project'}${only.length ? `-${only.join('+')}` : ''}.json`);
+    const saved = { ...result, resultFile: file, at: new Date().toISOString() };
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(`${file}.tmp`, JSON.stringify(saved, null, 2) + '\n');
+    fs.renameSync(`${file}.tmp`, file);
+    return saved;
   }
   function runChecks() {
   // g31: wait while another run of a check program loads the machine; report it when it outlasts gateWaitSeconds
